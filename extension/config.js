@@ -1,10 +1,51 @@
-// Set to true for development, false for production
-const DEV_MODE = true;
+// Configuration file for JobSchedule extension
+// This file can be modified during the build process to switch environments
 
-const API_BASE_URL = DEV_MODE 
-  ? 'http://localhost:3000/api' 
-  : 'https://your-production-api.com/api';
+const CONFIG = {
+  // Environment: 'development' or 'production'
+  ENVIRONMENT: 'development',
+  
+  // API Configuration
+  API: {
+    development: {
+      BASE_URL: 'http://localhost:3000/api',
+      USE_TEST_ENDPOINTS: true,
+      DEBUG_MODE: true,
+      ALLOW_DEV_ENDPOINTS: true
+    },
+    production: {
+      BASE_URL: 'https://your-production-api.com/api',
+      USE_TEST_ENDPOINTS: false,
+      DEBUG_MODE: false,
+      ALLOW_DEV_ENDPOINTS: false
+    }
+  },
+  
+  // Security Settings
+  SECURITY: {
+    MAX_TEXT_LENGTH: 500,
+    MAX_HTML_LENGTH: 2000,
+    MAX_URL_LENGTH: 500,
+    ALLOWED_PROTOCOLS: ['http:', 'https:']
+  },
+  
+  // LinkedIn Configuration
+  LINKEDIN: {
+    ALLOWED_DOMAINS: [
+      'linkedin.com',
+      'www.linkedin.com'
+    ],
+    ALLOWED_PATHS: [
+      '/jobs/',
+      '/job/'
+    ]
+  }
+};
 
-const USE_TEST_ENDPOINTS = DEV_MODE;
-
-export { API_BASE_URL, USE_TEST_ENDPOINTS }; 
+// Export for use in other files
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = CONFIG;
+} else {
+  // For browser environment
+  window.JobScheduleConfig = CONFIG;
+} 

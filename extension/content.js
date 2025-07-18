@@ -4,6 +4,101 @@ console.log("JobSchedule: Content script starting...");
 // Flag to prevent duplicate job tracking
 let isTrackingJob = false;
 
+// Input Sanitization Functions
+function sanitizeText(text) {
+  if (!text || typeof text !== 'string') return '';
+  
+  // Remove HTML tags and dangerous characters
+  return text
+    .replace(/<[^>]*>/g, '') // Remove HTML tags
+    .replace(/[<>\"'&]/g, '') // Remove dangerous characters
+    .trim()
+    .substring(0, 500); // Limit length
+}
+
+function sanitizeHTML(html) {
+  if (!html || typeof html !== 'string') return '';
+  
+  // Basic HTML sanitization - remove script tags and dangerous attributes
+  return html
+    .replace(/<script[^>]*>.*?<\/script>/gi, '') // Remove script tags
+    .replace(/<iframe[^>]*>.*?<\/iframe>/gi, '') // Remove iframe tags
+    .replace(/on\w+\s*=/gi, '') // Remove event handlers
+    .replace(/javascript:/gi, '') // Remove javascript: protocol
+    .trim()
+    .substring(0, 2000); // Limit length
+}
+
+function validateURL(url) {
+  if (!url || typeof url !== 'string') return null;
+  
+  try {
+    const parsed = new URL(url);
+    // Only allow http/https protocols
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return null;
+    }
+    return url.substring(0, 500); // Limit length
+  } catch {
+    return null;
+  }
+}
+
+// Enhanced Data Validation
+function validateJobData(jobData) {
+  const errors = [];
+  
+  if (!jobData.jobTitle || jobData.jobTitle.length < 2) {
+    errors.push('Job title too short');
+  }
+  
+  if (!jobData.company || jobData.company.length < 2) {
+    errors.push('Company name too short');
+  }
+  
+  if (jobData.jobUrl && !jobData.jobUrl.includes('linkedin.com')) {
+    errors.push('Invalid job URL');
+  }
+  
+  if (errors.length > 0) {
+    throw new Error('Validation failed: ' + errors.join(', '));
+  }
+  
+  return true;
+}
+
+// Content Integrity Verification
+async function verifyContentIntegrity(jobData) {
+  const requiredFields = ['jobTitle', 'company', 'jobUrl'];
+  const missingFields = requiredFields.filter(field => !jobData[field]);
+  
+  if (missingFields.length > 0) {
+    throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+  }
+  
+  // Verify URL is from LinkedIn
+  if (!jobData.jobUrl.includes('linkedin.com')) {
+    throw new Error('Job URL must be from LinkedIn');
+  }
+  
+  return true;
+}
+
+function sanitizeJobData(jobData) {
+  return {
+    jobTitle: sanitizeText(jobData.jobTitle) || "Unknown Position",
+    company: sanitizeText(jobData.company) || "Unknown Company",
+    location: sanitizeText(jobData.location) || "Remote",
+    description: sanitizeHTML(jobData.description) || "No description available",
+    detailedDescription: sanitizeHTML(jobData.detailedDescription) || null,
+    jobRequirements: sanitizeHTML(jobData.jobRequirements) || null,
+    jobResponsibilities: sanitizeHTML(jobData.jobResponsibilities) || null,
+    jobBenefits: sanitizeHTML(jobData.jobBenefits) || null,
+    jobUrl: validateURL(jobData.jobUrl) || window.location.href,
+    logoUrl: validateURL(jobData.logoUrl) || null
+  };
+}
+
 // Simple function to check if we're on a LinkedIn job page
 function isLinkedInJobPage() {
   return window.location.href.includes('linkedin.com/jobs/') || 
@@ -338,17 +433,38 @@ function isLinkedInJobPage() {
 function sendJobData(jobData) {
   console.log("JobSync: Sending job data to background script...");
   
-          chrome.runtime.sendMessage({
-            action: 'trackJobApplication',
-    jobData: jobData
-          }, response => {
-    console.log("JobSync: Background script response:", response);
-    if (response && response.success) {
-      showNotification('Job tracked successfully!');
-    } else {
-      showNotification('Error: ' + (response?.message || 'Failed to track job'), true);
-    }
-  });
+  try {
+    // Sanitize the job data before sending
+    const sanitizedJobData = sanitizeJobData(jobData);
+    
+    // Validate the sanitized data
+    validateJobData(sanitizedJobData);
+    
+    // Verify content integrity
+    verifyContentIntegrity(sanitizedJobData).then(() => {
+      chrome.runtime.sendMessage({
+        action: 'trackJobApplication',
+        jobData: sanitizedJobData
+      }, response => {
+        console.log("JobSync: Background script response:", response);
+        if (response && response.success) {
+          showNotification('Job tracked successfully!');
+        } else {
+          showNotification('Error: ' + (response?.message || 'Failed to track job'), true);
+        }
+        // Reset tracking flag
+        isTrackingJob = false;
+      });
+    }).catch(error => {
+      console.error("JobSync: Content integrity verification failed:", error);
+      showNotification('Error: ' + error.message, true);
+      isTrackingJob = false;
+    });
+  } catch (error) {
+    console.error("JobSync: Data validation failed:", error);
+    showNotification('Error: ' + error.message, true);
+    isTrackingJob = false;
+  }
 }
 
   // Function to show notifications

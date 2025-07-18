@@ -10,13 +10,10 @@
     "scripting"
   ],
   "host_permissions": [
-    "*://linkedin.com/jobs/*",
-    "*://www.linkedin.com/jobs/*",
-    "*://*.linkedin.com/jobs/*",
-    "http://localhost:3000/*"
+    "https://*.linkedin.com/jobs/*"
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' data: https:; connect-src 'self' https://your-production-api.com http://localhost:3000;"
+    "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' data: https:; connect-src 'self' https://your-production-api.com;"
   },
   "action": {
     "default_popup": "popup.html",
@@ -33,9 +30,7 @@
   "content_scripts": [
     {
       "matches": [
-        "*://linkedin.com/jobs/*",
-        "*://www.linkedin.com/jobs/*",
-        "*://*.linkedin.com/jobs/*"
+        "https://*.linkedin.com/jobs/*"
       ],
       "js": ["content.js"]
     }
