@@ -2,6 +2,10 @@ import { type ClassValue, clsx } from "clsx";
 import { format, parse } from "date-fns";
 import { NextApiRequest } from "next";
 import { twMerge } from "tailwind-merge";
+import crypto from "crypto";
+
+const ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET || "default_secret_key_32bytes!";
+const IV_LENGTH = 16;
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -106,3 +110,20 @@ export const getLast7Days = (dateType = "PP") => {
   }
   return dates;
 };
+
+export function encrypt(text: string): string {
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv("aes-256-cbc", Buffer.from(ENCRYPTION_SECRET, "utf-8"), iv);
+  let encrypted = cipher.update(text, "utf8", "hex");
+  encrypted += cipher.final("hex");
+  return iv.toString("hex") + ":" + encrypted;
+}
+
+export function decrypt(text: string): string {
+  const [ivHex, encrypted] = text.split(":");
+  const iv = Buffer.from(ivHex, "hex");
+  const decipher = crypto.createDecipheriv("aes-256-cbc", Buffer.from(ENCRYPTION_SECRET, "utf-8"), iv);
+  let decrypted = decipher.update(encrypted, "hex", "utf8");
+  decrypted += decipher.final("utf8");
+  return decrypted;
+}

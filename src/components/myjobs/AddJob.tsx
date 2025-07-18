@@ -75,7 +75,7 @@ export function AddJob({
     defaultValues: {
       type: Object.keys(JOB_TYPES)[0],
       dueDate: addDays(new Date(), 3),
-      status: jobStatuses[0].id,
+      status: jobStatuses && jobStatuses.length > 0 ? jobStatuses[0].id : "",
       salaryRange: "1",
     },
   });
@@ -104,7 +104,7 @@ export function AddJob({
           location: editJob.Location.id,
           type: editJob.jobType,
           source: editJob.JobSource.id,
-          status: editJob.Status.id,
+          status: editJob.Status ? editJob.Status.id : "",
           dueDate: editJob.dueDate,
           salaryRange: editJob.salaryRange,
           jobDescription: editJob.description,
@@ -123,6 +123,13 @@ export function AddJob({
     loadResumes();
   }, [loadResumes]);
 
+  // Update form default values when jobStatuses are loaded
+  useEffect(() => {
+    if (jobStatuses && jobStatuses.length > 0) {
+      setValue("status", jobStatuses[0].value);
+    }
+  }, [jobStatuses, setValue]);
+
   const setNewResumeId = (id: string) => {
     setTimeout(() => {
       setValue("resume", id);
@@ -130,26 +137,73 @@ export function AddJob({
   };
 
   function onSubmit(data: z.infer<typeof AddJobFormSchema>) {
+    // Ensure status is always set to a valid status value
+    if (!data.status && jobStatuses && jobStatuses.length > 0) {
+      data.status = jobStatuses[0].value;
+    }
+
+    // Helper to extract label and value from combobox selection
+    function extractLabelAndId(input: any, options: any[]) {
+      if (!input) return { label: '', id: undefined };
+      // If input matches an option's id or value, use that option's label
+      const found = options.find(
+        (opt) => opt.id === input || opt.value === input || opt.label === input
+      );
+      if (found) {
+        return { label: found.label, id: found.id };
+      }
+      // Otherwise, treat as new string
+      return { label: input, id: undefined };
+    }
+
+    const { label: jobTitleLabel, id: jobTitleId } = extractLabelAndId(data.title, jobTitles);
+    const { label: companyLabel, id: companyId } = extractLabelAndId(data.company, companies);
+    const { label: locationLabel, id: locationId } = extractLabelAndId(data.location, locations);
+
+    // Prepare the payload for backend
+    const payload = {
+      ...data,
+      title: jobTitleLabel,
+      company: companyLabel,
+      location: locationLabel,
+      jobTitleId: jobTitleId,
+      companyId: companyId,
+      locationId: locationId,
+    };
+
     startTransition(async () => {
-      const { success, message } = editJob
-        ? await updateJob(data)
-        : await addJob(data);
+      const result = editJob
+        ? await updateJob(payload)
+        : await addJob(payload);
+      
+      if (!result.success) {
+        if (result.requiresUpgrade) {
+          toast({
+            variant: "destructive",
+            title: "Upgrade Required!",
+            description: result.error,
+          });
+          // Don't close dialog or redirect, let user see the upgrade message
+          return;
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Error!",
+            description: result.error || result.message,
+          });
+          return;
+        }
+      }
+      
       reset();
       setDialogOpen(false);
-      if (!success) {
-        toast({
-          variant: "destructive",
-          title: "Error!",
-          description: message,
-        });
-      }
+      toast({
+        variant: "success",
+        description: `Job has been ${
+          editJob ? "updated" : "created"
+        } successfully`,
+      });
       redirect("/dashboard/myjobs");
-    });
-    toast({
-      variant: "success",
-      description: `Job has been ${
-        editJob ? "updated" : "created"
-      } successfully`,
     });
   }
 
@@ -163,12 +217,12 @@ export function AddJob({
 
   const jobAppliedChange = (applied: boolean) => {
     if (applied) {
-      form.getValues("status") === jobStatuses[0].id &&
-        setValue("status", jobStatuses[1].id);
+      form.getValues("status") === (jobStatuses && jobStatuses.length > 0 ? jobStatuses[0].value : "") &&
+        setValue("status", jobStatuses && jobStatuses.length > 1 ? jobStatuses[1].value : "");
       setValue("dateApplied", new Date());
     } else {
       resetField("dateApplied");
-      setValue("status", jobStatuses[0].id);
+      setValue("status", jobStatuses && jobStatuses.length > 0 ? jobStatuses[0].value : "");
     }
   };
 

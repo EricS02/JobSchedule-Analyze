@@ -2,6 +2,41 @@
 import prisma from "@/lib/db";
 import { handleError } from "@/lib/utils";
 import { getCurrentUser } from "@/utils/user.utils";
+import { revalidatePath } from "next/cache";
+
+// Function to fix existing jobs that should have applied=true
+export const fixAppliedJobsForJobTitles = async (): Promise<any | undefined> => {
+  try {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      throw new Error("Not authenticated");
+    }
+
+    // Update all jobs with status "applied" to have applied=true
+    const result = await prisma.job.updateMany({
+      where: {
+        userId: user.id,
+        status: "applied",
+        applied: false
+      },
+      data: {
+        applied: true
+      }
+    });
+
+    console.log(`Fixed ${result.count} jobs to have applied=true for job titles`);
+    
+    // Revalidate paths to update the UI
+    revalidatePath('/dashboard/admin');
+    revalidatePath('/dashboard');
+    
+    return { success: true, count: result.count };
+  } catch (error) {
+    const msg = "Failed to fix applied jobs for job titles. ";
+    return handleError(error, msg);
+  }
+};
 
 export const getAllJobTitles = async (): Promise<any | undefined> => {
   try {
@@ -41,24 +76,18 @@ export const getJobTitleList = async (
         },
         skip,
         take: limit,
-        ...(countBy
-          ? {
-              select: {
-                id: true,
-                label: true,
-                value: true,
-                _count: {
-                  select: {
-                    jobs: {
-                      where: {
-                        applied: true,
-                      },
-                    },
-                  },
-                },
+        select: {
+          id: true,
+          label: true,
+          value: true,
+          _count: {
+            select: {
+              jobs: {
+                where: { applied: true },
               },
-            }
-          : {}),
+            },
+          },
+        },
         orderBy: {
           jobs: {
             _count: "desc",

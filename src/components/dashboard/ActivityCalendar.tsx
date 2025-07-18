@@ -2,6 +2,8 @@
 import { ResponsiveCalendar } from "@nivo/calendar";
 import { useTheme } from "next-themes";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { useEffect, useState } from "react";
+import { format } from "date-fns";
 // make sure parent container have a defined height when using
 // responsive component, otherwise height will be 0 and
 // no chart will be rendered.
@@ -15,50 +17,74 @@ export default function ActivityCalendar({
   data: any[];
 }) {
   const { resolvedTheme } = useTheme();
-  const borderColor = resolvedTheme === "light" ? "#ffffff" : "#0e1117";
+  const isDark = resolvedTheme === "dark";
+  const emptyColor = isDark ? "#23272f" : "#eeeeee";
+  const colors = isDark
+    ? ["#0a4369", "#1976d2", "#42a5f5", "#90caf9"] // dark to light blue
+    : ["#61cdbb", "#97e3d5", "#e8c1a0", "#f47560"];
+  const borderColor = isDark ? "#2d3748" : "#ffffff";
+  // Ensure data is an array
+  const safeData = Array.isArray(data) ? data : [{ day: new Date().toISOString().split('T')[0], value: 0 }];
+  
   return (
-    <Card className="w-[100%]">
+    <Card className="w-full">
       <CardHeader>
         <CardTitle>Activity Calendar (Jobs Applied)</CardTitle>
       </CardHeader>
-      <CardContent className="h-[200px]">
-        <ResponsiveCalendar
-          data={data}
-          from={`${year}-04-02`}
-          to={`${year}-04-02`}
-          emptyColor={resolvedTheme === "light" ? "#eeeeee" : "#30363d"}
-          colors={["#90e0ef", "#48cae4", "#00b4d8", "#0096c7", "#0077b6"]}
-          minValue={2}
-          margin={{ top: 20, right: 0, bottom: 20, left: 0 }}
-          yearSpacing={40}
-          monthBorderColor={borderColor}
-          dayBorderWidth={2}
-          dayBorderColor={borderColor}
-          theme={{
-            text: {
-              fill: "#9ca3af",
-            },
-            tooltip: {
-              container: {
-                background: "#1e293b",
-                color: "#fff",
+      <CardContent className="h-[400px]">
+        <div className="w-full h-full">
+          <ResponsiveCalendar
+            data={safeData}
+            from={new Date(parseInt(year), 0, 1)}
+            to={new Date(parseInt(year), 11, 31)}
+            emptyColor={emptyColor}
+            colors={colors}
+            margin={{ top: 40, right: 40, bottom: 40, left: 40 }}
+            yearSpacing={40}
+            monthBorderColor={borderColor}
+            dayBorderWidth={2}
+            dayBorderColor={borderColor}
+            theme={{
+              text: {
+                fill: "#9ca3af",
               },
-            },
-          }}
-          legends={[
-            {
-              anchor: "bottom-right",
-              direction: "row",
-              translateY: 36,
-              itemCount: 4,
-              itemWidth: 42,
-              itemHeight: 36,
-              itemsSpacing: 14,
-              itemDirection: "right-to-left",
-            },
-          ]}
-        />
+              tooltip: {
+                container: {
+                  background: isDark ? "#1e293b" : "#fff",
+                  color: isDark ? "#fff" : "#222",
+                },
+              },
+            }}
+            legends={[
+              {
+                anchor: "bottom-right",
+                direction: "row",
+                translateY: 36,
+                itemCount: 4,
+                itemWidth: 42,
+                itemHeight: 36,
+                itemsSpacing: 14,
+                itemDirection: "right-to-left",
+              },
+            ]}
+          />
+        </div>
       </CardContent>
     </Card>
   );
+}
+
+export function FormattedDate({ date, formatString }: { date: Date, formatString: string }) {
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
+  // Only show client-side formatted date after mounting
+  if (!mounted) {
+    return <span suppressHydrationWarning>{format(new Date(date), formatString)}</span>;
+  }
+  
+  return <span>{format(new Date(date), formatString)}</span>;
 }

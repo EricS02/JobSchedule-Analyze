@@ -56,7 +56,7 @@ function EducationCard({
                 {degree}, {fieldOfStudy}
               </h3>
               <CardDescription>
-                {format(startDate, "MMM yyyy")} -{" "}
+                {startDate ? format(startDate, "MMM yyyy") : "Unknown"} -{" "}
                 {endDate ? format(endDate, "MMM yyyy") : "Present"}
                 <br />
                 {label}

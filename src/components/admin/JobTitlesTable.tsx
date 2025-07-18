@@ -77,7 +77,6 @@ function JobTitlesTable({ jobTitles, reloadJobTitles }: JobTitlesTableProps) {
         <TableHeader>
           <TableRow>
             <TableHead>Job Title</TableHead>
-            <TableHead className="hidden sm:table-cell">Value</TableHead>
             <TableHead>Jobs Applied</TableHead>
             <TableHead>Actions</TableHead>
             <TableHead>
@@ -90,12 +89,7 @@ function JobTitlesTable({ jobTitles, reloadJobTitles }: JobTitlesTableProps) {
             return (
               <TableRow key={title.id}>
                 <TableCell className="font-medium">{title.label}</TableCell>
-                <TableCell className="font-medium hidden sm:table-cell">
-                  {title.value}
-                </TableCell>
-                <TableCell className="font-medium">
-                  {title._count?.jobs}
-                </TableCell>
+                <TableCell className="font-medium">{title._count?.jobs}</TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -106,10 +100,7 @@ function JobTitlesTable({ jobTitles, reloadJobTitles }: JobTitlesTableProps) {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem
-                        className="text-red-600 cursor-pointer"
-                        onClick={() => onDeleteJobTitle(title)}
-                      >
+                      <DropdownMenuItem className="text-red-600 cursor-pointer" onClick={() => onDeleteJobTitle(title)}>
                         <Trash className="mr-2 h-4 w-4" />
                         Delete
                       </DropdownMenuItem>

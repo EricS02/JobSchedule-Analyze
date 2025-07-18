@@ -40,6 +40,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AddJob } from "./AddJob";
 import MyJobsTable from "./MyJobsTable";
 import { format } from "date-fns";
+import { useJobUpdates } from "@/hooks/useJobUpdates";
 
 type MyJobsProps = {
   statuses: JobStatus[];
@@ -59,6 +60,7 @@ function JobsContainer({
   const router = useRouter();
   const pathname = usePathname();
   const queryParams = useSearchParams();
+  const { refreshData } = useJobUpdates();
   const createQueryString = useCallback(
     (name: string, value: string) => {
       const params = new URLSearchParams(queryParams.toString());
@@ -108,7 +110,9 @@ function JobsContainer({
     if (filterKey !== "none") {
       setFilterKey("none");
     }
-  }, [loadJobs, filterKey]);
+    // Refresh the entire page data to ensure consistency
+    refreshData();
+  }, [loadJobs, filterKey, refreshData]);
 
   const onDeleteJob = async (jobId: string) => {
     const { res, success, message } = await deleteJobById(jobId);
@@ -165,6 +169,17 @@ function JobsContainer({
   useEffect(() => {
     (async () => await loadJobs(1))();
   }, [loadJobs]);
+
+  // Auto-refresh jobs every 30 seconds to catch new jobs from extension
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!loading) {
+        loadJobs(1, filterKey);
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [loadJobs, filterKey, loading]);
 
   const onFilterChange = (filterBy: string) => {
     if (filterBy === "none") {

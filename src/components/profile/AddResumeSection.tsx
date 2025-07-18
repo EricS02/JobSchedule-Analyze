@@ -19,6 +19,8 @@ import {
 import AddResumeSummary from "./AddResumeSummary";
 import AddExperience from "./AddExperience";
 import AddEducation from "./AddEducation";
+import AddTechnicalSkills from "./AddTechnicalSkills";
+import AddProjects from "./AddProjects";
 
 interface AddResumeSectionProps {
   resume: Resume;
@@ -29,6 +31,8 @@ export interface AddResumeSectionRef {
   openSummaryDialog: (s: ResumeSection) => void;
   openExperienceDialog: (s: ResumeSection) => void;
   openEducationDialog: (s: ResumeSection) => void;
+  openTechnicalSkillsDialog: (s: ResumeSection) => void;
+  openProjectsDialog: (s: ResumeSection) => void;
 }
 
 const AddResumeSection = forwardRef<AddResumeSectionRef, AddResumeSectionProps>(
@@ -37,6 +41,8 @@ const AddResumeSection = forwardRef<AddResumeSectionRef, AddResumeSectionProps>(
     const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
     const [experienceDialogOpen, setExperienceDialogOpen] = useState(false);
     const [educationDialogOpen, setEducationDialogOpen] = useState(false);
+    const [technicalSkillsDialogOpen, setTechnicalSkillsDialogOpen] = useState(false);
+    const [projectsDialogOpen, setProjectsDialogOpen] = useState(false);
     const [contactInfoToEdit, setContactInfoToEdit] =
       useState<ContactInfo | null>(null);
     const [summaryToEdit, setSummaryToEdit] = useState<ResumeSection | null>(
@@ -45,6 +51,10 @@ const AddResumeSection = forwardRef<AddResumeSectionRef, AddResumeSectionProps>(
     const [experienceToEdit, setExperienceToEdit] =
       useState<ResumeSection | null>(null);
     const [educationToEdit, setEducationToEdit] =
+      useState<ResumeSection | null>(null);
+    const [technicalSkillsToEdit, setTechnicalSkillsToEdit] =
+      useState<ResumeSection | null>(null);
+    const [projectsToEdit, setProjectsToEdit] =
       useState<ResumeSection | null>(null);
     useImperativeHandle(ref, () => ({
       openContactInfoDialog(contactInfo: ContactInfo) {
@@ -63,6 +73,14 @@ const AddResumeSection = forwardRef<AddResumeSectionRef, AddResumeSectionProps>(
         setEducationDialogOpen(true);
         setEducationToEdit({ ...educationSection });
       },
+      openTechnicalSkillsDialog(technicalSkillsSection: ResumeSection) {
+        setTechnicalSkillsDialogOpen(true);
+        setTechnicalSkillsToEdit({ ...technicalSkillsSection });
+      },
+      openProjectsDialog(projectsSection: ResumeSection) {
+        setProjectsDialogOpen(true);
+        setProjectsToEdit({ ...projectsSection });
+      },
     }));
     const summarySection = resume?.ResumeSections?.find(
       (section) => section.sectionType === SectionType.SUMMARY
@@ -79,6 +97,12 @@ const AddResumeSection = forwardRef<AddResumeSectionRef, AddResumeSectionProps>(
     const resetEducationToEdit = () => {
       setEducationToEdit(null);
     };
+    const resetTechnicalSkillsToEdit = () => {
+      setTechnicalSkillsToEdit(null);
+    };
+    const resetProjectsToEdit = () => {
+      setProjectsToEdit(null);
+    };
     const openContactInfoDialog = () => setContactInfoDialogOpen(true);
     const openSummaryDialog = () => setSummaryDialogOpen(true);
     const openExperienceDialog = () => {
@@ -92,6 +116,18 @@ const AddResumeSection = forwardRef<AddResumeSectionRef, AddResumeSectionProps>(
         resetEducationToEdit();
       }
       setEducationDialogOpen(true);
+    };
+    const openTechnicalSkillsDialog = () => {
+      if (technicalSkillsToEdit) {
+        resetTechnicalSkillsToEdit();
+      }
+      setTechnicalSkillsDialogOpen(true);
+    };
+    const openProjectsDialog = () => {
+      if (projectsToEdit) {
+        resetProjectsToEdit();
+      }
+      setProjectsDialogOpen(true);
     };
     return (
       <>
@@ -136,6 +172,18 @@ const AddResumeSection = forwardRef<AddResumeSectionRef, AddResumeSectionProps>(
               >
                 Add Education
               </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={openTechnicalSkillsDialog}
+              >
+                Add Technical Skills
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={openProjectsDialog}
+              >
+                Add Projects
+              </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -164,6 +212,18 @@ const AddResumeSection = forwardRef<AddResumeSectionRef, AddResumeSectionProps>(
           dialogOpen={educationDialogOpen}
           setDialogOpen={setEducationDialogOpen}
           educationToEdit={educationToEdit!}
+        />
+        <AddTechnicalSkills
+          resumeId={resume?.id}
+          dialogOpen={technicalSkillsDialogOpen}
+          setDialogOpen={setTechnicalSkillsDialogOpen}
+          technicalSkillsToEdit={technicalSkillsToEdit}
+        />
+        <AddProjects
+          resumeId={resume?.id}
+          dialogOpen={projectsDialogOpen}
+          setDialogOpen={setProjectsDialogOpen}
+          projectsToEdit={projectsToEdit}
         />
       </>
     );

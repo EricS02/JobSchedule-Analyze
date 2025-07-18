@@ -76,7 +76,9 @@ function AddContactInfo({
 
   const onSubmit = (data: z.infer<typeof AddContactInfoFormSchema>) => {
     startTransition(async () => {
-      const res = contactInfoToEdit
+      // More robust check - ensure we have both contactInfoToEdit AND a valid ID
+      const isUpdate = contactInfoToEdit && contactInfoToEdit.id && data.id;
+      const res = isUpdate
         ? await updateContactInfo(data)
         : await addContactInfo(data);
       if (!res.success) {
@@ -91,7 +93,7 @@ function AddContactInfo({
         toast({
           variant: "success",
           description: `Contact Info has been ${
-            contactInfoToEdit ? "updated" : "created"
+            isUpdate ? "updated" : "created"
           } successfully`,
         });
       }

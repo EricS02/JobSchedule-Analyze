@@ -1,117 +1,184 @@
-import Link from "next/link";
-import {
-  PanelLeft,
-  Briefcase,
-  Search,
-  PowerIcon,
-  Settings,
-  Info,
-} from "lucide-react";
+'use client'
+import Link from 'next/link'
+import { Logo } from '@/components/logo'
+import { Menu, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import React from 'react'
+import { cn } from '@/lib/utils'
+import { RegisterLink, LoginLink } from '@kinde-oss/kinde-auth-nextjs/components'
+import { useKindeAuth } from '@kinde-oss/kinde-auth-nextjs'
+import { usePathname } from 'next/navigation'
 
-import { Button } from "./ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuItem,
-} from "./ui/dropdown-menu";
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { SIDEBAR_LINKS } from "@/lib/constants";
-import { signOut } from "@/auth";
-import UserAvatar from "./UserAvatar";
-import { getCurrentUser } from "@/utils/user.utils";
-import { redirect } from "next/navigation";
+const menuItems = [
+    { name: 'Features', href: '#link' },
+    { name: 'Pricing', href: '/pricing' },
+]
 
-async function Header() {
-  // const session = await auth();
-  const user = await getCurrentUser();
-  return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
-      <Sheet>
-        <SheetTrigger asChild>
-          <Button size="icon" variant="outline" className="sm:hidden">
-            <PanelLeft className="h-5 w-5" />
-            <span className="sr-only">Toggle Menu</span>
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="left" className="sm:max-w-xs">
-          <nav className="grid gap-6 text-lg font-medium">
-            <SheetClose asChild>
-              <Link
-                href="/"
-                className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:text-base"
-              >
-                <Briefcase className="h-5 w-5 transition-all group-hover:scale-110" />
-                <span className="sr-only">JobSync</span>
-              </Link>
-            </SheetClose>
-            {SIDEBAR_LINKS.map((item) => {
-              return (
-                <SheetClose asChild key={item.label}>
-                  <Link
-                    href={item.route}
-                    className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
-                  >
-                    <item.icon className="h-5 w-5" />
-                    {item.label}
-                  </Link>
-                </SheetClose>
-              );
-            })}
-          </nav>
-        </SheetContent>
-      </Sheet>
-      <h1 className="font-semibold">JobSync - Job Search Assistant</h1>
-      <div className="relative ml-auto flex-1 md:grow-0">
-        {/* <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input
-          id="search"
-          type="search"
-          placeholder="Search..."
-          className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
-        /> */}
-      </div>
+export const HeroHeader = () => {
+    const [menuState, setMenuState] = React.useState(false)
+    const [isScrolled, setIsScrolled] = React.useState(false)
+    const { isAuthenticated, isLoading: authLoading } = useKindeAuth();
+    const pathname = usePathname();
 
-      <DropdownMenu>
-        <DropdownMenuTrigger>
-          <UserAvatar user={user} />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>My Account</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem>
-            <Settings className="w-5 mr-2" />
-            <Link href="/dashboard/settings">Settings</Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem>
-            <Info className="w-5 mr-2" />
-            Support
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <form
-            action={async () => {
-              "use server";
-              await signOut();
-            }}
-          >
-            <DropdownMenuItem>
-              <Button variant="ghost" className="w-full">
-                <PowerIcon className="w-5" />
-                <div className="hidden md:block mx-2">Logout</div>
-              </Button>
-            </DropdownMenuItem>
-          </form>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </header>
-  );
+    console.log('HeroHeader - isAuthenticated:', isAuthenticated, 'authLoading:', authLoading);
+
+    React.useEffect(() => {
+        const handleScroll = () => {
+            setIsScrolled(window.scrollY > 50)
+        }
+        window.addEventListener('scroll', handleScroll)
+        return () => window.removeEventListener('scroll', handleScroll)
+    }, [])
+
+    // Determine logo link based on authentication status
+    const logoLink = isAuthenticated ? "/dashboard" : "/";
+
+    return (
+        <header>
+            <nav
+                data-state={menuState && 'active'}
+                className="fixed z-20 w-full px-2">
+                <div className={cn('mx-auto mt-2 max-w-6xl px-6 transition-all duration-300 lg:px-12', isScrolled && 'bg-background/50 max-w-4xl rounded-2xl border backdrop-blur-lg lg:px-5')}>
+                    <div className="relative flex flex-wrap items-center justify-between gap-6 py-3 lg:gap-0 lg:py-4">
+                        <div className="flex w-full justify-between lg:w-auto">
+                            <Link
+                                href={logoLink}
+                                aria-label="home"
+                                className="flex items-center space-x-2">
+                                <Logo />
+                            </Link>
+
+                            <button
+                                onClick={() => setMenuState(!menuState)}
+                                aria-label={menuState == true ? 'Close Menu' : 'Open Menu'}
+                                className="relative z-20 -m-2.5 -mr-4 block cursor-pointer p-2.5 lg:hidden">
+                                <Menu className="in-data-[state=active]:rotate-180 in-data-[state=active]:scale-0 in-data-[state=active]:opacity-0 m-auto size-6 duration-200" />
+                                <X className="in-data-[state=active]:rotate-0 in-data-[state=active]:scale-100 in-data-[state=active]:opacity-100 absolute inset-0 m-auto size-6 -rotate-180 scale-0 opacity-0 duration-200" />
+                            </button>
+                        </div>
+
+                        <div className="absolute inset-0 m-auto hidden size-fit lg:block">
+                            <ul className="flex gap-8 text-sm">
+                                {menuItems.map((item, index) => (
+                                    <li key={index}>
+                                        <Link
+                                            href={item.href}
+                                            className="text-muted-foreground hover:text-accent-foreground block duration-150">
+                                            <span>{item.name}</span>
+                                        </Link>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+
+                        {/* Only show auth buttons if user is not authenticated and auth is not loading */}
+                        {!isAuthenticated && !authLoading && (
+                            <div className="bg-background in-data-[state=active]:block lg:in-data-[state=active]:flex mb-6 hidden w-full flex-wrap items-center justify-end space-y-8 rounded-3xl border p-6 shadow-2xl shadow-zinc-300/20 md:flex-nowrap lg:m-0 lg:flex lg:w-fit lg:gap-6 lg:space-y-0 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none dark:shadow-none dark:lg:bg-transparent">
+                                <div className="lg:hidden">
+                                    <ul className="space-y-6 text-base">
+                                        {menuItems.map((item, index) => (
+                                            <li key={index}>
+                                                <Link
+                                                    href={item.href}
+                                                    className="text-muted-foreground hover:text-accent-foreground block duration-150">
+                                                    <span>{item.name}</span>
+                                                </Link>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                                <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
+                                    <Button
+                                        asChild
+                                        variant="outline"
+                                        size="sm"
+                                        className={cn(isScrolled && 'lg:hidden')}>
+                                        <LoginLink>
+                                            <span>Login</span>
+                                        </LoginLink>
+                                    </Button>
+                                    <Button
+                                        asChild
+                                        size="sm"
+                                        className={cn(isScrolled && 'lg:hidden')}>
+                                        <RegisterLink>
+                                            <span>Install Now - It's Free</span>
+                                        </RegisterLink>
+                                    </Button>
+                                    <Button
+                                        asChild
+                                        size="sm"
+                                        className={cn(isScrolled ? 'lg:inline-flex' : 'hidden')}>
+                                        <RegisterLink>
+                                            <span>Install Now - It's Free</span>
+                                        </RegisterLink>
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Show loading state while auth is loading */}
+                        {authLoading && (
+                            <div className="flex items-center space-x-2">
+                                <div className="text-sm text-muted-foreground">Loading...</div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </nav>
+        </header>
+    )
 }
 
-export default Header;
+// Export a simpler header for authenticated users
+export const SimpleHeader = () => {
+    const [isScrolled, setIsScrolled] = React.useState(false)
+    const { isAuthenticated, isLoading: authLoading } = useKindeAuth();
+    const pathname = usePathname();
+
+    console.log('SimpleHeader - Rendering (no auth buttons) - isAuthenticated:', isAuthenticated, 'authLoading:', authLoading);
+
+    React.useEffect(() => {
+        const handleScroll = () => {
+            setIsScrolled(window.scrollY > 50)
+        }
+        window.addEventListener('scroll', handleScroll)
+        return () => window.removeEventListener('scroll', handleScroll)
+    }, [])
+
+    // Determine logo link based on authentication status
+    const logoLink = isAuthenticated ? "/dashboard" : "/";
+
+    return (
+        <header>
+            <nav className="fixed z-20 w-full px-2">
+                <div className={cn('mx-auto mt-2 max-w-6xl px-6 transition-all duration-300 lg:px-12', isScrolled && 'bg-background/50 max-w-4xl rounded-2xl border backdrop-blur-lg lg:px-5')}>
+                    <div className="relative flex flex-wrap items-center justify-between gap-6 py-3 lg:gap-0 lg:py-4">
+                        <div className="flex w-full justify-between lg:w-auto">
+                            <Link
+                                href={logoLink}
+                                aria-label="home"
+                                className="flex items-center space-x-2">
+                                <Logo />
+                            </Link>
+                        </div>
+
+                        <div className="absolute inset-0 m-auto hidden size-fit lg:block">
+                            <ul className="flex gap-8 text-sm">
+                                {menuItems.map((item, index) => (
+                                    <li key={index}>
+                                        <Link
+                                            href={item.href}
+                                            className="text-muted-foreground hover:text-accent-foreground block duration-150">
+                                            <span>{item.name}</span>
+                                        </Link>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </header>
+    )
+}

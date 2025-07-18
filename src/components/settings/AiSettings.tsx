@@ -3,9 +3,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import {
   AiModel,
-  AiProvider,
   defaultModel,
-  OllamaModel,
   OpenaiModel,
 } from "@/models/ai.model";
 import {
@@ -26,29 +24,17 @@ import { toast } from "../ui/use-toast";
 
 function AiSettings() {
   const [selectedModel, setSelectedModel] = useState<AiModel>(defaultModel);
-  const setSelectedProvider = (provider: AiProvider) => {
-    setSelectedModel({ provider, model: undefined });
-  };
-  const setSelectedProviderModel = (model: string) => {
-    setSelectedModel({ ...selectedModel, model });
+
+  const setSelectedModelValue = (model: string) => {
+    setSelectedModel({ model });
   };
 
   useEffect(() => {
-    const savedSettings = getFromLocalStorage("aiSettings", selectedModel);
+    const savedSettings = getFromLocalStorage("aiSettings", defaultModel);
     setSelectedModel(savedSettings);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const getModelsList = (provider: AiProvider) => {
-    switch (provider) {
-      case AiProvider.OLLAMA:
-        return Object.entries(OllamaModel);
-      case AiProvider.OPENAI:
-        return Object.entries(OpenaiModel);
-      default:
-        return [];
-    }
-  };
   const saveModelSettings = () => {
     if (!selectedModel.model) {
       toast({
@@ -65,6 +51,7 @@ function AiSettings() {
       description: "AI Settings saved successfully.",
     });
   };
+
   return (
     <Card>
       <CardHeader>
@@ -72,49 +59,23 @@ function AiSettings() {
       </CardHeader>
       <CardContent className="ml-4">
         <div>
-          <Label className="my-4" htmlFor="ai-provider">
-            AI Service Provider
-          </Label>
-          <Select
-            value={selectedModel.provider}
-            onValueChange={setSelectedProvider}
-          >
-            <SelectTrigger
-              id="ai-provider"
-              aria-label="Select AI provider"
-              className="w-[180px]"
-            >
-              <SelectValue placeholder="Select AI Service Provider" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {Object.entries(AiProvider).map(([key, value]) => (
-                  <SelectItem key={key} value={value} className="capitalize">
-                    {value}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
           <Label className="my-4" htmlFor="ai-model">
-            Model
+            OpenAI Model
           </Label>
           <Select
             value={selectedModel.model}
-            onValueChange={setSelectedProviderModel}
+            onValueChange={setSelectedModelValue}
           >
             <SelectTrigger
               id="ai-model"
-              aria-label="Select Model"
+              aria-label="Select OpenAI Model"
               className="w-[180px]"
             >
-              <SelectValue placeholder="Select AI Model" />
+              <SelectValue placeholder="Select OpenAI Model" />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                {getModelsList(selectedModel.provider).map(([key, value]) => (
+                {Object.entries(OpenaiModel).map(([key, value]) => (
                   <SelectItem key={key} value={value} className="capitalize">
                     {value}
                   </SelectItem>

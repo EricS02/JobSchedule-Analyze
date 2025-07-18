@@ -5,90 +5,91 @@ const bcrypt = require("bcryptjs");
 
 const prisma = new PrismaClient();
 
-async function seedUser() {
+async function main() {
   try {
-    const password = await bcrypt.hash(process.env.USER_PASSWORD, 10);
-    const email = process.env.USER_EMAIL;
-    // Check if the user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: {
-        email,
+    console.log("Starting database seeding...");
+    
+    // Create test user (delete first if exists)
+    try {
+      await prisma.user.delete({
+        where: { email: 'test@example.com' }
+      });
+      console.log("Deleted existing test user");
+    } catch (e) {
+      // User doesn't exist, that's fine
+      console.log("No existing test user to delete");
+    }
+
+    // Create test user
+    const password = 'password123';
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    const user = await prisma.user.create({
+      data: {
+        email: 'test@example.com',
+        name: 'Test User',
+        password: hashedPassword,
+        createdAt: new Date(),
       },
     });
-    if (!existingUser) {
-      await prisma.user.create({
-        data: {
-          email,
-          name: "Admin",
-          password,
-        },
-      });
-      console.log("Seeded new user: ", { email });
-    } else {
-      console.log("User already exists: ", { email });
-    }
+    
+    console.log('User created:', user);
+    
+    // Create job statuses
+    await seedJobStatuses();
+    
+    // Create job sources
+    await seedJobSources();
+    
+    console.log('Database seeded successfully');
   } catch (error) {
-    console.error("Error seeding user: ", error);
-    throw error;
-  }
-}
-
-async function seedStatus() {
-  try {
-    const statuses = STATUS_DATA;
-    for (const status of statuses) {
-      // Check if the status already exists
-      const existingStatus = await prisma.jobStatus.findUnique({
-        where: {
-          value: status.value,
-        },
-      });
-
-      // If the status does not exist, create it
-      if (!existingStatus) {
-        await prisma.jobStatus.create({
-          data: status,
-        });
-      }
-    }
-    console.log("Seeded statuses");
-  } catch (error) {
-    console.error("Error seeding status: ", error);
-    throw error;
-  }
-}
-
-async function seedJobSouces() {
-  try {
-    const sources = JOB_SOURCES;
-    for (const source of sources) {
-      const { label, value } = source;
-      await prisma.jobSource.upsert({
-        where: {
-          value,
-        },
-        update: { label, value },
-        create: { label, value },
-      });
-    }
-    console.log("Seeded job sources");
-  } catch (error) {
-    console.error("Error seeding job sources: ", error);
-    throw error;
-  }
-}
-
-async function main() {
-  await seedUser();
-  await seedStatus();
-  await seedJobSouces();
-}
-
-main()
-  .catch((e) => {
-    console.error(e);
+    console.error('Seeding error:', error);
     process.exit(1);
-  })
-  .finally(async () => {
+  } finally {
     await prisma.$disconnect();
-  });
+  }
+}
+
+async function seedJobSources() {
+  const sources = [
+    { label: 'LinkedIn', value: 'linkedin' },
+    { label: 'Indeed', value: 'indeed' },
+    { label: 'Company Website', value: 'company-website' },
+    { label: 'Referral', value: 'referral' },
+    { label: 'Other', value: 'other' }
+  ];
+  
+  for (const source of sources) {
+    await prisma.jobSource.upsert({
+      where: { value: source.value },
+      update: {},
+      create: source
+    });
+  }
+  
+  console.log('Job sources seeded');
+}
+
+async function seedJobStatuses() {
+  const statuses = [
+    { label: 'Applied', value: 'applied' },
+    { label: 'Interview', value: 'interview' },
+    { label: 'Offer', value: 'offer' },
+    { label: 'Rejected', value: 'rejected' },
+    { label: 'Accepted', value: 'accepted' },
+    { label: 'Declined', value: 'declined' },
+    { label: 'Saved', value: 'saved' }
+  ];
+  
+  for (const status of statuses) {
+    await prisma.jobStatus.upsert({
+      where: { value: status.value },
+      update: {},
+      create: status
+    });
+  }
+  
+  console.log('Job statuses seeded');
+}
+
+main();

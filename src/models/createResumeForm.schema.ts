@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1 MB
 
 const SUPPORTED_MIME_TYPES = [
   "application/pdf", // PDF
@@ -22,7 +22,7 @@ export const CreateResumeFormSchema = z.object({
       message: "Only PDF and Word documents are allowed.",
     })
     .refine((file) => file.size <= MAX_FILE_SIZE, {
-      message: "File size must be less than 5MB",
+      message: "File size must be less than 1MB",
     })
     .optional(),
   fileId: z.string().optional(),

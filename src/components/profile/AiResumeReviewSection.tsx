@@ -66,7 +66,21 @@ const AiResumeReviewSection = ({ resume }: AiSectionProps) => {
 
       if (!response.ok) {
         setLoading(false);
-        throw new Error(response.statusText);
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 403) {
+          // Subscription required error
+          toast({
+            variant: "destructive",
+            title: "Upgrade Required!",
+            description: errorData.error || "AI features require a Pro subscription. Please upgrade to continue.",
+          });
+          // Optionally redirect to pricing page
+          setTimeout(() => {
+            window.location.href = "/pricing";
+          }, 2000);
+          return;
+        }
+        throw new Error(errorData.error || response.statusText);
       }
 
       const reader = response.body.getReader();
@@ -136,14 +150,13 @@ const AiResumeReviewSection = ({ resume }: AiSectionProps) => {
           <SheetContent className="overflow-y-scroll">
             <SheetHeader>
               <SheetTitle className="flex flex-row items-center">
-                AI Review ({selectedModel.provider})
+                AI Review
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Info className="h-4 w-4 text-muted-foreground mx-1" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>{`Provider: ${selectedModel.provider}`}</p>
                       <p>{`Model: ${selectedModel.model}`}</p>
                     </TooltipContent>
                   </Tooltip>

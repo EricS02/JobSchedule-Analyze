@@ -4,6 +4,9 @@ import {
   CalendarClock,
   UserRound,
   Sheet,
+  CreditCard,
+  Crown,
+  MessageSquare,
 } from "lucide-react";
 
 export enum APP_CONSTANTS {
@@ -24,11 +27,6 @@ export const SIDEBAR_LINKS = [
     label: "My Jobs",
   },
   {
-    icon: CalendarClock,
-    route: "/dashboard/activities",
-    label: "Activities",
-  },
-  {
     icon: UserRound,
     route: "/dashboard/profile",
     label: "Profile",
@@ -37,5 +35,20 @@ export const SIDEBAR_LINKS = [
     icon: Sheet,
     route: "/dashboard/admin",
     label: "Administration",
+  },
+  {
+    label: "Pricing",
+    icon: CreditCard,
+    route: "/pricing"
+  },
+  {
+    label: "Subscription",
+    icon: Crown,
+    route: "/dashboard/subscription"
+  },
+  {
+    label: "Feedback",
+    icon: MessageSquare,
+    route: "/dashboard/feedback"
   },
 ];

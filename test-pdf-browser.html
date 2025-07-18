@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF.js Test (No Worker)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.1.91/pdf.min.js"></script>
+</head>
+<body>
+    <h1>PDF.js Browser Test (No Worker Mode)</h1>
+    <input type="file" id="pdfFile" accept=".pdf" />
+    <div id="result"></div>
+    <div id="status"></div>
+
+    <script>
+        // Configure PDF.js to avoid worker issues
+        console.log('Configuring PDF.js without worker...');
+
+        document.getElementById('pdfFile').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const statusDiv = document.getElementById('status');
+            const resultDiv = document.getElementById('result');
+
+            try {
+                statusDiv.innerHTML = 'Processing PDF (no worker mode)...';
+                
+                // Convert file to ArrayBuffer
+                const arrayBuffer = await file.arrayBuffer();
+                
+                // Load PDF without worker to avoid CDN issues
+                const loadingTask = pdfjsLib.getDocument({
+                    data: arrayBuffer,
+                    disableWorker: true,  // Force disable worker
+                    disableAutoFetch: true,
+                    disableStream: true,
+                    verbosity: 0,
+                    useSystemFonts: true,
+                    isEvalSupported: false,
+                    maxImageSize: 1024 * 1024,
+                    cMapPacked: false
+                });
+                
+                const pdf = await loadingTask.promise;
+                
+                statusDiv.innerHTML = `PDF loaded: ${pdf.numPages} pages (no worker mode)`;
+                
+                let fullText = '';
+                
+                // Extract text from each page
+                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                    const page = await pdf.getPage(pageNum);
+                    const textContent = await page.getTextContent();
+                    
+                    const pageText = textContent.items
+                        .filter(item => 'str' in item && item.str.trim().length > 0)
+                        .map(item => item.str)
+                        .join(' ');
+                    
+                    fullText += pageText + '\n\n';
+                }
+                
+                const cleanedText = fullText.replace(/\s+/g, ' ').replace(/\n\s*\n/g, '\n').trim();
+                
+                resultDiv.innerHTML = `
+                    <h3>Extraction Results:</h3>
+                    <p><strong>Pages:</strong> ${pdf.numPages}</p>
+                    <p><strong>Worker Status:</strong> Disabled (no worker mode)</p>
+                    <p><strong>Text Length:</strong> ${cleanedText.length} characters</p>
+                    <p><strong>Success:</strong> ${cleanedText.length > 0 ? 'Yes' : 'No text found'}</p>
+                    <p><strong>First 500 characters:</strong></p>
+                    <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px; white-space: pre-wrap; max-height: 300px; overflow-y: auto;">${cleanedText.substring(0, 500)}...</pre>
+                `;
+                
+                statusDiv.innerHTML = 'Extraction completed successfully! (No worker mode)';
+                
+            } catch (error) {
+                console.error('Error:', error);
+                statusDiv.innerHTML = `Error: ${error.message}`;
+                resultDiv.innerHTML = `
+                    <div style="color: red; padding: 10px; background: #fee; border: 1px solid #fcc; border-radius: 5px;">
+                        <strong>Error Details:</strong><br>
+                        ${error.message}<br><br>
+                        <strong>Note:</strong> This test uses no-worker mode to avoid CDN issues.<br><br>
+                        <strong>Possible Solutions:</strong><br>
+                        1. Try a different PDF file<br>
+                        2. Ensure file is a valid PDF<br>
+                        3. Check browser console for more details<br>
+                        4. Some PDFs may not contain extractable text
+                    </div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html> 

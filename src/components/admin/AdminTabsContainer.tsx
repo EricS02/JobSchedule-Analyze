@@ -15,7 +15,6 @@ function AdminTabsContainer() {
     (name: string, value: string) => {
       const params = new URLSearchParams(queryParams.toString());
       params.set(name, value);
-
       return params.toString();
     },
     [queryParams]
@@ -24,6 +23,7 @@ function AdminTabsContainer() {
   const onTabChange = (tab: string) => {
     router.push(pathname + "?" + createQueryString("tab", tab));
   };
+
   return (
     <Tabs
       defaultValue={queryParams.get("tab") || "companies"}

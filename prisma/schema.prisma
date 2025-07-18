@@ -1,31 +1,35 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-// Step: 1 run `npx prisma generate` 
-// Step: 2 run `npx prisma migrate dev` after update, make sure code is updated afterwards
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url  	    = env("DATABASE_URL")
+  // uncomment next line if you use Prisma <5.10
+  // directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 model User {
-  id           String         @id @default(uuid())
-  name         String
-  email        String         @unique
-  password     String
-  createdAt    DateTime       @default(now())
+  id                 String         @id @default(uuid())
+  name               String
+  email              String         @unique
+  password           String
+  createdAt          DateTime       @default(now())
+  
+  // Stripe fields
+  stripe_customer_id String?        @unique
+  stripe_subscription_id String?
+  subscription_status String?       @default("free") // "free", "active", "canceled", "past_due"
+  
+  Activity     Activity[]
+  ActivityType ActivityType[]
+  Company      Company[]
+  Contact      Contact[]
   jobsApplied  Job[]
   JobTitle     JobTitle[]
   Location     Location[]
-  Company      Company[]
-  Contact      Contact[]
   Profile      Profile[]
-  Activity     Activity[]
-  ActivityType ActivityType[]
+  GmailToken   GmailToken[]
 }
 
 model Profile {
@@ -41,12 +45,12 @@ model Resume {
   title          String
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
-  ContactInfo    ContactInfo?
-  ResumeSections ResumeSection[]
-  profile        Profile         @relation(fields: [profileId], references: [id])
-  File           File?           @relation(fields: [FileId], references: [id])
   FileId         String?         @unique
+  ContactInfo    ContactInfo?
   Job            Job[]
+  File           File?           @relation(fields: [FileId], references: [id])
+  profile        Profile         @relation(fields: [profileId], references: [id])
+  ResumeSections ResumeSection[]
 }
 
 model File {
@@ -64,12 +68,12 @@ model ResumeSection {
   sectionTitle            String
   sectionType             String
   summaryId               String?                  @unique
-  summary                 Summary?                 @relation(fields: [summaryId], references: [id])
-  workExperiences         WorkExperience[]
   educations              Education[]
   licenseOrCertifications LicenseOrCertification[]
   others                  OtherSection[]
   Resume                  Resume                   @relation(fields: [resumeId], references: [id])
+  summary                 Summary?                 @relation(fields: [summaryId], references: [id])
+  workExperiences         WorkExperience[]
 }
 
 model ContactInfo {
@@ -91,7 +95,7 @@ model Summary {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   content       String
-  ResumeSection ResumeSection? @relation
+  ResumeSection ResumeSection?
 }
 
 model WorkExperience {
@@ -99,16 +103,17 @@ model WorkExperience {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   companyId       String
-  Company         Company        @relation(fields: [companyId], references: [id])
   jobTitleId      String
-  jobTitle        JobTitle       @relation(fields: [jobTitleId], references: [id])
   startDate       DateTime
   endDate         DateTime?
   description     String
   locationId      String
-  location        Location       @relation(fields: [locationId], references: [id])
   resumeSectionId String?
+  currentJob      Boolean        @default(false)
   ResumeSection   ResumeSection? @relation(fields: [resumeSectionId], references: [id])
+  location        Location       @relation(fields: [locationId], references: [id])
+  jobTitle        JobTitle       @relation(fields: [jobTitleId], references: [id])
+  Company         Company        @relation(fields: [companyId], references: [id])
 }
 
 model Education {
@@ -118,13 +123,13 @@ model Education {
   institution     String
   degree          String
   fieldOfStudy    String
-  startDate       DateTime
+  startDate       DateTime?
   endDate         DateTime?
   description     String?
   locationId      String
-  location        Location       @relation(fields: [locationId], references: [id])
   resumeSectionId String?
   ResumeSection   ResumeSection? @relation(fields: [resumeSectionId], references: [id])
+  location        Location       @relation(fields: [locationId], references: [id])
 }
 
 model LicenseOrCertification {
@@ -134,8 +139,8 @@ model LicenseOrCertification {
   issueDate       DateTime?
   expirationDate  DateTime?
   credentialUrl   String?
-  ResumeSection   ResumeSection? @relation(fields: [resumeSectionId], references: [id])
   resumeSectionId String?
+  ResumeSection   ResumeSection? @relation(fields: [resumeSectionId], references: [id])
 }
 
 model OtherSection {
@@ -144,8 +149,8 @@ model OtherSection {
   updatedAt       DateTime       @updatedAt
   title           String
   content         String
-  ResumeSection   ResumeSection? @relation(fields: [resumeSectionId], references: [id])
   resumeSectionId String?
+  ResumeSection   ResumeSection? @relation(fields: [resumeSectionId], references: [id])
 }
 
 model Contact {
@@ -153,18 +158,18 @@ model Contact {
   name        String
   email       String
   createdAt   DateTime
-  createdBy   String // userId
-  user        User       @relation(fields: [createdBy], references: [id])
-  Interview   Interview? @relation(fields: [interviewId], references: [id])
+  createdBy   String
   interviewId String?
+  Interview   Interview? @relation(fields: [interviewId], references: [id])
+  user        User       @relation(fields: [createdBy], references: [id])
 }
 
 model JobTitle {
   id              String           @id @default(uuid())
   label           String
-  value           String           @unique //TODO: Change and Apply unique constraint on index  with value and userid
+  value           String           @unique
+  createdBy       String
   jobs            Job[]
-  createdBy       String // userId
   user            User             @relation(fields: [createdBy], references: [id])
   workExperiences WorkExperience[]
 }
@@ -173,19 +178,18 @@ model JobStatus {
   id    String @id @default(uuid())
   label String
   value String @unique
-  jobs  Job[]
 }
 
 model Location {
   id             String           @id @default(uuid())
   label          String
-  value          String
+  value          String           @unique
   stateProv      String?
   country        String?
-  jobsApplied    Job[]
-  createdBy      String // userId
-  user           User             @relation(fields: [createdBy], references: [id])
+  createdBy      String
   educations     Education[]
+  jobsApplied    Job[]
+  user           User             @relation(fields: [createdBy], references: [id])
   workExperience WorkExperience[]
 }
 
@@ -193,10 +197,10 @@ model Company {
   id              String           @id @default(uuid())
   label           String
   value           String           @unique
-  jobsApplied     Job[]
-  logoUrl         String? // field is optional
-  createdBy       String // userId
+  logoUrl         String?
+  createdBy       String
   user            User             @relation(fields: [createdBy], references: [id])
+  jobsApplied     Job[]
   workExperiences WorkExperience[]
 }
 
@@ -211,62 +215,92 @@ model Interview {
   id           String    @id @default(uuid())
   createdAt    DateTime
   jobId        String
-  job          Job?      @relation(fields: [jobId], references: [id])
   interviewers Contact[]
+  job          Job       @relation(fields: [jobId], references: [id])
 }
 
 model Job {
-  id          String      @id @default(uuid())
-  userId      String
-  User        User        @relation(fields: [userId], references: [id])
+  id          String   @id @default(cuid())
+  title       String
+  company     String
+  location    String
+  description String?
+  detailedDescription String?
+  jobRequirements String?
+  jobResponsibilities String?
+  jobBenefits String?
+  status      String   @default("applied")
+  notes       String?
   jobUrl      String?
-  description String
-  jobType     String
-  createdAt   DateTime
-  applied     Boolean     @default(false)
-  appliedDate DateTime?
-  dueDate     DateTime?
-  statusId    String
-  Status      JobStatus   @relation(fields: [statusId], references: [id])
-  JobTitle    JobTitle    @relation(fields: [jobTitleId], references: [id])
-  jobTitleId  String
-  Company     Company     @relation(fields: [companyId], references: [id])
-  companyId   String
-  JobSource   JobSource?  @relation(fields: [jobSourceId], references: [id])
-  jobSourceId String?
-  salaryRange String?
-  Location    Location?   @relation(fields: [locationId], references: [id])
+  source      String?  @default("manual")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String
+
+  applied     Boolean  @default(false)
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  resumeId String?
+  resume   Resume? @relation(fields: [resumeId], references: [id])
+
+  jobTitleId String?
+  jobTitle   JobTitle? @relation(fields: [jobTitleId], references: [id])
+
   locationId  String?
-  Interview   Interview[]
-  Resume      Resume?     @relation(fields: [resumeId], references: [id])
-  resumeId    String?
+  jobsAppliedLocation Location? @relation(fields: [locationId], references: [id])
+
+  companyId  String?
+  jobsAppliedCompany Company? @relation(fields: [companyId], references: [id])
+
+  jobSourceId String?
+  jobsAppliedSource JobSource? @relation(fields: [jobSourceId], references: [id])
+
+  interviews Interview[]
+  activities Activity[]
+
+  @@index([userId])
 }
 
 model ActivityType {
-  id          String   @id @default(uuid())
+  id          String     @id @default(uuid())
   label       String
-  value       String   @unique
+  value       String     @unique
   description String?
-  createdBy   String // userId
-  user        User     @relation(fields: [createdBy], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  Activities Activity[]
+  createdBy   String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  Activities  Activity[]
+  user        User       @relation(fields: [createdBy], references: [id])
 }
 
 model Activity {
-  id           String    @id @default(uuid())
-  userId       String
-  User         User      @relation(fields: [userId], references: [id])
-  activityName String
-  startTime    DateTime
-  endTime      DateTime?
-  duration     Int?
-  description  String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  activityType   ActivityType @relation(fields: [activityTypeId], references: [id])
+  id             String    @id @default(uuid())
+  userId         String
+  activityName   String
+  startTime      DateTime
+  endTime        DateTime?
+  duration       Int?
+  description    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
   activityTypeId String
+
+  // Add this field
+  jobId String?
+  job   Job?    @relation(fields: [jobId], references: [id])
+
+  activityType ActivityType @relation(fields: [activityTypeId], references: [id])
+  User         User         @relation(fields: [userId], references: [id])
+}
+
+model GmailToken {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  accessToken String
+  refreshToken String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id])
 }

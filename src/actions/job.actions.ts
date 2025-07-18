@@ -9,7 +9,19 @@ import { z } from "zod";
 
 export const getStatusList = async (): Promise<any | undefined> => {
   try {
-    const statuses = await prisma.jobStatus.findMany();
+    // Return static status list since we're using string field now
+    const statuses = [
+      { id: "applied", label: "Applied", value: "applied" },
+      { id: "interview", label: "Interview", value: "interview" },
+      { id: "offer", label: "Offer", value: "offer" },
+      { id: "rejected", label: "Rejected", value: "rejected" },
+      { id: "accepted", label: "Accepted", value: "accepted" },
+      { id: "declined", label: "Declined", value: "declined" },
+      { id: "saved", label: "Saved", value: "saved" },
+      { id: "draft", label: "Draft", value: "draft" },
+      { id: "expired", label: "Expired", value: "expired" },
+      { id: "archived", label: "Archived", value: "archived" }
+    ];
     return statuses;
   } catch (error) {
     const msg = "Failed to fetch status list. ";
@@ -43,12 +55,10 @@ export const getJobsList = async (
     const filterBy = filter
       ? filter === Object.keys(JOB_TYPES)[1]
         ? {
-            jobType: filter,
+            type: filter,
           }
         : {
-            Status: {
-              value: filter,
-            },
+            status: filter,
           }
       : {};
     const [data, total] = await Promise.all([
@@ -59,22 +69,19 @@ export const getJobsList = async (
         },
         skip,
         take: limit,
-        select: {
-          id: true,
-          JobSource: true,
-          JobTitle: true,
-          jobType: true,
-          Company: true,
-          Status: true,
-          Location: true,
-          dueDate: true,
-          appliedDate: true,
-          description: false,
-          Resume: true,
+        include: {
+          jobsAppliedSource: true,
+          jobTitle: true,
+          jobsAppliedCompany: true,
+          jobsAppliedLocation: true,
+          resume: {
+            include: {
+              File: true,
+            },
+          },
         },
         orderBy: {
           createdAt: "desc",
-          // appliedDate: "desc",
         },
       }),
       prisma.job.count({
@@ -84,7 +91,20 @@ export const getJobsList = async (
         },
       }),
     ]);
-    return { success: true, data, total };
+    
+    // Transform the data to match the component expectations
+    const transformedData = data.map(job => ({
+      ...job,
+      JobTitle: job.jobTitle || { label: job.title },
+      Company: job.jobsAppliedCompany || { label: job.company },
+      Status: { id: job.status, label: job.status, value: job.status },
+      Location: job.jobsAppliedLocation || { label: job.location },
+      JobSource: job.jobsAppliedSource,
+      appliedDate: job.createdAt, // Use createdAt as appliedDate for jobs from extension
+      Resume: job.resume
+    }));
+    
+    return { success: true, data: transformedData, total };
   } catch (error) {
     const msg = "Failed to fetch jobs list. ";
     return handleError(error, msg);
@@ -112,18 +132,11 @@ export async function* getJobsIterator(filter?: string, pageSize = 200) {
         userId: user.id,
         ...filterBy,
       },
-      select: {
-        id: true,
-        createdAt: true,
-        JobSource: true,
-        JobTitle: true,
-        jobType: true,
-        Company: true,
-        Status: true,
-        Location: true,
-        dueDate: true,
-        applied: true,
-        appliedDate: true,
+      include: {
+        jobsAppliedSource: true,
+        jobTitle: true,
+        jobsAppliedCompany: true,
+        jobsAppliedLocation: true,
       },
       skip,
       take: pageSize,
@@ -134,7 +147,18 @@ export async function* getJobsIterator(filter?: string, pageSize = 200) {
       break;
     }
 
-    yield chunk;
+    // Transform the data to match the component expectations
+    const transformedChunk = chunk.map(job => ({
+      ...job,
+      JobTitle: job.jobTitle || { label: job.title },
+      Company: job.jobsAppliedCompany || { label: job.company },
+      Status: { id: job.status, label: job.status, value: job.status },
+      Location: job.jobsAppliedLocation || { label: job.location },
+      JobSource: job.jobsAppliedSource,
+      appliedDate: job.createdAt,
+    }));
+
+    yield transformedChunk;
     fetchedCount += chunk.length;
     page++;
   }
@@ -158,19 +182,35 @@ export const getJobDetails = async (
         id: jobId,
       },
       include: {
-        JobSource: true,
-        JobTitle: true,
-        Company: true,
-        Status: true,
-        Location: true,
-        Resume: {
+        jobsAppliedSource: true,
+        jobTitle: true,
+        jobsAppliedCompany: true,
+        jobsAppliedLocation: true,
+        resume: {
           include: {
             File: true,
           },
         },
       },
     });
-    return { job, success: true };
+    
+    if (!job) {
+      throw new Error("Job not found");
+    }
+    
+    // Transform the data to match the component expectations
+    const transformedJob = {
+      ...job,
+      JobTitle: job.jobTitle || { label: job.title },
+      Company: job.jobsAppliedCompany || { label: job.company },
+      Status: { id: job.status, label: job.status, value: job.status },
+      Location: job.jobsAppliedLocation || { label: job.location },
+      JobSource: job.jobsAppliedSource,
+      appliedDate: job.createdAt,
+      Resume: job.resume
+    };
+    
+    return { job: transformedJob, success: true };
   } catch (error) {
     const msg = "Failed to fetch job details. ";
     return handleError(error, msg);
@@ -214,41 +254,147 @@ export const addJob = async (
       throw new Error("Not authenticated");
     }
 
+    // Check subscription eligibility before adding job
+    const { checkJobTrackingEligibility } = await import('@/actions/stripe.actions');
+    const eligibility = await checkJobTrackingEligibility();
+    
+    if (!eligibility.isEligible) {
+      return { 
+        success: false, 
+        error: eligibility.message,
+        requiresUpgrade: true 
+      };
+    }
+
     const {
       title,
       company,
       location,
       type,
-      status,
       source,
-      salaryRange,
       dueDate,
       dateApplied,
       jobDescription,
       jobUrl,
       applied,
       resume,
+      jobTitleId,
+      companyId,
+      locationId: providedLocationId,
     } = data;
+
+    // Find or create the job title record
+    let finalJobTitleId: string | undefined;
+    if (jobTitleId) {
+      // If a specific job title ID was provided, use it
+      finalJobTitleId = jobTitleId;
+    } else if (title && title.trim()) {
+      const titleValue = title.trim().toLowerCase().replace(/\s+/g, '-');
+      const existingJobTitle = await prisma.jobTitle.findFirst({
+        where: {
+          value: titleValue,
+          createdBy: user.id,
+        },
+      });
+
+      if (existingJobTitle) {
+        finalJobTitleId = existingJobTitle.id;
+      } else {
+        // Create new job title
+        const newJobTitle = await prisma.jobTitle.create({
+          data: {
+            label: title.trim(),
+            value: titleValue,
+            createdBy: user.id,
+          },
+        });
+        finalJobTitleId = newJobTitle.id;
+      }
+    }
+
+    // Find or create the company record
+    let finalCompanyId: string | undefined;
+    if (companyId) {
+      // If a specific company ID was provided, use it
+      finalCompanyId = companyId;
+    } else if (company && company.trim()) {
+      const companyValue = company.trim().toLowerCase().replace(/\s+/g, '-');
+      const existingCompany = await prisma.company.findFirst({
+        where: {
+          value: companyValue,
+          createdBy: user.id,
+        },
+      });
+
+      if (existingCompany) {
+        finalCompanyId = existingCompany.id;
+      } else {
+        // Create new company
+        const newCompany = await prisma.company.create({
+          data: {
+            label: company.trim(),
+            value: companyValue,
+            createdBy: user.id,
+          },
+        });
+        finalCompanyId = newCompany.id;
+      }
+    }
+
+    // Find or create the location record
+    let finalLocationId: string | undefined;
+    if (providedLocationId) {
+      // If a specific location ID was provided, use it
+      finalLocationId = providedLocationId;
+    } else if (location && location.trim()) {
+      const locationValue = location.trim().toLowerCase().replace(/\s+/g, '-');
+      const existingLocation = await prisma.location.findFirst({
+        where: {
+          value: locationValue,
+          createdBy: user.id,
+        },
+      });
+
+      if (existingLocation) {
+        finalLocationId = existingLocation.id;
+      } else {
+        // Create new location
+        const newLocation = await prisma.location.create({
+          data: {
+            label: location.trim(),
+            value: locationValue,
+            createdBy: user.id,
+          },
+        });
+        finalLocationId = newLocation.id;
+      }
+    }
 
     const job = await prisma.job.create({
       data: {
-        jobTitleId: title,
-        companyId: company,
-        locationId: location,
-        statusId: status,
-        jobSourceId: source,
-        salaryRange: salaryRange,
+        title: data.title || "Untitled Job",
+        company: data.company || "Unknown Company",
+        location: data.location || "Remote",
+        jobTitleId: finalJobTitleId,
+        companyId: finalCompanyId,
+        locationId: finalLocationId,
+        status: data.status || "applied",
+        applied: data.status === "applied" || data.applied || false, // Set applied to true if status is "applied"
+        jobSourceId: data.source,
         createdAt: new Date(),
-        dueDate: dueDate,
-        appliedDate: dateApplied,
-        description: jobDescription,
-        jobType: type,
+        description: data.jobDescription,
         userId: user.id,
         jobUrl,
-        applied,
         resumeId: resume,
       },
     });
+    
+    // Comprehensive revalidation for dashboard updates
+    revalidatePath('/dashboard');
+    revalidatePath('/dashboard/myjobs');
+    revalidatePath('/dashboard/admin');
+    revalidatePath('/', 'layout');
+    
     return { job, success: true };
   } catch (error) {
     const msg = "Failed to create job. ";
@@ -270,44 +416,138 @@ export const updateJob = async (
     }
 
     const {
-      id,
       title,
       company,
       location,
       type,
-      status,
       source,
-      salaryRange,
       dueDate,
       dateApplied,
       jobDescription,
       jobUrl,
       applied,
       resume,
+      jobTitleId,
+      companyId,
+      locationId: providedLocationId,
     } = data;
+
+    // Find or create the job title record
+    let finalJobTitleId: string | undefined;
+    if (jobTitleId) {
+      // If a specific job title ID was provided, use it
+      finalJobTitleId = jobTitleId;
+    } else if (title && title.trim()) {
+      const titleValue = title.trim().toLowerCase().replace(/\s+/g, '-');
+      const existingJobTitle = await prisma.jobTitle.findFirst({
+        where: {
+          value: titleValue,
+          createdBy: user.id,
+        },
+      });
+
+      if (existingJobTitle) {
+        finalJobTitleId = existingJobTitle.id;
+      } else {
+        // Create new job title
+        const newJobTitle = await prisma.jobTitle.create({
+          data: {
+            label: title.trim(),
+            value: titleValue,
+            createdBy: user.id,
+          },
+        });
+        finalJobTitleId = newJobTitle.id;
+      }
+    }
+
+    // Find or create the company record
+    let finalCompanyId: string | undefined;
+    if (companyId) {
+      // If a specific company ID was provided, use it
+      finalCompanyId = companyId;
+    } else if (company && company.trim()) {
+      const companyValue = company.trim().toLowerCase().replace(/\s+/g, '-');
+      const existingCompany = await prisma.company.findFirst({
+        where: {
+          value: companyValue,
+          createdBy: user.id,
+        },
+      });
+
+      if (existingCompany) {
+        finalCompanyId = existingCompany.id;
+      } else {
+        // Create new company
+        const newCompany = await prisma.company.create({
+          data: {
+            label: company.trim(),
+            value: companyValue,
+            createdBy: user.id,
+          },
+        });
+        finalCompanyId = newCompany.id;
+      }
+    }
+
+    // Find or create the location record
+    let finalLocationId: string | undefined;
+    if (providedLocationId) {
+      // If a specific location ID was provided, use it
+      finalLocationId = providedLocationId;
+    } else if (location && location.trim()) {
+      const locationValue = location.trim().toLowerCase().replace(/\s+/g, '-');
+      const existingLocation = await prisma.location.findFirst({
+        where: {
+          value: locationValue,
+          createdBy: user.id,
+        },
+      });
+
+      if (existingLocation) {
+        finalLocationId = existingLocation.id;
+      } else {
+        // Create new location
+        const newLocation = await prisma.location.create({
+          data: {
+            label: location.trim(),
+            value: locationValue,
+            createdBy: user.id,
+          },
+        });
+        finalLocationId = newLocation.id;
+      }
+    }
+
+    const updateData = {
+      title: data.title || "Untitled Job",
+      company: data.company || "Unknown Company",
+      location: data.location || "Remote",
+      jobTitleId: finalJobTitleId,
+      companyId: finalCompanyId,
+      locationId: finalLocationId,
+      status: data.status || "applied",
+      applied: data.status === "applied" || data.applied || false, // Set applied to true if status is "applied"
+      jobSourceId: data.source,
+      createdAt: new Date(),
+      description: data.jobDescription,
+      jobUrl: data.jobUrl,
+      resumeId: data.resume,
+    };
 
     const job = await prisma.job.update({
       where: {
-        id,
+        id: data.id,
       },
-      data: {
-        jobTitleId: title,
-        companyId: company,
-        locationId: location,
-        statusId: status,
-        jobSourceId: source,
-        salaryRange: salaryRange,
-        createdAt: new Date(),
-        dueDate: dueDate,
-        appliedDate: dateApplied,
-        description: jobDescription,
-        jobType: type,
-        jobUrl,
-        applied,
-        resumeId: resume,
-      },
+      data: updateData,
     });
-    // revalidatePath("/dashboard/myjobs", "page");
+    
+    // Comprehensive revalidation for dashboard updates
+    revalidatePath('/dashboard');
+    revalidatePath('/dashboard/myjobs');
+    revalidatePath('/dashboard/admin');
+    revalidatePath('/', 'layout');
+    
     return { job, success: true };
   } catch (error) {
     const msg = "Failed to update job. ";
@@ -329,18 +569,18 @@ export const updateJobStatus = async (
       switch (status.value) {
         case "applied":
           return {
-            statusId: status.id,
+            status: status.value,
             applied: true,
             appliedDate: new Date(),
           };
         case "interview":
           return {
-            statusId: status.id,
+            status: status.value,
             applied: true,
           };
         default:
           return {
-            statusId: status.id,
+            status: status.value,
           };
       }
     };
@@ -352,6 +592,12 @@ export const updateJobStatus = async (
       },
       data: dataToUpdate(),
     });
+    
+    // Comprehensive revalidation for dashboard updates
+    revalidatePath('/dashboard');
+    revalidatePath('/dashboard/myjobs');
+    revalidatePath('/', 'layout');
+    
     return { job, success: true };
   } catch (error) {
     const msg = "Failed to update job status.";
@@ -375,9 +621,290 @@ export const deleteJobById = async (
         userId: user.id,
       },
     });
+    
+    // Comprehensive revalidation for dashboard updates
+    revalidatePath('/dashboard');
+    revalidatePath('/dashboard/myjobs');
+    revalidatePath('/', 'layout');
+    
     return { res, success: true };
   } catch (error) {
     const msg = "Failed to delete job.";
+    return handleError(error, msg);
+  }
+};
+
+export const fixJobRelations = async (): Promise<any | undefined> => {
+  try {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      throw new Error("Not authenticated");
+    }
+
+    // Get all jobs for the user that don't have proper relations
+    const jobsToFix = await prisma.job.findMany({
+      where: {
+        userId: user.id,
+        OR: [
+          { jobTitleId: null },
+          { companyId: null },
+          { locationId: null }
+        ]
+      },
+      select: {
+        id: true,
+        title: true,
+        company: true,
+        location: true,
+        jobTitleId: true,
+        companyId: true,
+        locationId: true,
+      }
+    });
+
+    let fixedCount = 0;
+
+    for (const job of jobsToFix) {
+      const updates: any = {};
+
+      // Fix job title relation
+      if (!job.jobTitleId && job.title) {
+        const titleValue = job.title.trim().toLowerCase().replace(/\s+/g, '-');
+        let jobTitle = await prisma.jobTitle.findFirst({
+          where: {
+            value: titleValue,
+            createdBy: user.id,
+          },
+        });
+
+        if (!jobTitle) {
+          jobTitle = await prisma.jobTitle.create({
+            data: {
+              label: job.title.trim(),
+              value: titleValue,
+              createdBy: user.id,
+            },
+          });
+        }
+        updates.jobTitleId = jobTitle.id;
+      }
+
+      // Fix company relation
+      if (!job.companyId && job.company) {
+        const companyValue = job.company.trim().toLowerCase().replace(/\s+/g, '-');
+        let company = await prisma.company.findFirst({
+          where: {
+            value: companyValue,
+            createdBy: user.id,
+          },
+        });
+
+        if (!company) {
+          company = await prisma.company.create({
+            data: {
+              label: job.company.trim(),
+              value: companyValue,
+              createdBy: user.id,
+            },
+          });
+        }
+        updates.companyId = company.id;
+      }
+
+      // Fix location relation
+      if (!job.locationId && job.location) {
+        const locationValue = job.location.trim().toLowerCase().replace(/\s+/g, '-');
+        let location = await prisma.location.findFirst({
+          where: {
+            value: locationValue,
+            createdBy: user.id,
+          },
+        });
+
+        if (!location) {
+          location = await prisma.location.create({
+            data: {
+              label: job.location.trim(),
+              value: locationValue,
+              createdBy: user.id,
+            },
+          });
+        }
+        updates.locationId = location.id;
+      }
+
+      // Update the job if there are any changes
+      if (Object.keys(updates).length > 0) {
+        await prisma.job.update({
+          where: { id: job.id },
+          data: updates,
+        });
+        fixedCount++;
+      }
+    }
+
+    // Revalidate paths to update the UI
+    revalidatePath('/dashboard');
+    revalidatePath('/dashboard/myjobs');
+    revalidatePath('/dashboard/admin');
+    revalidatePath('/', 'layout');
+
+    return { 
+      success: true, 
+      message: `Fixed ${fixedCount} jobs`, 
+      fixedCount,
+      totalJobsChecked: jobsToFix.length 
+    };
+  } catch (error) {
+    const msg = "Failed to fix job relations. ";
+    return handleError(error, msg);
+  }
+};
+
+export const ensureUserJobRelationships = async (): Promise<any | undefined> => {
+  try {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      throw new Error("Not authenticated");
+    }
+
+    console.log(`Ensuring job relationships for user: ${user.id}`);
+
+    // Get all jobs for the user that might need fixing
+    const jobsToFix = await prisma.job.findMany({
+      where: {
+        userId: user.id,
+        OR: [
+          { locationId: null },
+          { companyId: null },
+          { jobTitleId: null },
+          { applied: null }
+        ]
+      },
+      select: {
+        id: true,
+        title: true,
+        company: true,
+        location: true,
+        status: true,
+        applied: true,
+        locationId: true,
+        companyId: true,
+        jobTitleId: true
+      }
+    });
+
+    console.log(`Found ${jobsToFix.length} jobs that need relationship fixing`);
+
+    let fixedCount = 0;
+
+    for (const job of jobsToFix) {
+      const updates: any = {};
+
+      // Fix applied field if it's null
+      if (job.applied === null) {
+        updates.applied = job.status === "applied" || job.status === "interview" || job.status === "offer";
+        console.log(`Job ${job.id}: Setting applied to ${updates.applied} based on status ${job.status}`);
+      }
+
+      // Fix job title relationship
+      if (!job.jobTitleId && job.title) {
+        const titleValue = job.title.trim().toLowerCase().replace(/\s+/g, '-');
+        let jobTitle = await prisma.jobTitle.findFirst({
+          where: {
+            value: titleValue,
+            createdBy: user.id,
+          },
+        });
+
+        if (!jobTitle) {
+          jobTitle = await prisma.jobTitle.create({
+            data: {
+              label: job.title.trim(),
+              value: titleValue,
+              createdBy: user.id,
+            },
+          });
+          console.log(`Job ${job.id}: Created new job title: ${jobTitle.label}`);
+        }
+        updates.jobTitleId = jobTitle.id;
+      }
+
+      // Fix company relationship
+      if (!job.companyId && job.company) {
+        const companyValue = job.company.trim().toLowerCase().replace(/\s+/g, '-');
+        let company = await prisma.company.findFirst({
+          where: {
+            value: companyValue,
+            createdBy: user.id,
+          },
+        });
+
+        if (!company) {
+          company = await prisma.company.create({
+            data: {
+              label: job.company.trim(),
+              value: companyValue,
+              createdBy: user.id,
+            },
+          });
+          console.log(`Job ${job.id}: Created new company: ${company.label}`);
+        }
+        updates.companyId = company.id;
+      }
+
+      // Fix location relationship
+      if (!job.locationId && job.location) {
+        const locationValue = job.location.trim().toLowerCase().replace(/\s+/g, '-');
+        let location = await prisma.location.findFirst({
+          where: {
+            value: locationValue,
+            createdBy: user.id,
+          },
+        });
+
+        if (!location) {
+          location = await prisma.location.create({
+            data: {
+              label: job.location.trim(),
+              value: locationValue,
+              createdBy: user.id,
+            },
+          });
+          console.log(`Job ${job.id}: Created new location: ${location.label}`);
+        }
+        updates.locationId = location.id;
+      }
+
+      // Update the job if there are any changes
+      if (Object.keys(updates).length > 0) {
+        await prisma.job.update({
+          where: { id: job.id },
+          data: updates,
+        });
+        fixedCount++;
+        console.log(`Job ${job.id}: Updated with ${Object.keys(updates).length} fixes`);
+      }
+    }
+
+    // Revalidate paths to update the UI
+    revalidatePath('/dashboard');
+    revalidatePath('/dashboard/myjobs');
+    revalidatePath('/dashboard/admin');
+    revalidatePath('/', 'layout');
+
+    console.log(`Fixed ${fixedCount} job relationships for user ${user.id}`);
+
+    return { 
+      success: true, 
+      message: `Fixed ${fixedCount} job relationships`, 
+      fixedCount,
+      totalJobsChecked: jobsToFix.length 
+    };
+  } catch (error) {
+    const msg = "Failed to ensure job relationships. ";
     return handleError(error, msg);
   }
 };

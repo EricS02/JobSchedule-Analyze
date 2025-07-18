@@ -78,8 +78,7 @@ function JobLocationsTable({
         <TableHeader>
           <TableRow>
             <TableHead>Location</TableHead>
-            <TableHead className="hidden sm:table-cell">Value</TableHead>
-            <TableHead>Jobs Applied</TableHead>
+            <TableHead>Total Jobs</TableHead>
             <TableHead>Actions</TableHead>
             <TableHead>
               <span className="sr-only">Actions</span>
@@ -91,12 +90,7 @@ function JobLocationsTable({
             return (
               <TableRow key={location.id}>
                 <TableCell className="font-medium">{location.label}</TableCell>
-                <TableCell className="font-medium hidden sm:table-cell">
-                  {location.value}
-                </TableCell>
-                <TableCell className="font-medium">
-                  {location._count?.jobsApplied}
-                </TableCell>
+                <TableCell className="font-medium">{location._count?.jobsApplied}</TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -107,10 +101,7 @@ function JobLocationsTable({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem
-                        className="text-red-600 cursor-pointer"
-                        onClick={() => onDeleteJobLocation(location)}
-                      >
+                      <DropdownMenuItem className="text-red-600 cursor-pointer" onClick={() => onDeleteJobLocation(location)}>
                         <Trash className="mr-2 h-4 w-4" />
                         Delete
                       </DropdownMenuItem>

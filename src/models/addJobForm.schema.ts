@@ -58,4 +58,7 @@ export const AddJobFormSchema = z.object({
   jobUrl: z.string().optional(),
   applied: z.boolean().default(false),
   resume: z.string().optional(),
+  jobTitleId: z.string().optional(),
+  companyId: z.string().optional(),
+  locationId: z.string().optional(),
 });

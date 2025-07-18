@@ -1,247 +1,370 @@
-import prisma from "@/lib/db";
-import { calculatePercentageDifference, getLast7Days } from "@/lib/utils";
 import { getCurrentUser } from "@/utils/user.utils";
-import { Prisma } from "@prisma/client";
-import { addMinutes, format, subDays } from "date-fns";
+import prisma from "@/lib/db";
+import { revalidatePath } from "next/cache";
 
-export const getJobsAppliedForPeriod = async (
-  daysAgo: number
-): Promise<any | undefined> => {
-  const user = await getCurrentUser();
-
-  if (!user) {
-    throw new Error("Not authenticated");
-  }
-
-  try {
-    const startDate1 = subDays(new Date(), daysAgo);
-    const startDate2 = subDays(new Date(), daysAgo * 2);
-    const endDate = new Date();
-    const query = (date: Date): Prisma.JobCountArgs => ({
-      where: {
-        userId: user.id,
-        applied: true,
-        appliedDate: {
-          gte: date,
-          lt: endDate,
-        },
-      },
-    });
-
-    const [count, count2] = await prisma.$transaction([
-      prisma.job.count(query(startDate1)),
-      prisma.job.count(query(startDate2)),
-    ]);
-    const difference = Math.abs(count2 - count);
-    const trend = calculatePercentageDifference(difference, count);
-    return { count, trend };
-  } catch (error) {
-    const msg = "Failed to calculate job count";
-    console.error(msg, error);
-    throw new Error(msg);
-  }
-};
-
-export const getRecentJobs = async (): Promise<any | undefined> => {
+export async function getRecentJobs(limit = 5) {
   try {
     const user = await getCurrentUser();
-
     if (!user) {
-      throw new Error("Not authenticated");
+      console.log("No user found for getRecentJobs");
+      return [];
     }
-    const list = await prisma.job.findMany({
+
+    console.log(`Fetching recent jobs for user ${user.id}, limit: ${limit}`);
+    
+    const jobs = await prisma.job.findMany({
       where: {
         userId: user.id,
-        applied: true,
-      },
-      include: {
-        JobSource: true,
-        JobTitle: true,
-        Company: true,
-        Status: true,
-        Location: true,
       },
       orderBy: {
-        appliedDate: "desc",
+        createdAt: "desc",
       },
-      take: 6,
-    });
-    return list;
-  } catch (error) {
-    const msg = "Failed to fetch jobs list. ";
-    console.error(msg, error);
-    throw new Error(msg);
-  }
-};
-
-export const getActivityDataForPeriod = async (): Promise<any | undefined> => {
-  try {
-    const user = await getCurrentUser();
-
-    if (!user) {
-      throw new Error("Not authenticated");
-    }
-    const today = addMinutes(new Date(), 5);
-    const sevenDaysAgo = subDays(today, 6);
-    const activities = await prisma.activity.findMany({
-      where: {
-        userId: user.id,
-        endTime: {
-          gte: sevenDaysAgo,
-          lte: today,
-        },
-      },
+      take: limit,
       select: {
-        endTime: true,
-        duration: true,
-        activityType: {
+        id: true,
+        title: true,
+        company: true,
+        location: true,
+        createdAt: true,
+        jobUrl: true,
+        jobSourceId: true,
+        source: true,
+        companyId: true,
+        jobsAppliedCompany: {
           select: {
+            id: true,
             label: true,
+            value: true,
+            logoUrl: true,
           },
         },
       },
-      orderBy: {
-        endTime: "asc",
-      },
     });
-    const groupedData = activities.reduce((acc: any, activity: any) => {
-      const day = format(new Date(activity.endTime), "PP");
-      const activityTypeLabel = activity.activityType?.label || "Unknown";
 
-      if (!acc[day]) {
-        acc[day] = { day: day.split(",")[0] };
-      }
-
-      const durationInHours = (activity.duration || 0) / 60;
-      acc[day][activityTypeLabel] = (
-        (parseFloat(acc[day][activityTypeLabel]) || 0) + durationInHours
-      ).toFixed(1);
-
-      return acc;
-    }, {});
-    const last7Days = getLast7Days();
-    const result = last7Days.map((date) => ({
-      day: date.split(",")[0],
-      ...groupedData[date],
+    console.log(`Found ${jobs.length} recent jobs with data:`, JSON.stringify(jobs, null, 2));
+    
+    // Map the results to match the expected format
+    const formattedJobs = jobs.map(job => ({
+      ...job,
+      jobCompany: job.jobsAppliedCompany
     }));
-
-    return result;
+    
+    // Revalidate multiple paths to ensure updates
+    revalidatePath('/dashboard');
+    revalidatePath('/');
+    
+    return formattedJobs;
   } catch (error) {
-    const msg = "Failed to fetch activities data.";
-    console.error(msg, error);
-    throw new Error(msg);
+    console.error("Error fetching recent jobs:", error);
+    return [];
   }
-};
+}
 
-export const getJobsActivityForPeriod = async (): Promise<any | undefined> => {
+export async function getJobsAppliedForPeriod(days: number = 7) {
   try {
     const user = await getCurrentUser();
-
     if (!user) {
-      throw new Error("Not authenticated");
+      console.log("No user found for getJobsAppliedForPeriod");
+      return { count: 0, trend: 0 };
     }
-    const today = new Date();
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(today.getDate() - 30);
-    const jobData = await prisma.job.groupBy({
-      by: "appliedDate",
-      _count: {
-        _all: true,
-      },
+
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const count = await prisma.job.count({
       where: {
         userId: user.id,
-        applied: true,
-        appliedDate: {
-          gte: sevenDaysAgo,
-          lte: today,
-        },
-      },
-      orderBy: {
-        appliedDate: "asc",
-      },
-    });
-    // Reduce to a format that groups by unique date (YYYY-MM-DD)
-    const groupedPosts = jobData.reduce((acc: any, post: any) => {
-      const date = format(new Date(post.appliedDate), "PP");
-      acc[date] = (acc[date] || 0) + post._count._all;
-      return acc;
-    }, {});
-    // Get the last 7 days
-    const last7Days = getLast7Days();
-    // Map to ensure all dates are represented with a count of 0 if necessary
-    const result = last7Days.map((date) => ({
-      day: date.split(",")[0],
-      value: groupedPosts[date] || 0,
-    }));
-
-    return result;
-  } catch (error) {
-    const msg = "Failed to fetch jobs list. ";
-    console.error(msg, error);
-    throw new Error(msg);
-  }
-};
-
-export const getActivityCalendarData = async (): Promise<any | undefined> => {
-  try {
-    const user = await getCurrentUser();
-
-    if (!user) {
-      throw new Error("Not authenticated");
-    }
-    const today = new Date();
-    const daysAgo = new Date();
-    daysAgo.setDate(today.getDate() - 356);
-    const jobData = await prisma.job.groupBy({
-      by: "appliedDate",
-      _count: {
-        _all: true,
-      },
-      where: {
-        userId: user.id,
-        applied: true,
-        appliedDate: {
-          gte: daysAgo, // A year of data
-          lte: today,
-        },
-      },
-      orderBy: {
-        appliedDate: "asc",
-      },
-    });
-
-    type InputObject = {
-      [key: string]: number;
-    };
-
-    type OutputObject = {
-      day: string;
-      value: number;
-    };
-
-    // Reduce to a format that groups by unique date (YYYY-MM-DD)
-    const groupedJobs = jobData.reduce((acc: any, job: any) => {
-      const date = format(new Date(job.appliedDate), "yyyy-MM-dd");
-      acc[date] = (acc[date] || 0) + job._count._all;
-      return acc;
-    }, {});
-
-    const groupedByYear = Object.entries(groupedJobs).reduce(
-      (acc: any, [date, value]) => {
-        const year = date.split("-")[0];
-        if (!acc[year]) {
-          acc[year] = [];
+        createdAt: {
+          gte: startDate
         }
-        acc[year].push({ day: date, value });
-        return acc;
-      },
-      {}
-    );
+      }
+    });
 
-    return groupedByYear;
+    // Calculate trend by comparing with previous period
+    const previousPeriodStart = new Date();
+    previousPeriodStart.setDate(previousPeriodStart.getDate() - days * 2);
+    const previousPeriodEnd = new Date();
+    previousPeriodEnd.setDate(previousPeriodEnd.getDate() - days);
+
+    const previousCount = await prisma.job.count({
+      where: {
+        userId: user.id,
+        createdAt: {
+          gte: previousPeriodStart,
+          lt: previousPeriodEnd
+        }
+      }
+    });
+
+    // Calculate percentage change
+    let trend = 0;
+    if (previousCount > 0) {
+      trend = Math.round(((count - previousCount) / previousCount) * 100);
+    } else if (count > 0) {
+      trend = 100; // 100% increase from 0
+    }
+
+    return { count, trend };
   } catch (error) {
-    const msg = "Failed to fetch jobs list. ";
-    console.error(msg, error);
-    throw new Error(msg);
+    console.error(`Error fetching jobs applied for ${days} days:`, error);
+    return { count: 0, trend: 0 };
   }
-};
+}
+
+export async function getJobsActivityForPeriod() {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      console.log("No user found for getJobsActivityForPeriod");
+      return [];
+    }
+
+    // Get current date and calculate the start of current week (Monday)
+    const now = new Date();
+    const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const mondayOffset = currentDay === 0 ? 6 : currentDay - 1; // Calculate days since Monday
+    
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - mondayOffset);
+    startOfWeek.setHours(0, 0, 0, 0); // Start of Monday
+    
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999); // End of Sunday
+
+    console.log(`Fetching jobs for current week: ${startOfWeek.toISOString()} to ${endOfWeek.toISOString()}`);
+
+    const jobs = await prisma.job.findMany({
+      where: {
+        userId: user.id,
+        createdAt: {
+          gte: startOfWeek,
+          lte: endOfWeek
+        }
+      },
+      orderBy: {
+        createdAt: 'asc'
+      },
+      select: {
+        id: true,
+        createdAt: true
+      }
+    });
+
+    // Initialize weekly data structure
+    const weeklyData = [
+      { day: "Mon", value: 0 },
+      { day: "Tue", value: 0 },
+      { day: "Wed", value: 0 },
+      { day: "Thu", value: 0 },
+      { day: "Fri", value: 0 },
+      { day: "Sat", value: 0 },
+      { day: "Sun", value: 0 }
+    ];
+
+    // Count jobs by day of the week (ensuring timezone consistency)
+    jobs.forEach(job => {
+      const jobDate = new Date(job.createdAt);
+      const dayOfWeek = jobDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const dayName = dayNames[dayOfWeek];
+      
+      const dayData = weeklyData.find(d => d.day === dayName);
+      if (dayData) {
+        dayData.value++;
+      }
+    });
+
+    console.log(`Processed ${jobs.length} jobs for current week into weekly data:`, weeklyData);
+    
+    // Force revalidation to ensure fresh data
+    revalidatePath('/dashboard');
+    
+    return weeklyData;
+  } catch (error) {
+    console.error("Error fetching job activity data:", error);
+    return [
+      { day: "Mon", value: 0 },
+      { day: "Tue", value: 0 },
+      { day: "Wed", value: 0 },
+      { day: "Thu", value: 0 },
+      { day: "Fri", value: 0 },
+      { day: "Sat", value: 0 },
+      { day: "Sun", value: 0 }
+    ];
+  }
+}
+
+export async function getActivityDataForPeriod() {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      console.log("No user found for getActivityDataForPeriod");
+      return [];
+    }
+
+    // Get activities for the last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // You can customize this query based on what activity data you want to track
+    // This is a simple example that returns job status changes
+    const activities = await prisma.job.findMany({
+      where: {
+        userId: user.id,
+        updatedAt: {
+          gte: thirtyDaysAgo
+        }
+      },
+      orderBy: {
+        updatedAt: 'desc'
+      },
+      select: {
+        id: true,
+        title: true,
+        company: true,
+        status: true,
+        updatedAt: true
+      },
+      take: 10
+    });
+
+    return activities;
+  } catch (error) {
+    console.error("Error fetching activity data:", error);
+    return [];
+  }
+}
+
+export async function getActivityCalendarData() {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      console.log("No user found for getActivityCalendarData");
+      return { [new Date().getFullYear().toString()]: [] };
+    }
+
+    // Get job applications for the last 3 years
+    const threeYearsAgo = new Date();
+    threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
+
+    const jobs = await prisma.job.findMany({
+      where: {
+        userId: user.id,
+        createdAt: {
+          gte: threeYearsAgo
+        }
+      },
+      select: {
+        id: true,
+        createdAt: true
+      }
+    });
+
+    console.log(`Found ${jobs.length} jobs for calendar data`);
+
+    // Group jobs by year, then by date
+    const jobsByYear = jobs.reduce((acc, job) => {
+      const year = job.createdAt.getFullYear().toString();
+      const day = job.createdAt.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+      
+      if (!acc[year]) {
+        acc[year] = {};
+      }
+      
+      acc[year][day] = (acc[year][day] || 0) + 1;
+      return acc;
+    }, {} as Record<string, Record<string, number>>);
+
+    // Convert to the format expected by the calendar component
+    const calendarDataByYear = Object.entries(jobsByYear).reduce((acc, [year, dateData]) => {
+      acc[year] = Object.entries(dateData).map(([day, count]) => ({
+        day,
+        value: count
+      }));
+      return acc;
+    }, {} as Record<string, Array<{ day: string; value: number }>>);
+
+    // If no data, provide current year with empty data
+    if (Object.keys(calendarDataByYear).length === 0) {
+      const currentYear = new Date().getFullYear().toString();
+      calendarDataByYear[currentYear] = [];
+    }
+
+    console.log("Calendar data by year:", JSON.stringify(calendarDataByYear));
+    
+    return calendarDataByYear;
+  } catch (error) {
+    console.error("Error fetching calendar data:", error);
+    const currentYear = new Date().getFullYear().toString();
+    return { [currentYear]: [] };
+  }
+}
+
+export async function getWeeklyActivitiesSummary() {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      console.log("No user found for getWeeklyActivitiesSummary");
+      return [
+        { day: "Mon", totalDuration: 0, count: 0 },
+        { day: "Tue", totalDuration: 0, count: 0 },
+        { day: "Wed", totalDuration: 0, count: 0 },
+        { day: "Thu", totalDuration: 0, count: 0 },
+        { day: "Fri", totalDuration: 0, count: 0 },
+        { day: "Sat", totalDuration: 0, count: 0 },
+        { day: "Sun", totalDuration: 0, count: 0 }
+      ];
+    }
+    // Get current week range
+    const now = new Date();
+    const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const mondayOffset = currentDay === 0 ? 6 : currentDay - 1;
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - mondayOffset);
+    startOfWeek.setHours(0, 0, 0, 0);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+    // Fetch activities for the week
+    const activities = await prisma.activity.findMany({
+      where: {
+        userId: user.id,
+        startTime: {
+          gte: startOfWeek,
+          lte: endOfWeek,
+        },
+      },
+      select: {
+        id: true,
+        startTime: true,
+        duration: true,
+      },
+    });
+    // Prepare weekly summary
+    const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const summary = weekDays.map((day) => ({ day, totalDuration: 0, count: 0 }));
+    activities.forEach((activity) => {
+      const date = new Date(activity.startTime);
+      const jsDay = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      const weekDay = weekDays[jsDay === 0 ? 6 : jsDay - 1];
+      const daySummary = summary.find((d) => d.day === weekDay);
+      if (daySummary) {
+        daySummary.count++;
+        daySummary.totalDuration += (activity.duration || 0) / 60; // convert minutes to hours
+      }
+    });
+    return summary;
+  } catch (error) {
+    console.error("Error fetching weekly activities summary:", error);
+    return [
+      { day: "Mon", totalDuration: 0, count: 0 },
+      { day: "Tue", totalDuration: 0, count: 0 },
+      { day: "Wed", totalDuration: 0, count: 0 },
+      { day: "Thu", totalDuration: 0, count: 0 },
+      { day: "Fri", totalDuration: 0, count: 0 },
+      { day: "Sat", totalDuration: 0, count: 0 },
+      { day: "Sun", totalDuration: 0, count: 0 }
+    ];
+  }
+}

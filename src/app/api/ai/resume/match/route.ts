@@ -1,21 +1,20 @@
 import "server-only";
 
-import { auth } from "@/auth";
-import { NextApiRequest, NextApiResponse } from "next";
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { Resume } from "@/models/profile.model";
-import { getJobMatchByOllama, getJobMatchByOpenAi } from "@/actions/ai.actions";
+import { getJobMatchByOpenAi, getJobMatchWithSubscriptionCheck } from "@/actions/ai.actions";
 import { getResumeById } from "@/actions/profile.actions";
 import { getJobDetails } from "@/actions/job.actions";
-import { AiModel, AiProvider } from "@/models/ai.model";
+import { AiModel } from "@/models/ai.model";
 import { JobResponse } from "@/models/job.model";
 
-export const POST = async (req: NextRequest, res: NextApiResponse) => {
-  const session = await auth();
-  const userId = session?.accessToken.sub;
-
-  if (!session || !session.user) {
-    return res.status(401).json({ message: "Not Authenticated" });
+export const POST = async (req: NextRequest) => {
+  const { getUser } = getKindeServerSession(req);
+  const user = await getUser();
+  const userId = user?.id;
+  if (!user) {
+    return NextResponse.json({ message: "Not Authenticated" }, { status: 401 });
   }
   const { resumeId, jobId, selectedModel } = (await req.json()) as {
     resumeId: string;
@@ -31,17 +30,17 @@ export const POST = async (req: NextRequest, res: NextApiResponse) => {
       [getResumeById(resumeId), getJobDetails(jobId)]
     );
 
-    let response;
-    switch (selectedModel.provider) {
-      case AiProvider.OPENAI:
-        response = await getJobMatchByOpenAi(resume, job, selectedModel.model);
-        break;
-      default:
-        response = await getJobMatchByOllama(resume, job, selectedModel.model);
-        break;
+    // Use subscription-checked version
+    const result = await getJobMatchWithSubscriptionCheck(resume, job, selectedModel.model);
+    
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: 403, statusText: "Subscription Required" }
+      );
     }
 
-    return new NextResponse(response, {
+    return new NextResponse(result.stream, {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",

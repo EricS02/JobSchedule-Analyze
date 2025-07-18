@@ -86,7 +86,6 @@ function CompaniesTable({
               <span className="sr-only">Company Logo</span>
             </TableHead>
             <TableHead>Company Name</TableHead>
-            <TableHead className="hidden sm:table-cell">Value</TableHead>
             <TableHead>Jobs Applied</TableHead>
             <TableHead>Actions</TableHead>
             <TableHead>
@@ -108,12 +107,7 @@ function CompaniesTable({
                   />
                 </TableCell>
                 <TableCell className="font-medium">{company.label}</TableCell>
-                <TableCell className="font-medium hidden sm:table-cell">
-                  {company.value}
-                </TableCell>
-                <TableCell className="font-medium">
-                  {company._count?.jobsApplied}
-                </TableCell>
+                <TableCell className="font-medium">{company._count?.jobsApplied}</TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -124,17 +118,11 @@ function CompaniesTable({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem
-                        className="cursor-pointer"
-                        onClick={() => editCompany(company.id)}
-                      >
+                      <DropdownMenuItem className="cursor-pointer" onClick={() => editCompany(company.id)}>
                         <Pencil className="mr-2 h-4 w-4" />
                         Edit Company
                       </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-red-600 cursor-pointer"
-                        onClick={() => onDeleteCompany(company)}
-                      >
+                      <DropdownMenuItem className="text-red-600 cursor-pointer" onClick={() => onDeleteCompany(company)}>
                         <Trash className="mr-2 h-4 w-4" />
                         Delete
                       </DropdownMenuItem>

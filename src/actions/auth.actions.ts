@@ -1,6 +1,6 @@
 "use server";
 import { AuthError } from "next-auth";
-import { signIn } from "../auth";
+import { login } from "../auth";
 import { delay } from "@/utils/delay";
 
 export async function authenticate(
@@ -9,7 +9,7 @@ export async function authenticate(
 ) {
   try {
     delay(1000);
-    await signIn("credentials", formData);
+    await login("credentials", formData);
   } catch (error) {
     if (error instanceof AuthError) {
       switch (error.type) {

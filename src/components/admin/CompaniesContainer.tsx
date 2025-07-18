@@ -4,7 +4,7 @@ import AddCompany from "./AddCompany";
 import CompaniesTable from "./CompaniesTable";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Company } from "@/models/job.model";
-import { getCompanyById, getCompanyList } from "@/actions/company.actions";
+import { getCompanyById, getCompanyList, fixAppliedJobs } from "@/actions/company.actions";
 import { APP_CONSTANTS } from "@/lib/constants";
 import Loading from "../Loading";
 import { Button } from "../ui/button";
@@ -16,6 +16,7 @@ function CompaniesContainer() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editCompany, setEditCompany] = useState(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [fixingJobs, setFixingJobs] = useState<boolean>(false);
 
   const recordsPerPage = APP_CONSTANTS.RECORDS_PER_PAGE;
 
@@ -55,6 +56,22 @@ function CompaniesContainer() {
     setDialogOpen(true);
   };
 
+  const handleFixAppliedJobs = async () => {
+    setFixingJobs(true);
+    try {
+      const result = await fixAppliedJobs();
+      if (result.success) {
+        console.log(`Fixed ${result.count} jobs`);
+        // Reload companies to show updated counts
+        await reloadCompanies();
+      }
+    } catch (error) {
+      console.error("Failed to fix applied jobs:", error);
+    } finally {
+      setFixingJobs(false);
+    }
+  };
+
   return (
     <>
       <div className="col-span-3">
@@ -63,6 +80,14 @@ function CompaniesContainer() {
             <CardTitle>Companies</CardTitle>
             <div className="flex items-center">
               <div className="ml-auto flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleFixAppliedJobs}
+                  disabled={fixingJobs}
+                >
+                  {fixingJobs ? "Fixing..." : "Fix Applied Jobs"}
+                </Button>
                 <AddCompany
                   editCompany={editCompany}
                   reloadCompanies={reloadCompanies}

@@ -1,8 +1,10 @@
-import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { NextApiRequest, NextApiResponse } from "next";
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import {
   createResumeProfile,
+  createResumeProfileWithParsing,
+  createResumeProfileWithClientExtraction,
   deleteFile,
   editResume,
   uploadFile,
@@ -10,17 +12,31 @@ import {
 import path from "path";
 import fs from "fs";
 import { getTimestampedFileName } from "@/lib/utils";
+import prisma from "@/lib/db";
 
 export const POST = async (req: NextRequest, res: NextResponse) => {
-  const session = await auth();
-  const userId = session?.accessToken.sub;
-  const dataPath = process.env.NODE_ENV !== "production" ? "data" : "/data";
-  let filePath;
-
+  console.log('🚀 Resume API POST request received');
+  
   try {
-    if (!session || !session.user) {
+    const { getUser } = getKindeServerSession();
+    const session = await getUser();
+    console.log('🔐 Session check completed');
+    console.log('- Session exists:', !!session);
+    console.log('- User exists:', !!session?.email);
+    
+    const userId = session?.id;
+    console.log('- User ID:', userId);
+    
+    const dataPath = process.env.NODE_ENV !== "production" ? "data" : "/data";
+    console.log('- Data path:', dataPath);
+    
+    let filePath;
+
+    if (!session || !session.email) {
+      console.log('❌ Authentication failed');
       return NextResponse.json(
         {
+          success: false,
           error: "Not Authenticated",
         },
         {
@@ -28,17 +44,90 @@ export const POST = async (req: NextRequest, res: NextResponse) => {
         }
       );
     }
+    
+    console.log('✅ Authentication successful');
+    
+    console.log('📝 Parsing form data...');
     const formData = await req.formData();
+    console.log('✅ Form data parsed successfully');
+    
     const title = formData.get("title") as string;
     const file = formData.get("file") as File;
     const resumeId = (formData.get("id") as string) ?? null;
+    const extractedText = formData.get("extractedText") as string | null;
+    const extractionMetadata = formData.get("extractionMetadata") as string | null;
     let fileId: string | undefined =
       (formData.get("fileId") as string) ?? undefined;
+    
+    console.log('📋 Form data extracted:');
+    console.log('- Title:', title);
+    console.log('- File exists:', !!file);
+    console.log('- Resume ID:', resumeId);
+    console.log('- Extracted text length:', extractedText?.length || 0);
+    console.log('- Extraction metadata exists:', !!extractionMetadata);
+    console.log('- File ID:', fileId);
+    
+    // Simple test to see if we can reach this point
+    console.log('🧪 Testing basic functionality...');
+    try {
+      const testResult = await prisma.$queryRaw`SELECT 1 as test`;
+      console.log('✅ Database test successful:', testResult);
+    } catch (dbError) {
+      console.error('❌ Database test failed:', dbError);
+      throw new Error(`Database connection failed: ${dbError instanceof Error ? dbError.message : 'Unknown error'}`);
+    }
+    
     if (file && file.name) {
+      console.log('📁 Processing file upload...');
+      console.log('- File name:', file.name);
+      console.log('- File size:', file.size);
+      console.log('- File type:', file.type);
+      
+      // Validate file size (1MB limit)
+      const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB
+      if (file.size > MAX_FILE_SIZE) {
+        console.log('❌ File size validation failed');
+        return NextResponse.json(
+          {
+            success: false,
+            error: "File size must be less than 1MB",
+          },
+          {
+            status: 400,
+          }
+        );
+      }
+      
       const uploadDir = path.join(dataPath, "files", "resumes");
+      console.log('- Upload directory:', uploadDir);
+      
+      // Ensure directory exists
+      try {
+        if (!fs.existsSync(uploadDir)) {
+          console.log('📁 Creating upload directory...');
+          fs.mkdirSync(uploadDir, { recursive: true });
+          console.log('✅ Upload directory created');
+        } else {
+          console.log('✅ Upload directory already exists');
+        }
+      } catch (dirError) {
+        console.error('❌ Failed to create upload directory:', dirError);
+        throw new Error(`Failed to create upload directory: ${dirError instanceof Error ? dirError.message : 'Unknown error'}`);
+      }
+      
       const timestampedFileName = getTimestampedFileName(file.name);
       filePath = path.join(uploadDir, timestampedFileName);
-      await uploadFile(file, uploadDir, filePath);
+      console.log('- Final file path:', filePath);
+      
+      try {
+        await uploadFile(file, uploadDir, filePath);
+        console.log('✅ File uploaded successfully');
+      } catch (uploadError) {
+        console.error('❌ File upload failed:', uploadError);
+        throw new Error(`File upload failed: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`);
+      }
+    } else {
+      console.log('⚠️ No file provided for upload');
     }
 
     if (resumeId && title) {
@@ -57,18 +146,68 @@ export const POST = async (req: NextRequest, res: NextResponse) => {
       return NextResponse.json(res, { status: 200 });
     }
 
-    const response = await createResumeProfile(
-      title,
-      file.name ?? null,
-      filePath
-    );
-    return NextResponse.json(response, { status: 201 });
+    // Handle client-extracted text or fallback to server-side processing
+    let response;
+    
+    if (extractedText && extractedText.trim().length > 50) {
+      console.log('Creating resume with client-extracted text');
+      console.log('- Extracted text length:', extractedText.length);
+      if (extractionMetadata) {
+        console.log('- Extraction metadata:', extractionMetadata);
+      }
+      
+      // Use the new client extraction function
+      response = await createResumeProfileWithClientExtraction(
+        title,
+        file?.name ?? null,
+        filePath,
+        extractedText,
+        extractionMetadata ? JSON.parse(extractionMetadata) : undefined
+      );
+    } else {
+      console.log('Creating resume without text extraction');
+      response = await createResumeProfile(
+        title,
+        file?.name ?? null,
+        filePath
+      );
+    }
+    
+    // Check if the response indicates success
+    if (response && response.success) {
+      return NextResponse.json(response, { status: 201 });
+    } else {
+      // Handle error response from the action
+      const errorMessage = response?.message || response?.error || 'Failed to create resume';
+      console.error('Resume creation failed:', response);
+      return NextResponse.json(
+        { success: false, error: errorMessage },
+        { status: 500 }
+      );
+    }
   } catch (error) {
-    console.error(error);
+    console.error('❌ Resume API error:', error);
+    console.error('❌ Error details:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
     if (error instanceof Error) {
       return NextResponse.json(
         {
+          success: false,
           error: error.message ?? "Resume update or File upload failed",
+        },
+        {
+          status: 500,
+        }
+      );
+    } else {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "An unexpected error occurred while processing the resume",
         },
         {
           status: 500,
@@ -79,11 +218,12 @@ export const POST = async (req: NextRequest, res: NextResponse) => {
 };
 
 export const GET = async (req: NextRequest, res: NextApiResponse) => {
-  const session = await auth();
-  const userId = session?.accessToken.sub;
+  const { getUser } = getKindeServerSession();
+  const session = await getUser();
+  const userId = session?.id;
 
   try {
-    if (!session || !session.user) {
+    if (!session || !session.email) {
       return NextResponse.json(
         {
           error: "Not Authenticated",
