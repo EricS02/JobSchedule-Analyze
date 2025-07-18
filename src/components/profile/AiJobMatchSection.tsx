@@ -1,225 +1,148 @@
 "use client";
-import { getResumeList } from "@/actions/profile.actions";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetPortal,
-  SheetTitle,
-} from "../ui/sheet";
-import { useEffect, useRef, useState } from "react";
-import { Resume } from "@/models/profile.model";
-import { toast } from "../ui/use-toast";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
-import Loading from "../Loading";
-import { AiModel, defaultModel, JobMatchResponse } from "@/models/ai.model";
-import { AiJobMatchResponseContent } from "./AiJobMatchResponseContent";
-import { getFromLocalStorage } from "@/utils/localstorage.utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "../ui/tooltip";
-import { Info } from "lucide-react";
 
-interface AiSectionProps {
-  aISectionOpen: boolean;
-  triggerChange: (openState: boolean) => void;
-  jobId: string;
-}
+import { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, Sparkles, Target, TrendingUp } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
+import { useSessionStorage } from "@/hooks/useSessionStorage";
 
-export const AiJobMatchSection = ({
-  aISectionOpen,
-  triggerChange,
-  jobId,
-}: AiSectionProps) => {
-  const [aIContent, setAIContent] = useState<JobMatchResponse | any>("");
-  const [loading, setLoading] = useState(false);
-  const [selectedResumeId, setSelectedResumeId] = useState<string>();
-  const selectedModel: AiModel = getFromLocalStorage(
-    "aiSettings",
-    defaultModel
-  );
+type AiModel = "gpt-3.5-turbo" | "gpt-4" | "gpt-4-turbo" | "claude-3-sonnet";
 
-  const resumesRef = useRef<Resume[]>([]);
-  const getResumes = async () => {
-    try {
-      const { data, total, success, message } = await getResumeList();
-      if (!data || data.ResumeSections?.length === 0) {
-        throw new Error("Resume content is required");
-      }
-      resumesRef.current = data;
-      if (!success) {
-        setLoading(false);
-        throw new Error(message);
-      }
-    } catch (error) {
-      const message = "Error fetching resume list";
-      const description = error instanceof Error ? error.message : message;
-      setLoading(false);
+const defaultModel: AiModel = "gpt-3.5-turbo";
+
+export default function AiJobMatchSection() {
+  const [jobDescription, setJobDescription] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [matchResult, setMatchResult] = useState<string>("");
+  const { value: selectedModel, loading: modelLoading } = useSessionStorage<AiModel>("aiSettings", defaultModel);
+
+  const handleJobMatch = async () => {
+    if (!jobDescription.trim()) {
       toast({
         variant: "destructive",
-        title: "Error!",
-        description,
+        title: "Error",
+        description: "Please enter a job description to analyze.",
       });
+      return;
     }
-  };
-  const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(
-    null
-  );
-  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const getJobMatch = async (resumeId: string, jobId: string) => {
+    setIsLoading(true);
+    setMatchResult("");
+
     try {
-      setLoading(true);
-      // if (
-      //   abortControllerRef.current
-      //   //   && (await readerRef?.current?.closed) === false
-      // ) {
-      //   await abortStream();
-      // }
-      setAIContent("");
-      const abortController = new AbortController();
-      abortControllerRef.current = abortController;
-
       const response = await fetch("/api/ai/resume/match", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resumeId, jobId, selectedModel }),
-        credentials: "include", // Ensure cookies/session are sent
-        signal: abortController.signal,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jobDescription,
+          selectedModel: selectedModel || defaultModel,
+        }),
       });
-
-      if (!response.body) {
-        setLoading(false);
-        throw new Error("No response body");
-      }
 
       if (!response.ok) {
-        setLoading(false);
-        const errorData = await response.json().catch(() => ({}));
-        if (response.status === 403) {
-          // Subscription required error
-          toast({
-            variant: "destructive",
-            title: "Upgrade Required!",
-            description: errorData.error || "AI features require a Pro subscription. Please upgrade to continue.",
-          });
-          // Optionally redirect to pricing page
-          setTimeout(() => {
-            window.location.href = "/pricing";
-          }, 2000);
-          return;
-        }
-        throw new Error(errorData.error || response.statusText);
+        throw new Error("Failed to analyze job match");
       }
 
-      const reader = response.body.getReader();
-      readerRef.current = reader;
-      const decoder = new TextDecoder();
-      let done = false;
-      setLoading(false);
-
-      while (!done && !abortController.signal.aborted) {
-        const { value, done: doneReading } = await reader.read();
-
-        done = doneReading;
-        const chunk = decoder.decode(value, { stream: !done });
-        const parsedChunk = JSON.parse(JSON.stringify(chunk));
-        setAIContent((prev: any) => prev + parsedChunk);
-      }
-      reader.releaseLock();
+      const data = await response.json();
+      setMatchResult(data.result);
+      
+      toast({
+        title: "Analysis Complete",
+        description: "Job match analysis has been completed successfully.",
+      });
     } catch (error) {
-      const message = "Error fetching job matching response";
-      const description = error instanceof Error ? error.message : message;
-      setLoading(false);
+      console.error("Job match error:", error);
       toast({
         variant: "destructive",
-        title: "Error!",
-        description,
+        title: "Error",
+        description: "Failed to analyze job match. Please try again.",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const abortStream = async () => {
-    abortControllerRef.current?.abort();
-    console.log("aborting stream");
-    await readerRef?.current?.cancel();
-  };
+  if (modelLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>AI Job Match Analysis</CardTitle>
+          <CardDescription>Loading AI settings...</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
-  const onSelectResume = async (resumeId: string) => {
-    setSelectedResumeId(resumeId);
-    await getJobMatch(resumeId, jobId);
-  };
-  useEffect(() => {
-    getResumes();
-  }, []);
   return (
-    <Sheet open={aISectionOpen} onOpenChange={triggerChange}>
-      <SheetPortal>
-        <SheetContent className="overflow-y-scroll">
-          <SheetHeader>
-            <SheetTitle className="flex flex-row items-center">
-              AI Job Match
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground mx-1" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{`Model: ${selectedModel.model}`}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </SheetTitle>
-          </SheetHeader>
-          {!selectedResumeId && (
-            <div className="mt-4">
-              <Select value={selectedResumeId} onValueChange={onSelectResume}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Select a resume" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {resumesRef.current.map((resume) => (
-                      <SelectItem
-                        key={resume.id}
-                        value={resume.id!}
-                        className="capitalize"
-                      >
-                        {resume.title}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          <div className="mt-2">
-            {loading ? (
-              <div className="flex items-center flex-col">
-                <Loading />
-                <div>Loading...</div>
-              </div>
+    <Card>
+      <CardHeader>
+        <div className="flex items-center space-x-2">
+          <Target className="h-5 w-5" />
+          <CardTitle>AI Job Match Analysis</CardTitle>
+        </div>
+        <CardDescription>
+          Analyze how well your resume matches a specific job description using AI
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="job-description">Job Description</Label>
+          <Textarea
+            id="job-description"
+            placeholder="Paste the job description here to analyze how well your resume matches..."
+            value={jobDescription}
+            onChange={(e) => setJobDescription(e.target.value)}
+            rows={6}
+            className="resize-none"
+          />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Badge variant="outline" className="text-xs">
+              Using: {selectedModel}
+            </Badge>
+          </div>
+          
+          <Button
+            onClick={handleJobMatch}
+            disabled={isLoading || !jobDescription.trim()}
+            className="flex items-center space-x-2"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Analyzing...</span>
+              </>
             ) : (
               <>
-                <AiJobMatchResponseContent content={aIContent} />
-                {/* <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-                  <code className="text-white">{aIContent}</code>
-                </pre> */}
+                <Sparkles className="h-4 w-4" />
+                <span>Analyze Match</span>
               </>
             )}
+          </Button>
+        </div>
+
+        {matchResult && (
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2">
+              <TrendingUp className="h-4 w-4 text-green-600" />
+              <Label className="text-sm font-medium">Match Analysis</Label>
+            </div>
+            <div className="rounded-lg border bg-muted/50 p-4">
+              <div className="prose prose-sm max-w-none">
+                <div dangerouslySetInnerHTML={{ __html: matchResult }} />
+              </div>
+            </div>
           </div>
-        </SheetContent>
-      </SheetPortal>
-    </Sheet>
+        )}
+      </CardContent>
+    </Card>
   );
-};
+}

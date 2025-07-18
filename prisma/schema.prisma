@@ -30,6 +30,7 @@ model User {
   Location     Location[]
   Profile      Profile[]
   GmailToken   GmailToken[]
+  UserSessions UserSession[]
 }
 
 model Profile {
@@ -303,4 +304,17 @@ model GmailToken {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   user        User     @relation(fields: [userId], references: [id])
+}
+
+model UserSession {
+  id        String   @id @default(uuid())
+  userId    String
+  key       String   // e.g., "theme", "aiSettings", "kinde_token"
+  value     String   // JSON stringified value
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([userId])
 }

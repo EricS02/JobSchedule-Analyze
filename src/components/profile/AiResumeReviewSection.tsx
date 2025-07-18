@@ -1,195 +1,148 @@
 "use client";
-import { Info, Sparkles } from "lucide-react";
-import { Button } from "../ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetOverlay,
-  SheetPortal,
-  SheetTitle,
-  SheetTrigger,
-} from "../ui/sheet";
-import Loading from "../Loading";
-import { useRef, useState } from "react";
-import { toast } from "../ui/use-toast";
-import { Resume } from "@/models/profile.model";
-import { AiModel, defaultModel, ResumeReviewResponse } from "@/models/ai.model";
-import { AiResumeReviewResponseContent } from "./AiResumeReviewResponseContent";
-import { getFromLocalStorage } from "@/utils/localstorage.utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "../ui/tooltip";
 
-interface AiSectionProps {
-  resume: Resume;
-}
+import { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, Sparkles, FileText, TrendingUp } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
+import { useSessionStorage } from "@/hooks/useSessionStorage";
 
-const AiResumeReviewSection = ({ resume }: AiSectionProps) => {
-  const [aIContent, setAIContent] = useState<ResumeReviewResponse | any>("");
-  const [aISectionOpen, setAiSectionOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const selectedModel: AiModel = getFromLocalStorage(
-    "aiSettings",
-    defaultModel
-  );
-  const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(
-    null
-  );
+type AiModel = "gpt-3.5-turbo" | "gpt-4" | "gpt-4-turbo" | "claude-3-sonnet";
 
-  const abortControllerRef = useRef<AbortController | null>(null);
+const defaultModel: AiModel = "gpt-3.5-turbo";
 
-  const getResumeReview = async () => {
-    try {
-      if (!resume || resume.ResumeSections?.length === 0) {
-        throw new Error("Resume content is required");
-      }
-      setLoading(true);
-      setAIContent("");
-      const abortController = new AbortController();
-      abortControllerRef.current = abortController;
-      const response = await fetch("/api/ai/resume/review", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ selectedModel, resume }),
-        signal: abortController.signal,
-      });
+export default function AiResumeReviewSection() {
+  const [resumeText, setResumeText] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [reviewResult, setReviewResult] = useState<string>("");
+  const { value: selectedModel, loading: modelLoading } = useSessionStorage<AiModel>("aiSettings", defaultModel);
 
-      if (!response.body) {
-        setLoading(false);
-        throw new Error("No response body");
-      }
-
-      if (!response.ok) {
-        setLoading(false);
-        const errorData = await response.json().catch(() => ({}));
-        if (response.status === 403) {
-          // Subscription required error
-          toast({
-            variant: "destructive",
-            title: "Upgrade Required!",
-            description: errorData.error || "AI features require a Pro subscription. Please upgrade to continue.",
-          });
-          // Optionally redirect to pricing page
-          setTimeout(() => {
-            window.location.href = "/pricing";
-          }, 2000);
-          return;
-        }
-        throw new Error(errorData.error || response.statusText);
-      }
-
-      const reader = response.body.getReader();
-      readerRef.current = reader;
-      const decoder = new TextDecoder();
-      let done = false;
-      setLoading(false);
-      setIsStreaming(true);
-      while (!done && !abortController.signal.aborted) {
-        const { value, done: doneReading } = await reader.read();
-
-        done = doneReading;
-        const chunk = decoder.decode(value, { stream: !done });
-        const parsedChunk = JSON.parse(JSON.stringify(chunk));
-        setAIContent((prev: any) => prev + parsedChunk);
-      }
-      reader.releaseLock();
-      setIsStreaming(false);
-    } catch (error) {
-      const message = "Error fetching resume review";
-      const description = error instanceof Error ? error.message : message;
-      setLoading(false);
-      setIsStreaming(false);
+  const handleResumeReview = async () => {
+    if (!resumeText.trim()) {
       toast({
         variant: "destructive",
-        title: "Error!",
-        description,
+        title: "Error",
+        description: "Please enter resume text to analyze.",
       });
+      return;
+    }
+
+    setIsLoading(true);
+    setReviewResult("");
+
+    try {
+      const response = await fetch("/api/ai/resume/review", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          resumeText,
+          selectedModel: selectedModel || defaultModel,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to analyze resume");
+      }
+
+      const data = await response.json();
+      setReviewResult(data.result);
+      
+      toast({
+        title: "Review Complete",
+        description: "Resume review has been completed successfully.",
+      });
+    } catch (error) {
+      console.error("Resume review error:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to analyze resume. Please try again.",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const triggerSheetChange = async (openState: boolean) => {
-    setAiSectionOpen(openState);
-    if (openState === false) {
-      abortStream();
-    }
-  };
-
-  const abortStream = async () => {
-    abortControllerRef.current?.abort();
-    setIsStreaming(false);
-    if (readerRef.current && !readerRef?.current.closed) {
-      await readerRef?.current.cancel();
-    }
-  };
+  if (modelLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>AI Resume Review</CardTitle>
+          <CardDescription>Loading AI settings...</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   return (
-    <Sheet open={aISectionOpen} onOpenChange={triggerSheetChange}>
-      <div className="ml-2">
-        <SheetTrigger asChild>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 gap-1 cursor-pointer"
-            onClick={() => triggerSheetChange(true)}
-            disabled={loading || resume.ResumeSections?.length! < 2}
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-              Review
-            </span>
-          </Button>
-        </SheetTrigger>
-      </div>
-      {
-        <SheetPortal>
-          <SheetContent className="overflow-y-scroll">
-            <SheetHeader>
-              <SheetTitle className="flex flex-row items-center">
-                AI Review
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground mx-1" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{`Model: ${selectedModel.model}`}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </SheetTitle>
-            </SheetHeader>
-            <div className="mt-4">
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 gap-1 cursor-pointer"
-                onClick={getResumeReview}
-                disabled={loading || isStreaming}
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                  Generate AI Review
-                </span>
-              </Button>
-            </div>
-            {loading ? (
-              <div className="flex items-center flex-col">
-                <Loading />
-                <div>Loading...</div>
-              </div>
-            ) : (
-              <AiResumeReviewResponseContent content={aIContent} />
-            )}
-          </SheetContent>
-        </SheetPortal>
-      }
-    </Sheet>
-  );
-};
+    <Card>
+      <CardHeader>
+        <div className="flex items-center space-x-2">
+          <FileText className="h-5 w-5" />
+          <CardTitle>AI Resume Review</CardTitle>
+        </div>
+        <CardDescription>
+          Get AI-powered feedback on your resume content and suggestions for improvement
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="resume-text">Resume Content</Label>
+          <Textarea
+            id="resume-text"
+            placeholder="Paste your resume content here for AI analysis and feedback..."
+            value={resumeText}
+            onChange={(e) => setResumeText(e.target.value)}
+            rows={8}
+            className="resize-none"
+          />
+        </div>
 
-export default AiResumeReviewSection;
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Badge variant="outline" className="text-xs">
+              Using: {selectedModel}
+            </Badge>
+          </div>
+          
+          <Button
+            onClick={handleResumeReview}
+            disabled={isLoading || !resumeText.trim()}
+            className="flex items-center space-x-2"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Analyzing...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                <span>Review Resume</span>
+              </>
+            )}
+          </Button>
+        </div>
+
+        {reviewResult && (
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2">
+              <TrendingUp className="h-4 w-4 text-green-600" />
+              <Label className="text-sm font-medium">Review Results</Label>
+            </div>
+            <div className="rounded-lg border bg-muted/50 p-4">
+              <div className="prose prose-sm max-w-none">
+                <div dangerouslySetInnerHTML={{ __html: reviewResult }} />
+              </div>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

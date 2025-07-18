@@ -1,95 +1,124 @@
 "use client";
-import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import {
-  AiModel,
-  defaultModel,
-  OpenaiModel,
-} from "@/models/ai.model";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
-import { Label } from "../ui/label";
-import { Button } from "../ui/button";
-import {
-  getFromLocalStorage,
-  saveToLocalStorage,
-} from "@/utils/localstorage.utils";
-import { toast } from "../ui/use-toast";
 
-function AiSettings() {
-  const [selectedModel, setSelectedModel] = useState<AiModel>(defaultModel);
+import { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Badge } from "@/components/ui/badge";
+import { Brain, Zap, Sparkles, Crown } from "lucide-react";
+import { useSessionStorage } from "@/hooks/useSessionStorage";
 
-  const setSelectedModelValue = (model: string) => {
-    setSelectedModel({ model });
+type AiModel = "gpt-3.5-turbo" | "gpt-4" | "gpt-4-turbo" | "claude-3-sonnet";
+
+const defaultModel: AiModel = "gpt-3.5-turbo";
+
+const modelOptions = [
+  {
+    id: "gpt-3.5-turbo",
+    name: "GPT-3.5 Turbo",
+    description: "Fast and efficient for most tasks",
+    icon: Brain,
+    badge: "Fast",
+    badgeVariant: "secondary" as const,
+  },
+  {
+    id: "gpt-4",
+    name: "GPT-4",
+    description: "More capable and creative",
+    icon: Zap,
+    badge: "Powerful",
+    badgeVariant: "default" as const,
+  },
+  {
+    id: "gpt-4-turbo",
+    name: "GPT-4 Turbo",
+    description: "Latest model with improved performance",
+    icon: Sparkles,
+    badge: "Latest",
+    badgeVariant: "default" as const,
+  },
+  {
+    id: "claude-3-sonnet",
+    name: "Claude 3 Sonnet",
+    description: "Anthropic's advanced AI model",
+    icon: Crown,
+    badge: "Advanced",
+    badgeVariant: "destructive" as const,
+  },
+];
+
+export default function AiSettings() {
+  const { value: selectedModel, setValue: setSelectedModel, loading } = useSessionStorage<AiModel>("aiSettings", defaultModel);
+
+  const handleModelChange = async (model: AiModel) => {
+    await setSelectedModel(model);
   };
 
-  useEffect(() => {
-    const savedSettings = getFromLocalStorage("aiSettings", defaultModel);
-    setSelectedModel(savedSettings);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const saveModelSettings = () => {
-    if (!selectedModel.model) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Please select a model to save.",
-      });
-      return;
-    }
-    saveToLocalStorage("aiSettings", selectedModel);
-    toast({
-      variant: "success",
-      title: "Saved!",
-      description: "AI Settings saved successfully.",
-    });
-  };
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>AI Model Settings</CardTitle>
+          <CardDescription>Loading settings...</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>AI Settings</CardTitle>
+        <CardTitle>AI Model Settings</CardTitle>
+        <CardDescription>
+          Choose your preferred AI model for resume reviews and job matching
+        </CardDescription>
       </CardHeader>
-      <CardContent className="ml-4">
-        <div>
-          <Label className="my-4" htmlFor="ai-model">
-            OpenAI Model
-          </Label>
-          <Select
-            value={selectedModel.model}
-            onValueChange={setSelectedModelValue}
-          >
-            <SelectTrigger
-              id="ai-model"
-              aria-label="Select OpenAI Model"
-              className="w-[180px]"
-            >
-              <SelectValue placeholder="Select OpenAI Model" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {Object.entries(OpenaiModel).map(([key, value]) => (
-                  <SelectItem key={key} value={value} className="capitalize">
-                    {value}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+      <CardContent className="space-y-6">
+        <RadioGroup
+          value={selectedModel}
+          onValueChange={handleModelChange}
+          className="grid gap-4"
+        >
+          {modelOptions.map((option) => {
+            const Icon = option.icon;
+            return (
+              <div
+                key={option.id}
+                className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-muted/50 transition-colors"
+              >
+                <RadioGroupItem value={option.id} id={option.id} />
+                <Label
+                  htmlFor={option.id}
+                  className="flex flex-1 cursor-pointer items-center justify-between"
+                >
+                  <div className="flex items-center space-x-3">
+                    <Icon className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium">{option.name}</span>
+                        <Badge variant={option.badgeVariant} className="text-xs">
+                          {option.badge}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {option.description}
+                      </p>
+                    </div>
+                  </div>
+                </Label>
+              </div>
+            );
+          })}
+        </RadioGroup>
+
+        <div className="rounded-lg bg-muted p-4">
+          <h4 className="font-medium mb-2">Current Selection</h4>
+          <p className="text-sm text-muted-foreground">
+            You're currently using: <strong>{selectedModel}</strong>
+          </p>
         </div>
-        <Button className="mt-8" onClick={saveModelSettings}>
-          Save
-        </Button>
       </CardContent>
     </Card>
   );
 }
-
-export default AiSettings;

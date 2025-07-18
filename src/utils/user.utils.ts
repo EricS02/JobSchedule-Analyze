@@ -2,6 +2,7 @@ import "server-only";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import prisma from "@/lib/db";
 import { CurrentUser } from "@/models/user.model";
+import { logInfo, logError, logWarn } from "@/lib/logger";
 
 // Centralize user fetching to ensure consistency
 export async function getCurrentUser() {
@@ -11,7 +12,7 @@ export async function getCurrentUser() {
     const user = await getUser();
     
     if (!user || !user.email) {
-      console.log("No valid session found");
+      logWarn("No valid session found");
       return null;
     }
     
@@ -39,28 +40,39 @@ export async function getCurrentUser() {
     });
     
     // Log the user ID for debugging
-    console.log(`Current user ID: ${dbUser.id}`);
+    logInfo(`Current user ID: ${dbUser.id}`, { userId: dbUser.id, email: dbUser.email });
     
     // If this is a new user (wasn't found before), run relationship fixing
     if (!existingUser) {
-      console.log(`New user created: ${dbUser.email}, running job relationship fixing...`);
+      logInfo(`New user created: ${dbUser.email}, running job relationship fixing...`, {
+        userId: dbUser.id,
+        email: dbUser.email,
+      });
       try {
         // Import and run the relationship fixing function
         const { ensureUserJobRelationships } = await import('@/actions/job.actions');
         const result = await ensureUserJobRelationships();
         if (result.success) {
-          console.log(`Successfully fixed ${result.fixedCount} job relationships for new user`);
+          logInfo(`Successfully fixed ${result.fixedCount} job relationships for new user`, {
+            userId: dbUser.id,
+            fixedCount: result.fixedCount,
+          });
         } else {
-          console.warn(`Failed to fix job relationships for new user: ${result.message}`);
+          logWarn(`Failed to fix job relationships for new user: ${result.message}`, {
+            userId: dbUser.id,
+            error: result.message,
+          });
         }
       } catch (error) {
-        console.error("Error running job relationship fixing for new user:", error);
+        logError("Error running job relationship fixing for new user", error, {
+          userId: dbUser.id,
+        });
       }
     }
     
     return dbUser;
   } catch (error) {
-    console.error("Error getting current user:", error);
+    logError("Error getting current user", error);
     return null;
   }
 }
