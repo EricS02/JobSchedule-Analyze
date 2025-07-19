@@ -4,6 +4,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Providers } from "@/components/providers";
 import ExtensionListener from "@/components/ExtensionListener";
+import Footer from "@/components/Footer";
 export const dynamic = "force-dynamic";
 
 const inter = Inter({
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: Readonly<Props>) {
         <Providers>
           <ExtensionListener />
           {children}
+          <Footer />
         </Providers>
       </body>
     </html>
