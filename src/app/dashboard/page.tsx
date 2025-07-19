@@ -12,6 +12,7 @@ import RecentJobsCard from "@/components/dashboard/RecentJobsCard";
 import WeeklyBarChart from "@/components/dashboard/WeeklyBarChart";
 import SubscriptionStatus from "@/components/dashboard/SubscriptionStatus";
 import DailyJobLimitCard from "@/components/dashboard/DailyJobLimitCard";
+import ExtensionSetupGuide from "@/components/dashboard/ExtensionSetupGuide";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Metadata } from "next";
 
@@ -43,6 +44,11 @@ export default async function Dashboard() {
 
   return (
     <div className="w-full">
+      {/* Extension Setup Guide for new users */}
+      <div className="mb-6">
+        <ExtensionSetupGuide />
+      </div>
+
       {/* SubscriptionStatus at top on mobile/tablet */}
       <div className="lg:hidden mb-4">
         <SubscriptionStatus />

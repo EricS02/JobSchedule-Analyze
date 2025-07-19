@@ -13,7 +13,8 @@ import {
   ArrowRight,
   Star,
   ChevronRight,
-  Cpu
+  Cpu,
+  Download
 } from "lucide-react";
 import Link from "next/link";
 import { RegisterLink, LoginLink } from "@kinde-oss/kinde-auth-nextjs/components";
@@ -222,15 +223,16 @@ export default function HomePage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" variant="secondary" asChild>
-              <RegisterLink>
-                Get Started Free
+              <Link href="/extension">
+                <Download className="mr-2 w-4 h-4" />
+                Download Extension
                 <ArrowRight className="ml-2 w-4 h-4" />
-              </RegisterLink>
+              </Link>
             </Button>
             <Button size="lg" variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white/20" asChild>
-              <LoginLink>
-                Sign In
-              </LoginLink>
+              <Link href="/extension">
+                Learn More
+              </Link>
             </Button>
           </div>
         </div>

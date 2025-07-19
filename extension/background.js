@@ -21,6 +21,90 @@ const CONFIG = {
 const ENVIRONMENT = 'development'; // Change to 'production' for production builds
 const CURRENT_CONFIG = CONFIG[ENVIRONMENT];
 
+// Extension Installation Detection
+let isInstalled = false;
+
+// Check if this is the first time the extension is being installed
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === 'install') {
+    console.log("JobSchedule: Extension installed for the first time");
+    isInstalled = true;
+    
+    // Notify the web app about installation
+    notifyWebAppOfInstallation();
+    
+    // Set installation flag in storage
+    chrome.storage.local.set({ 
+      extensionInstalled: true,
+      installTimestamp: Date.now()
+    });
+  } else if (details.reason === 'update') {
+    console.log("JobSchedule: Extension updated");
+    chrome.storage.local.set({ 
+      extensionUpdated: true,
+      updateTimestamp: Date.now()
+    });
+  }
+});
+
+// Function to notify web app of installation
+async function notifyWebAppOfInstallation() {
+  try {
+    const response = await fetch(`${CURRENT_CONFIG.API_BASE_URL}/extension/install`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: 'install',
+        extensionId: chrome.runtime.id,
+        timestamp: Date.now()
+      })
+    });
+    
+    if (response.ok) {
+      console.log("JobSchedule: Successfully notified web app of installation");
+    } else {
+      console.warn("JobSchedule: Failed to notify web app of installation");
+    }
+  } catch (error) {
+    console.error("JobSchedule: Error notifying web app of installation:", error);
+  }
+}
+
+// Handle messages from content script and popup
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'ping') {
+    // Respond to ping from web app to check if extension is installed
+    sendResponse({ status: 'ok', extensionId: chrome.runtime.id });
+    return true;
+  }
+  
+  if (request.action === 'trackJob') {
+    // Handle job tracking request
+    trackJobApplication(request.jobData)
+      .then(result => sendResponse({ success: true, data: result }))
+      .catch(error => sendResponse({ success: false, error: error.message }));
+    return true; // Keep message channel open for async response
+  }
+  
+  if (request.action === 'checkAuth') {
+    // Handle authentication check request
+    checkAuthentication()
+      .then(isAuthenticated => sendResponse({ isAuthenticated }))
+      .catch(error => sendResponse({ isAuthenticated: false, error: error.message }));
+    return true;
+  }
+});
+
+// Listen for context invalidation
+chrome.runtime.onSuspend.addListener(() => {
+  if (CURRENT_CONFIG.DEBUG_MODE) {
+    console.log("JobSchedule: Extension being suspended");
+  }
+  // Perform any cleanup here
+});
+
 // Rate Limiting
 const rateLimiter = {
   requests: new Map(),
@@ -200,161 +284,54 @@ async function verifyContentIntegrity(jobData) {
     throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
   }
   
-  // Verify URL is from LinkedIn
-  if (!jobData.jobUrl.includes('linkedin.com')) {
-    throw new Error('Job URL must be from LinkedIn');
-  }
-  
   return true;
 }
 
 // Input Sanitization Functions
 function sanitizeText(text) {
-  if (!text || typeof text !== 'string') return '';
-  
-  // Remove HTML tags and dangerous characters
-  return text
-    .replace(/<[^>]*>/g, '') // Remove HTML tags
-    .replace(/[<>\"'&]/g, '') // Remove dangerous characters
-    .trim()
-    .substring(0, 500); // Limit length
+  if (typeof text !== 'string') return '';
+  return text.trim().replace(/[<>]/g, '');
 }
 
 function sanitizeHTML(html) {
-  if (!html || typeof html !== 'string') return '';
-  
-  // Basic HTML sanitization - remove script tags and dangerous attributes
-  return html
-    .replace(/<script[^>]*>.*?<\/script>/gi, '') // Remove script tags
-    .replace(/<iframe[^>]*>.*?<\/iframe>/gi, '') // Remove iframe tags
-    .replace(/on\w+\s*=/gi, '') // Remove event handlers
-    .replace(/javascript:/gi, '') // Remove javascript: protocol
-    .trim()
-    .substring(0, 2000); // Limit length
+  if (typeof html !== 'string') return '';
+  return html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
 }
 
 function validateURL(url) {
-  if (!url || typeof url !== 'string') return null;
-  
   try {
-    const parsed = new URL(url);
-    // Only allow http/https protocols
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      return null;
-    }
-    return url.substring(0, 500); // Limit length
+    const urlObj = new URL(url);
+    return urlObj.protocol === 'https:' || urlObj.protocol === 'http:';
   } catch {
-    return null;
+    return false;
   }
 }
 
 function sanitizeJobData(jobData) {
   return {
-    jobTitle: sanitizeText(jobData.jobTitle) || "Unknown Position",
-    company: sanitizeText(jobData.company) || "Unknown Company",
-    location: sanitizeText(jobData.location) || "Remote",
-    description: sanitizeHTML(jobData.description) || "No description available",
-    detailedDescription: sanitizeHTML(jobData.detailedDescription) || null,
-    jobRequirements: sanitizeHTML(jobData.jobRequirements) || null,
-    jobResponsibilities: sanitizeHTML(jobData.jobResponsibilities) || null,
-    jobBenefits: sanitizeHTML(jobData.jobBenefits) || null,
-    jobUrl: validateURL(jobData.jobUrl) || window.location.href,
-    logoUrl: validateURL(jobData.logoUrl) || null
+    jobTitle: sanitizeText(jobData.jobTitle),
+    company: sanitizeText(jobData.company),
+    jobUrl: validateURL(jobData.jobUrl) ? jobData.jobUrl : '',
+    location: sanitizeText(jobData.location || ''),
+    description: sanitizeHTML(jobData.description || ''),
+    salary: sanitizeText(jobData.salary || ''),
+    requirements: sanitizeHTML(jobData.requirements || ''),
+    source: 'linkedin'
   };
 }
 
-// Secure Error Handling
+// Error Handling
 function handleError(error, userMessage) {
-  if (CURRENT_CONFIG.DEBUG_MODE) {
-    console.error("JobSchedule Debug:", error);
-  }
+  console.error('JobSchedule Error:', error);
   
   // Show user-friendly notification
   chrome.notifications.create({
     type: 'basic',
     iconUrl: 'icon.png',
     title: 'JobSchedule Error',
-    message: userMessage || "An error occurred while tracking the job"
+    message: userMessage || 'An error occurred while tracking your job application.'
   });
 }
-
-// Add this to your background.js
-chrome.runtime.onInstalled.addListener(() => {
-  console.log("JobSchedule: Extension installed/updated");
-});
-
-// Listen for messages from content script
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (CURRENT_CONFIG.DEBUG_MODE) {
-    console.log("JobSchedule: Message received in background", message);
-  }
-  
-  if (message.action === 'trackJobApplication') {
-    trackJobApplication(message.jobData)
-      .then(result => {
-        if (CURRENT_CONFIG.DEBUG_MODE) {
-          console.log("JobSchedule: Job tracked successfully", result);
-        }
-        
-        // Notify all tabs that a job was updated (only in development)
-        if (CURRENT_CONFIG.ALLOW_DEV_ENDPOINTS) {
-          chrome.tabs.query({ url: "http://localhost:3000/*" }, (tabs) => {
-            if (tabs && Array.isArray(tabs)) {
-              try {
-                tabs.forEach(tab => {
-                  try {
-                    chrome.tabs.sendMessage(tab.id, { 
-                      action: 'jobCreated', 
-                      jobData: result.job 
-                    });
-                  } catch (e) {
-                    // Tab might not be ready to receive messages, that's okay
-                    if (CURRENT_CONFIG.DEBUG_MODE) {
-                      console.warn("JobSchedule: Could not send message to tab", tab.id, e);
-                    }
-                  }
-                });
-              } catch (e) {
-                if (CURRENT_CONFIG.DEBUG_MODE) {
-                  console.warn("JobSchedule: Error iterating tabs for jobCreated message", e);
-                }
-              }
-            }
-          });
-        }
-        
-        sendResponse({ success: true, message: "Job tracked successfully" });
-      })
-      .catch(error => {
-        handleError(error, "Failed to track job application");
-        sendResponse({ success: false, message: error.message });
-      });
-    
-    // Return true to indicate we'll respond asynchronously
-    return true;
-  }
-  
-  if (message.action === 'checkAuth') {
-    checkAuthentication()
-      .then(isAuthenticated => {
-        sendResponse({ isAuthenticated });
-      })
-      .catch(error => {
-        handleError(error, "Authentication check failed");
-        sendResponse({ isAuthenticated: false, error: error.message });
-      });
-    
-    return true;
-  }
-});
-
-// Listen for context invalidation
-chrome.runtime.onSuspend.addListener(() => {
-  if (CURRENT_CONFIG.DEBUG_MODE) {
-    console.log("JobSchedule: Extension being suspended");
-  }
-  // Perform any cleanup here
-});
 
 // Function to check if user is authenticated
 async function checkAuthentication() {

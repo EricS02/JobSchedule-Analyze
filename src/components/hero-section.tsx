@@ -1,6 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
-import { ArrowRight, ChevronRight } from 'lucide-react'
+import { ArrowRight, ChevronRight, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Image from 'next/image'
 import { TextEffect } from '@/components/ui/text-effect'
@@ -68,6 +68,7 @@ export default function HeroSection() {
                                 },
                             }}
                             className="absolute inset-0 -z-20">
+                            {/* Background animation elements */}
                         </AnimatedGroup>
                         <div className="absolute inset-0 -z-10 size-full [background:radial-gradient(125%_125%_at_50%_100%,transparent_0%,var(--color-background)_75%)]"></div>
                         <div className="mx-auto max-w-7xl px-6">
@@ -111,9 +112,10 @@ export default function HeroSection() {
                                             asChild
                                             size="lg"
                                             className="rounded-xl px-4 sm:px-5 text-sm sm:text-base">
-                                            <RegisterLink>
-                                                <span className="text-nowrap">Install Now - It's Free</span>
-                                            </RegisterLink>
+                                            <Link href="/extension">
+                                                <Download className="w-4 h-4 mr-2" />
+                                                <span className="text-nowrap">Download Extension</span>
+                                            </Link>
                                         </Button>
                                     </div>
                                     <Button
@@ -122,9 +124,9 @@ export default function HeroSection() {
                                         size="lg"
                                         variant="ghost"
                                         className="h-10 sm:h-10.5 rounded-xl px-4 sm:px-5 text-sm sm:text-base">
-                                        <LoginLink>
-                                            <span className="text-nowrap">Sign In</span>
-                                        </LoginLink>
+                                        <Link href="/extension">
+                                            <span className="text-nowrap">Learn More</span>
+                                        </Link>
                                     </Button>
                                 </AnimatedGroup>
                             </div>
