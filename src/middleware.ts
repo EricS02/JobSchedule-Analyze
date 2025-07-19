@@ -1,7 +1,7 @@
 import { withAuth } from "@kinde-oss/kinde-auth-nextjs/middleware";
 import { NextRequest, NextResponse } from "next/server";
-import { apiSecurityMiddleware, addSecurityHeaders, logRequest } from "@/lib/api-security";
-import { logInfo, logError } from "@/lib/logger";
+import { apiSecurityMiddleware, addSecurityHeaders, logRequest } from "@/lib/api-security-edge";
+import { logInfo, logError } from "@/lib/logger-edge";
 
 export default withAuth(
   async function middleware(req: NextRequest) {

@@ -14,7 +14,7 @@ import {
 import { Button } from "../ui/button";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { AiJobMatchSection } from "../profile/AiJobMatchSection";
+import AiJobMatchSection from "../profile/AiJobMatchSection";
 import { useState } from "react";
 import { DownloadFileButton } from "../profile/DownloadFileButton";
 import React from "react";

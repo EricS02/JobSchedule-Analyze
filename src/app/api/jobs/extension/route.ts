@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/utils/user.utils";
 import { addJob } from "@/actions/job.actions";
 import { logInfo, logError, logUserActivity } from "@/lib/logger";
-import { sanitizeInput, logSecurityEvent } from "@/lib/api-security";
+import { sanitizeInput, securityUtils } from "@/lib/api-security";
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     // Get authentication token
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      logSecurityEvent('Missing or invalid authorization header', {
+      securityUtils.logSecurityEvent('Missing or invalid authorization header', {
         hasAuthHeader: !!authHeader,
         authHeaderType: authHeader ? 'Bearer' : 'none',
       });
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     // Get current user
     const user = await getCurrentUser();
     if (!user) {
-      logSecurityEvent('Unauthenticated access attempt', {
+      securityUtils.logSecurityEvent('Unauthenticated access attempt', {
         ip: request.ip || request.headers.get('x-forwarded-for'),
       });
       return NextResponse.json(
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
 
       // Validate job URL if provided
       if (jobData.jobUrl && !jobData.jobUrl.includes('linkedin.com')) {
-        logSecurityEvent('Invalid job URL provided', {
+        securityUtils.logSecurityEvent('Invalid job URL provided', {
           userId: user.id,
           jobUrl: jobData.jobUrl,
         });

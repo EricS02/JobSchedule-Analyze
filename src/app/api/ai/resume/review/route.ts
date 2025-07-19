@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/utils/user.utils";
 import { logInfo, logError, logUserActivity } from "@/lib/logger";
-import { sanitizeInput, logSecurityEvent } from "@/lib/api-security";
-import { checkSubscriptionStatus } from "@/actions/stripe.actions";
+import { sanitizeInput, securityUtils } from "@/lib/api-security";
+import { hasSubscription } from "@/actions/stripe.actions";
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     // Get current user
     const user = await getCurrentUser();
     if (!user) {
-      logSecurityEvent('Unauthenticated AI review attempt', {
+      securityUtils.logSecurityEvent('Unauthenticated AI review attempt', {
         ip: request.ip || request.headers.get('x-forwarded-for'),
       });
       return NextResponse.json(
@@ -27,8 +27,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check subscription status for AI features
-    const subscription = await checkSubscriptionStatus();
-    if (!subscription.hasActiveSubscription) {
+    const subscription = await hasSubscription();
+    if (!subscription.isSubscribed) {
       logUserActivity(user.id, 'ai_feature_denied_no_subscription', {
         feature: 'resume_review',
       });
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
 
       // Validate resume text length
       if (requestData.resumeText.length > 10000) {
-        logSecurityEvent('Resume text too long', {
+        securityUtils.logSecurityEvent('Resume text too long', {
           userId: user.id,
           textLength: requestData.resumeText.length,
           maxLength: 10000,
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
       // Validate AI model
       const allowedModels = ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo', 'claude-3-sonnet'];
       if (requestData.selectedModel && !allowedModels.includes(requestData.selectedModel)) {
-        logSecurityEvent('Invalid AI model requested', {
+        securityUtils.logSecurityEvent('Invalid AI model requested', {
           userId: user.id,
           requestedModel: requestData.selectedModel,
           allowedModels,
