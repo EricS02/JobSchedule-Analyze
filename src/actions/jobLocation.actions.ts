@@ -601,3 +601,29 @@ export const deleteJobLocationById = async (
     return handleError(error, msg);
   }
 };
+
+export const repairLocationOwnership = async (): Promise<any | undefined> => {
+  try {
+    const user = await getCurrentUser();
+    if (!user) throw new Error("Not authenticated");
+
+    // Find all jobs for the user with a locationId
+    const jobs = await prisma.job.findMany({
+      where: { userId: user.id, locationId: { not: null } },
+      select: { locationId: true }
+    });
+
+    const locationIds = Array.from(new Set(jobs.map(j => j.locationId).filter(Boolean)));
+
+    // Update all these locations to have createdBy = user.id
+    const updateResult = await prisma.location.updateMany({
+      where: { id: { in: locationIds } },
+      data: { createdBy: user.id }
+    });
+
+    return { success: true, updated: updateResult.count };
+  } catch (error) {
+    const msg = "Failed to repair location ownership. ";
+    return handleError(error, msg);
+  }
+};

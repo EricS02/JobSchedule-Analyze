@@ -13,9 +13,30 @@ chrome.runtime.onInstalled.addListener(() => {
   console.log("JobSchedule: Extension installed/updated");
 });
 
+// Message schema validation
+function isValidMessage(message) {
+  if (!message || typeof message !== 'object') return false;
+  if (typeof message.action !== 'string') return false;
+  // Add more validation per action type
+  switch (message.action) {
+    case 'trackJobApplication':
+      return message.jobData && typeof message.jobData === 'object';
+    case 'checkAuth':
+      return true;
+    default:
+      return false;
+  }
+}
+
 // Listen for messages from content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log("JobSchedule: Message received in background", message);
+
+  // Validate message schema
+  if (!isValidMessage(message)) {
+    sendResponse({ success: false, error: 'Invalid message schema' });
+    return;
+  }
   
   if (message.action === 'trackJobApplication') {
     trackJobApplication(message.jobData)

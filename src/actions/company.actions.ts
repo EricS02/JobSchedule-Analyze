@@ -270,3 +270,29 @@ export const deleteCompanyById = async (
     return handleError(error, msg);
   }
 };
+
+export const repairCompanyOwnership = async (): Promise<any | undefined> => {
+  try {
+    const user = await getCurrentUser();
+    if (!user) throw new Error("Not authenticated");
+
+    // Find all jobs for the user with a companyId
+    const jobs = await prisma.job.findMany({
+      where: { userId: user.id, companyId: { not: null } },
+      select: { companyId: true }
+    });
+
+    const companyIds = Array.from(new Set(jobs.map(j => j.companyId).filter(Boolean)));
+
+    // Update all these companies to have createdBy = user.id
+    const updateResult = await prisma.company.updateMany({
+      where: { id: { in: companyIds } },
+      data: { createdBy: user.id }
+    });
+
+    return { success: true, updated: updateResult.count };
+  } catch (error) {
+    const msg = "Failed to repair company ownership. ";
+    return handleError(error, msg);
+  }
+};

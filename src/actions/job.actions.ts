@@ -779,8 +779,8 @@ export const ensureUserJobRelationships = async (): Promise<any | undefined> => 
         OR: [
           { locationId: null },
           { companyId: null },
-          { jobTitleId: null },
-          { applied: null }
+          { jobTitleId: null }
+          // Removed { applied: null } because Prisma boolean fields cannot be queried for null
         ]
       },
       select: {

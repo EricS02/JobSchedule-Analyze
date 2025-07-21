@@ -56,10 +56,12 @@ export async function POST(req: NextRequest) {
     
   } catch (error) {
     console.error("Extension authentication error:", error);
+    const isProd = process.env.NODE_ENV === 'production';
     return NextResponse.json(
       { 
         success: false, 
-        message: error instanceof Error ? error.message : "Unknown error occurred" 
+        message: error instanceof Error ? error.message : "Unknown error occurred",
+        ...(isProd ? {} : { error })
       },
       { status: 500 }
     );

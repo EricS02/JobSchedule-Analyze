@@ -4,7 +4,7 @@ import AddCompany from "./AddCompany";
 import CompaniesTable from "./CompaniesTable";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Company } from "@/models/job.model";
-import { getCompanyById, getCompanyList, fixAppliedJobs } from "@/actions/company.actions";
+import { getCompanyById, getCompanyList, fixAppliedJobs, repairCompanyOwnership } from "@/actions/company.actions";
 import { APP_CONSTANTS } from "@/lib/constants";
 import Loading from "../Loading";
 import { Button } from "../ui/button";
@@ -17,6 +17,7 @@ function CompaniesContainer() {
   const [editCompany, setEditCompany] = useState(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [fixingJobs, setFixingJobs] = useState<boolean>(false);
+  const [repairingOwnership, setRepairingOwnership] = useState<boolean>(false);
 
   const recordsPerPage = APP_CONSTANTS.RECORDS_PER_PAGE;
 
@@ -47,7 +48,12 @@ function CompaniesContainer() {
   };
 
   useEffect(() => {
-    (async () => await loadCompanies(1))();
+    (async () => {
+      // First, repair company ownership automatically
+      await repairCompanyOwnership();
+      // Then load companies
+      await loadCompanies(1);
+    })();
   }, [loadCompanies]);
 
   const onEditCompany = async (companyId: string) => {

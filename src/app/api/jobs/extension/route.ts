@@ -226,11 +226,12 @@ export async function POST(req: NextRequest) {
     return response;
   } catch (error) {
     console.error("API: Error creating job:", error);
+    const isProd = process.env.NODE_ENV === 'production';
     return corsHeaders(NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: error instanceof Error ? error.message : "Unknown error occurred",
-        error
+        ...(isProd ? {} : { error })
       },
       { status: 500 }
     ));

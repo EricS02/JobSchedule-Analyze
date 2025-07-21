@@ -593,8 +593,26 @@ function sendJobData(jobData) {
   }
 }
 
-// Listen for messages from popup
+// Message schema validation
+function isValidMessage(message) {
+  if (!message || typeof message !== 'object') return false;
+  if (typeof message.action !== 'string') return false;
+  // Add more validation per action type
+  switch (message.action) {
+    case 'jobCreated':
+      return message.jobData && typeof message.jobData === 'object';
+    default:
+      return false;
+  }
+}
+
+// Listen for messages from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Validate message schema
+  if (!isValidMessage(message)) {
+    sendResponse && sendResponse({ success: false, error: 'Invalid message schema' });
+    return;
+  }
       console.log("JobSchedule: Received message:", message);
   
   if (message.action === 'manualTrack') {

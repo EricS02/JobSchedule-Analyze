@@ -5,7 +5,7 @@ import { Button } from "../ui/button";
 import { APP_CONSTANTS } from "@/lib/constants";
 import { Location } from "@prisma/client";
 import JobLocationsTable from "./JobLocationsTable";
-import { getJobLocationsList } from "@/actions/jobLocation.actions";
+import { getJobLocationsList, repairLocationOwnership } from "@/actions/jobLocation.actions";
 import { ensureUserJobRelationships } from "@/actions/job.actions";
 import Loading from "../Loading";
 
@@ -15,6 +15,7 @@ function JobLocationsContainer() {
   const [page, setPage] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(false);
   const [isFixingRelationships, setIsFixingRelationships] = useState<boolean>(false);
+  const [isRepairingOwnership, setIsRepairingOwnership] = useState<boolean>(false);
 
   const recordsPerPage = APP_CONSTANTS.RECORDS_PER_PAGE;
 
@@ -60,10 +61,29 @@ function JobLocationsContainer() {
     }
   };
 
+  const handleRepairLocationOwnership = async () => {
+    setIsRepairingOwnership(true);
+    try {
+      const result = await repairLocationOwnership();
+      if (result.success) {
+        console.log(`Repaired ${result.updated} location ownerships`);
+        await reloadJobLocations();
+      } else {
+        console.error("Failed to repair location ownership:", result.message);
+      }
+    } catch (error) {
+      console.error("Error repairing location ownership:", error);
+    } finally {
+      setIsRepairingOwnership(false);
+    }
+  };
+
   useEffect(() => {
     console.log('JobLocationsContainer: Loading job locations...');
     (async () => {
-      // First, try to fix any existing relationship issues
+      // First, repair location ownership automatically
+      await repairLocationOwnership();
+      // Then, fix any existing relationship issues
       await handleFixJobRelationships();
       // Then load the locations
       await loadJobLocations(1);
@@ -76,15 +96,17 @@ function JobLocationsContainer() {
         <Card x-chunk="dashboard-06-chunk-0">
           <CardHeader className="flex-row justify-between items-center">
             <CardTitle>Job Locations</CardTitle>
-            {isFixingRelationships && (
-              <div className="text-sm text-muted-foreground">
-                Fixing job relationships...
-              </div>
-            )}
+            <div className="flex gap-2 items-center">
+              {isFixingRelationships && (
+                <div className="text-sm text-muted-foreground">
+                  Fixing job relationships...
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
-            {(loading || isFixingRelationships) && <Loading />}
-            {locations.length > 0 && !loading && !isFixingRelationships && (
+            {(loading || isFixingRelationships || isRepairingOwnership) && <Loading />}
+            {locations.length > 0 && !loading && !isFixingRelationships && !isRepairingOwnership && (
               <>
                 <JobLocationsTable
                   jobLocations={locations}
@@ -100,7 +122,7 @@ function JobLocationsContainer() {
                 </div>
               </>
             )}
-            {locations.length < totalJobLocations && !loading && !isFixingRelationships && (
+            {locations.length < totalJobLocations && !loading && !isFixingRelationships && !isRepairingOwnership && (
               <div className="flex justify-center p-4">
                 <Button
                   size="sm"
@@ -113,7 +135,7 @@ function JobLocationsContainer() {
                 </Button>
               </div>
             )}
-            {locations.length === 0 && !loading && !isFixingRelationships && (
+            {locations.length === 0 && !loading && !isFixingRelationships && !isRepairingOwnership && (
               <div className="text-center py-8">
                 <p className="text-muted-foreground">No job locations found.</p>
                 <p className="text-sm text-muted-foreground mt-2">

@@ -192,12 +192,13 @@ export const POST = async (req: NextRequest, res: NextResponse) => {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined
     });
-    
+    const isProd = process.env.NODE_ENV === 'production';
     if (error instanceof Error) {
       return NextResponse.json(
         {
           success: false,
           error: error.message ?? "Resume update or File upload failed",
+          ...(isProd ? {} : { stack: error.stack })
         },
         {
           status: 500,
