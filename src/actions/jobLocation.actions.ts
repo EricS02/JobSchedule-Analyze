@@ -613,7 +613,7 @@ export const repairLocationOwnership = async (): Promise<any | undefined> => {
       select: { locationId: true }
     });
 
-    const locationIds = Array.from(new Set(jobs.map(j => j.locationId).filter(Boolean)));
+    const locationIds = Array.from(new Set(jobs.map(j => j.locationId).filter((id): id is string => id !== null)));
 
     // Update all these locations to have createdBy = user.id
     const updateResult = await prisma.location.updateMany({
