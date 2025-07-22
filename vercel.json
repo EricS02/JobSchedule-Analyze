@@ -1,7 +1,4 @@
 {
-  "analytics": {
-    "enable": true
-  },
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "framework": "nextjs",
