@@ -113,7 +113,8 @@ export const getResumeReviewByOpenAi = async (
   return new ReadableStream({
     async start(controller) {
       for await (const chunk of stream) {
-        controller.enqueue(encoder.encode(chunk.content));
+        const content = typeof chunk.content === 'string' ? chunk.content : JSON.stringify(chunk.content);
+        controller.enqueue(encoder.encode(content));
       }
       controller.close();
     },
@@ -204,7 +205,8 @@ export const getJobMatchByOpenAi = async (
   return new ReadableStream({
     async start(controller) {
       for await (const chunk of stream) {
-        controller.enqueue(encoder.encode(chunk.content));
+        const content = typeof chunk.content === 'string' ? chunk.content : JSON.stringify(chunk.content);
+        controller.enqueue(encoder.encode(content));
       }
       controller.close();
     },
