@@ -1,26 +1,35 @@
 // Background script for JobSchedule extension
 console.log("JobSchedule: Background script loaded");
 
-// Configuration
-const DEV_MODE = true;
-const API_BASE_URL = DEV_MODE 
-  ? 'http://localhost:3000/api' 
-  : 'https://your-production-api.com/api';
-const USE_TEST_ENDPOINTS = DEV_MODE;
+// Import configuration and security utilities
+import { API_BASE_URL, USE_TEST_ENDPOINTS } from './config.js';
+import { validateJobData, logSecurityEvent, RateLimiter } from './security.js';
+import { logError, getUserFriendlyMessage, showErrorNotification, logApiError, logPerformance, logLifecycleEvent } from './error-logger.js';
+
+// Initialize rate limiter (10 requests per minute per user)
+const rateLimiter = new RateLimiter(10, 60000);
 
 // Add this to your background.js
 chrome.runtime.onInstalled.addListener(() => {
-  console.log("JobSchedule: Extension installed/updated");
+  logLifecycleEvent('Extension installed/updated');
 });
 
-// Message schema validation
+// ✅ ENHANCED: Message schema validation with security
 function isValidMessage(message) {
   if (!message || typeof message !== 'object') return false;
   if (typeof message.action !== 'string') return false;
-  // Add more validation per action type
+  
+  // Validate action whitelist
+  const allowedActions = ['trackJobApplication', 'checkAuth'];
+  if (!allowedActions.includes(message.action)) return false;
+  
+  // Validate data structure per action
   switch (message.action) {
     case 'trackJobApplication':
-      return message.jobData && typeof message.jobData === 'object';
+      return message.jobData && 
+             typeof message.jobData === 'object' &&
+             typeof message.jobData.jobTitle === 'string' &&
+             typeof message.jobData.company === 'string';
     case 'checkAuth':
       return true;
     default:
@@ -32,19 +41,31 @@ function isValidMessage(message) {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log("JobSchedule: Message received in background", message);
 
-  // Validate message schema
+  // ✅ ENHANCED: Validate message schema with detailed logging
   if (!isValidMessage(message)) {
+    logSecurityEvent('Invalid message schema', {
+      message,
+      sender: sender?.tab?.url || 'unknown'
+    });
     sendResponse({ success: false, error: 'Invalid message schema' });
     return;
   }
   
   if (message.action === 'trackJobApplication') {
+    // ✅ ENHANCED: Rate limiting check
+    const userKey = sender?.tab?.url || 'unknown';
+    if (!rateLimiter.isAllowed(userKey)) {
+      logSecurityEvent('Rate limit exceeded', { userKey });
+      sendResponse({ success: false, error: 'Too many requests. Please wait before trying again.' });
+      return;
+    }
+    
     trackJobApplication(message.jobData)
       .then(result => {
         console.log("JobSchedule: Job tracked successfully", result);
         
         // Notify all tabs that a job was updated
-        chrome.tabs.query({ url: "http://localhost:3000/*" }, (tabs) => {
+        chrome.tabs.query({ url: ["http://localhost:3000/*", "https://jobschedule.io/*"] }, (tabs) => {
           if (tabs && Array.isArray(tabs)) {
             try {
           tabs.forEach(tab => {
@@ -69,8 +90,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: true, message: "Job tracked successfully" });
       })
       .catch(error => {
-        console.error("JobSchedule: Error tracking job", error);
-        sendResponse({ success: false, message: error.message });
+        // ✅ ENHANCED: Production-ready error reporting for job tracking
+        logError(error, 'job tracking in message handler', {
+          sender: sender?.tab?.url || 'unknown',
+          jobData: jobData ? Object.keys(jobData) : null
+        });
+        
+        // User-friendly error message
+        const userMessage = getUserFriendlyMessage(error);
+        sendResponse({ success: false, message: userMessage });
       });
     
     // Return true to indicate we'll respond asynchronously
@@ -83,8 +111,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ isAuthenticated });
       })
       .catch(error => {
-        console.error("JobSchedule: Auth check error", error);
-        sendResponse({ isAuthenticated: false, error: error.message });
+        // ✅ ENHANCED: Production-ready error reporting for auth check
+        logError(error, 'auth check in message handler', {
+          sender: sender?.tab?.url || 'unknown'
+        });
+        
+        sendResponse({ isAuthenticated: false, error: 'Authentication check failed' });
       });
     
     return true;
@@ -93,7 +125,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Listen for context invalidation
 chrome.runtime.onSuspend.addListener(() => {
-  console.log("JobSchedule: Extension being suspended");
+  logLifecycleEvent('Extension being suspended');
   // Perform any cleanup here
 });
 
@@ -103,15 +135,27 @@ async function checkAuthentication() {
     const { token } = await chrome.storage.local.get('token');
     return !!token;
   } catch (error) {
-    console.error("JobSchedule: Error checking authentication", error);
+    // ✅ ENHANCED: Production-ready error reporting for auth
+    logError(error, 'checkAuthentication', {
+      hasToken: false
+    });
+    
     return false;
   }
 }
 
 // Function to send job data to backend
 async function trackJobApplication(jobData) {
+  const startTime = Date.now();
+  
   try {
-    console.log("JobSchedule: Tracking job application", jobData);
+    console.log("JobSchedule: Tracking job application", {
+      jobTitle: jobData.jobTitle?.substring(0, 50) + '...',
+      company: jobData.company?.substring(0, 50) + '...',
+      hasDescription: !!jobData.description,
+      hasUrl: !!jobData.jobUrl,
+      timestamp: new Date().toISOString()
+    });
     
     // Get token from storage
     const { token } = await chrome.storage.local.get('token');
@@ -147,10 +191,15 @@ async function trackJobApplication(jobData) {
       throw new Error("Authentication failed. Please log in to JobSync.");
     }
     
-    // Validate job data
-    if (!jobData.jobTitle || !jobData.company) {
-      throw new Error("Missing required job information. Please try again.");
+    // ✅ ENHANCED: Validate and sanitize job data using security utilities
+    const validation = validateJobData(jobData);
+    
+    if (!validation.isValid) {
+      logSecurityEvent('Invalid job data', { errors: validation.errors });
+      throw new Error(`Invalid job data: ${validation.errors.join(', ')}`);
     }
+    
+    const { data: sanitizedJobData } = validation;
     
     // Test connection in development mode
     if (USE_TEST_ENDPOINTS) {
@@ -174,18 +223,7 @@ async function trackJobApplication(jobData) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${updatedToken}`
       },
-      body: JSON.stringify({
-        jobTitle: jobData.jobTitle || "Unknown Position",
-        company: jobData.company || "Unknown Company",
-        location: jobData.location || "Remote",
-        description: jobData.description || "No description available",
-        detailedDescription: jobData.detailedDescription || null,
-        jobRequirements: jobData.jobRequirements || null,
-        jobResponsibilities: jobData.jobResponsibilities || null,
-        jobBenefits: jobData.jobBenefits || null,
-        jobUrl: jobData.jobUrl || window.location.href,
-        logoUrl: jobData.logoUrl || null
-      })
+      body: JSON.stringify(sanitizedJobData)
     });
     
     console.log("JobSchedule: Backend response status:", response.status);
@@ -236,26 +274,37 @@ async function trackJobApplication(jobData) {
               console.error("JobSchedule: Failed to track job:", data.message);
     }
     
+    // Log performance metrics for successful operation
+    logPerformance('trackJobApplication', startTime, {
+      success: true,
+      jobId: data.job?.id
+    });
+    
     return data;
   } catch (error) {
-    console.error("JobSchedule: Error tracking job:", error);
+    // ✅ ENHANCED: Production-ready error reporting using centralized logger
+    logError(error, 'trackJobApplication', {
+      jobData: jobData ? Object.keys(jobData) : null,
+      apiUrl: API_BASE_URL,
+      isDevMode: USE_TEST_ENDPOINTS
+    });
     
-    // Try to parse the response if it's available
+    // Log additional error context if available
     if (error.response) {
-      error.response.json().then(data => {
-        console.error("JobSchedule: Server error details:", data);
-      }).catch(e => {
-                  console.error("JobSchedule: Couldn't parse error response");
+      logApiError(error.response, 'trackJobApplication', {
+        jobData: jobData ? Object.keys(jobData) : null
       });
     }
     
-    // Show error notification
-    chrome.notifications.create({
-      type: 'basic',
-      iconUrl: 'icon.png',
-      title: 'JobSchedule Error',
-      message: error.message || "Failed to track job application"
+    // Log performance metrics
+    logPerformance('trackJobApplication', startTime, {
+      success: false,
+      error: error.message
     });
+    
+    // Show user-friendly error notification
+    const userMessage = getUserFriendlyMessage(error);
+    showErrorNotification('JobSchedule Error', userMessage);
     
     throw error;
   }

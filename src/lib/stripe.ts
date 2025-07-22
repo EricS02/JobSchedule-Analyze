@@ -19,14 +19,24 @@ if (!STRIPE_PRICE_IDS.PRO_PLAN.startsWith('price_')) {
   console.warn('⚠️ STRIPE_PRO_PRICE_ID should start with "price_". Current value:', STRIPE_PRICE_IDS.PRO_PLAN);
 }
 
-// Plan limits
+// ✅ UPDATED: New pricing structure with trial
 export const PLAN_LIMITS = {
   FREE: {
-    maxJobs: 10,
+    maxJobs: 5,
     aiFeatures: false,
+  },
+  TRIAL: {
+    maxJobs: -1, // unlimited
+    aiFeatures: true,
+    durationDays: 7,
   },
   PRO: {
     maxJobs: -1, // unlimited
     aiFeatures: true,
   },
+} as const;
+
+export const TRIAL_CONFIG = {
+  durationDays: 7,
+  startOnSignup: true,
 } as const; 

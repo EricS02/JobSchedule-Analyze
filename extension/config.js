@@ -1,10 +1,8 @@
-// Set to true for development, false for production
-const DEV_MODE = true;
-
-const API_BASE_URL = DEV_MODE 
+// ✅ SOLUTION: Environment-based configuration
+const API_BASE_URL = chrome.runtime.getManifest().version.includes('dev') 
   ? 'http://localhost:3000/api' 
-  : 'https://your-production-api.com/api';
+  : 'https://jobschedule.io/api';
 
-const USE_TEST_ENDPOINTS = DEV_MODE;
+const USE_TEST_ENDPOINTS = chrome.runtime.getManifest().version.includes('dev');
 
 export { API_BASE_URL, USE_TEST_ENDPOINTS }; 

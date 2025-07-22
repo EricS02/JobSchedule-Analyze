@@ -1,6 +1,6 @@
 "use server";
 
-import { stripe, STRIPE_PRICE_IDS, PLAN_LIMITS } from "@/lib/stripe";
+import { stripe, STRIPE_PRICE_IDS, PLAN_LIMITS, TRIAL_CONFIG } from "@/lib/stripe";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { prisma } from "@/lib/prisma";
 
@@ -9,6 +9,76 @@ interface StripeSubscription {
   current_period_start: number;
   current_period_end: number;
   created: number;
+}
+
+// ✅ NEW: Check if user is in trial period
+export async function isUserInTrial(userId: string): Promise<{
+  isInTrial: boolean;
+  trialEndDate?: Date;
+  daysRemaining?: number;
+}> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      trial_start_date: true,
+      trial_end_date: true,
+      has_used_trial: true,
+      createdAt: true,
+    },
+  });
+
+  if (!user) {
+    return { isInTrial: false };
+  }
+
+  // If user has already used trial, they're not in trial
+  if (user.has_used_trial) {
+    return { isInTrial: false };
+  }
+
+  // If no trial dates set, start trial now
+  if (!user.trial_start_date || !user.trial_end_date) {
+    const trialStart = new Date();
+    const trialEnd = new Date(trialStart);
+    trialEnd.setDate(trialEnd.getDate() + TRIAL_CONFIG.durationDays);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        trial_start_date: trialStart,
+        trial_end_date: trialEnd,
+      },
+    });
+
+    return {
+      isInTrial: true,
+      trialEndDate: trialEnd,
+      daysRemaining: TRIAL_CONFIG.durationDays,
+    };
+  }
+
+  // Check if trial is still active
+  const now = new Date();
+  const trialEnd = new Date(user.trial_end_date);
+  const isInTrial = now < trialEnd;
+
+  if (!isInTrial && !user.has_used_trial) {
+    // Trial has ended, mark as used
+    await prisma.user.update({
+      where: { id: userId },
+      data: { has_used_trial: true },
+    });
+  }
+
+  const daysRemaining = isInTrial 
+    ? Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+
+  return {
+    isInTrial,
+    trialEndDate: trialEnd,
+    daysRemaining,
+  };
 }
 
 export async function hasSubscription(): Promise<{
@@ -73,6 +143,28 @@ export async function createCheckoutLink(customer: string) {
   console.log("Creating checkout link for customer:", customer);
   
   try {
+    // Check if user is currently in trial
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
+    
+    let isInTrial = false;
+    if (user?.email) {
+      const userDB = await prisma.user.findUnique({
+        where: { email: user.email },
+        select: {
+          trial_start_date: true,
+          trial_end_date: true,
+          has_used_trial: true,
+        },
+      });
+      
+      if (userDB && userDB.trial_start_date && userDB.trial_end_date && !userDB.has_used_trial) {
+        const now = new Date();
+        const trialEnd = new Date(userDB.trial_end_date);
+        isInTrial = now < trialEnd;
+      }
+    }
+
     const checkout = await stripe.checkout.sessions.create({
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?success=true`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing?canceled=true`,
@@ -84,10 +176,15 @@ export async function createCheckoutLink(customer: string) {
         },
       ],
       mode: "subscription",
+      subscription_data: {
+        // Only add trial period if user is not already in trial
+        ...(isInTrial ? {} : { trial_period_days: TRIAL_CONFIG.durationDays }),
+      },
     });
 
     console.log("Checkout session created:", checkout.id);
     console.log("Checkout URL:", checkout.url);
+    console.log("User in trial:", isInTrial, "Trial period added:", !isInTrial);
     
     return checkout.url;
   } catch (error) {
@@ -170,25 +267,31 @@ export async function createCustomerIfNull() {
   return userDB.stripe_customer_id;
 }
 
+// ✅ UPDATED: Enhanced job tracking eligibility with trial support
 export async function checkJobTrackingEligibility(): Promise<{
   isEligible: boolean;
   message: string;
   remainingJobs: number;
+  plan: 'free' | 'trial' | 'pro';
+  trialInfo?: {
+    daysRemaining: number;
+    trialEndDate: Date;
+  };
 }> {
   const { getUser } = getKindeServerSession();
   const user = await getUser();
+  
   if (!user || !user.email) {
     return {
       isEligible: false,
       message: "You must be logged in to track jobs.",
       remainingJobs: 0,
+      plan: 'free',
     };
   }
 
   const userDB = await prisma.user.findFirst({
-    where: {
-      email: user.email,
-    },
+    where: { email: user.email },
   });
 
   if (!userDB) {
@@ -196,10 +299,11 @@ export async function checkJobTrackingEligibility(): Promise<{
       isEligible: false,
       message: "User not found.",
       remainingJobs: 0,
+      plan: 'free',
     };
   }
 
-  // Check if user has active subscription
+  // Check if user has active subscription (Pro plan)
   const stripeSubscriptionData = await hasSubscription();
   const isSubscribed = stripeSubscriptionData.isSubscribed;
 
@@ -208,10 +312,27 @@ export async function checkJobTrackingEligibility(): Promise<{
       isEligible: true,
       message: "Unlimited job tracking with Pro plan.",
       remainingJobs: -1, // unlimited
+      plan: 'pro',
     };
   }
 
-  // Count jobs created today for free plan
+  // Check if user is in trial period
+  const trialInfo = await isUserInTrial(userDB.id);
+  
+  if (trialInfo.isInTrial) {
+    return {
+      isEligible: true,
+      message: `Unlimited job tracking during your ${trialInfo.daysRemaining}-day free trial.`,
+      remainingJobs: -1, // unlimited during trial
+      plan: 'trial',
+      trialInfo: {
+        daysRemaining: trialInfo.daysRemaining!,
+        trialEndDate: trialInfo.trialEndDate!,
+      },
+    };
+  }
+
+  // User is on basic plan (after trial or never had trial)
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
@@ -233,15 +354,17 @@ export async function checkJobTrackingEligibility(): Promise<{
   if (remainingJobs === 0) {
     return {
       isEligible: false,
-      message: `You have reached the daily limit of ${PLAN_LIMITS.FREE.maxJobs} job applications for the free plan. Upgrade to Pro for unlimited job tracking.`,
+      message: "Upgrade now for full features.",
       remainingJobs: 0,
+      plan: 'free',
     };
   }
 
   return {
     isEligible: true,
-    message: `You have ${remainingJobs} job application${remainingJobs !== 1 ? "s" : ""} remaining today on the free plan.`,
+    message: `You have ${remainingJobs} job application${remainingJobs !== 1 ? "s" : ""} remaining today.`,
     remainingJobs: remainingJobs,
+    plan: 'free',
   };
 }
 
@@ -274,6 +397,7 @@ export async function checkAIFeatureEligibility(): Promise<{
   };
 }
 
+// ✅ UPDATED: Enhanced subscription status with trial info
 export async function getUserSubscriptionStatus() {
   const { getUser } = getKindeServerSession();
   const user = await getUser();
@@ -290,27 +414,55 @@ export async function getUserSubscriptionStatus() {
     return { plan: "free", status: "user_not_found" };
   }
 
-  if (!userDB.stripe_customer_id) {
-    return { plan: "free", status: "free", customerId: undefined };
+  console.log(`getUserSubscriptionStatus: User ${userDB.email}, stripe_customer_id: ${userDB.stripe_customer_id}, subscription_status: ${userDB.subscription_status}, has_used_trial: ${userDB.has_used_trial}`);
+
+  // First check if user has an active Stripe subscription (this takes precedence)
+  if (userDB.stripe_customer_id) {
+    const subscriptions = await stripe.subscriptions.list({
+      customer: userDB.stripe_customer_id,
+      status: 'all',
+      limit: 1,
+    });
+
+    const subscription = subscriptions.data[0];
+    const isSubscribed = subscription && ['active', 'trialing'].includes(subscription.status);
+
+    console.log(`getUserSubscriptionStatus: Found ${subscriptions.data.length} subscriptions, first subscription status: ${subscription?.status}, isSubscribed: ${isSubscribed}`);
+
+    if (isSubscribed) {
+      console.log(`getUserSubscriptionStatus: Returning PRO plan for user ${userDB.email}`);
+      return {
+        plan: "pro",
+        status: subscription.status,
+        customerId: userDB.stripe_customer_id,
+        subscriptionId: subscription.id,
+        currentPeriodEnd: subscription.current_period_end,
+        cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
+      };
+    }
   }
 
-  // Get subscription details from Stripe
-  const subscriptions = await stripe.subscriptions.list({
-    customer: userDB.stripe_customer_id,
-    status: 'all',
-    limit: 1,
-  });
+  // If no active Stripe subscription, check trial status
+  const trialInfo = await isUserInTrial(userDB.id);
+  
+  console.log(`getUserSubscriptionStatus: Trial info - isInTrial: ${trialInfo.isInTrial}, daysRemaining: ${trialInfo.daysRemaining}`);
+  
+  if (trialInfo.isInTrial) {
+    console.log(`getUserSubscriptionStatus: Returning TRIAL plan for user ${userDB.email}`);
+    return {
+      plan: "trial",
+      status: "trialing",
+      trialEndDate: trialInfo.trialEndDate,
+      daysRemaining: trialInfo.daysRemaining,
+    };
+  }
 
-  const subscription = subscriptions.data[0];
-  const isSubscribed = subscription && ['active', 'trialing'].includes(subscription.status);
-
-  return {
-    plan: isSubscribed ? "pro" : "free",
-    status: subscription?.status || "free",
-    customerId: userDB.stripe_customer_id,
-    subscriptionId: subscription?.id,
-    currentPeriodEnd: subscription?.current_period_end,
-    cancelAtPeriodEnd: subscription?.cancel_at_period_end || false,
+  // Default to free
+  console.log(`getUserSubscriptionStatus: Returning FREE plan for user ${userDB.email}`);
+  return { 
+    plan: "free", 
+    status: "free", 
+    customerId: userDB.stripe_customer_id 
   };
 }
 

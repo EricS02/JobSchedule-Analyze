@@ -10,8 +10,8 @@ import JobsApplied from "@/components/dashboard/JobsAppliedCard";
 import NumberCard from "@/components/dashboard/NumberCard";
 import RecentJobsCard from "@/components/dashboard/RecentJobsCard";
 import WeeklyBarChart from "@/components/dashboard/WeeklyBarChart";
-import SubscriptionStatus from "@/components/dashboard/SubscriptionStatus";
 import DailyJobLimitCard from "@/components/dashboard/DailyJobLimitCard";
+import UpgradeSuccessMessage from "@/components/dashboard/UpgradeSuccessMessage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Metadata } from "next";
 
@@ -43,10 +43,7 @@ export default async function Dashboard() {
 
   return (
     <div className="w-full">
-      {/* SubscriptionStatus at top on mobile/tablet */}
-      <div className="lg:hidden mb-4">
-        <SubscriptionStatus />
-      </div>
+      <UpgradeSuccessMessage />
       
       {/* Main dashboard grid - original 3-column layout */}
       <div className="grid gap-4 lg:grid-cols-3 xl:grid-cols-3 auto-rows-max items-start">
@@ -76,12 +73,11 @@ export default async function Dashboard() {
         
         {/* Right side - Side cards (hidden on mobile/tablet) */}
         <div className="hidden lg:block space-y-4">
-          <SubscriptionStatus />
           <DailyJobLimitCard initialEligibility={jobTrackingEligibility} />
           <RecentJobsCard jobs={recentJobs} />
         </div>
         
-        {/* Mobile/tablet side cards (without SubscriptionStatus) */}
+        {/* Mobile/tablet side cards */}
         <div className="lg:hidden space-y-4">
           <DailyJobLimitCard initialEligibility={jobTrackingEligibility} />
           <RecentJobsCard jobs={recentJobs} />

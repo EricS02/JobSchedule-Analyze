@@ -13,7 +13,7 @@ import Link from 'next/link'
 export default function Pricing() {
     const { isAuthenticated, user, isLoading: authLoading } = useKindeAuth();
     const [isLoading, setIsLoading] = useState(false);
-    const [hasSubscription, setHasSubscription] = useState(false);
+    const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null);
     const searchParams = useSearchParams();
 
     // Check subscription status
@@ -21,9 +21,9 @@ export default function Pricing() {
         const checkSubscription = async () => {
             if (isAuthenticated && user?.email && !authLoading) {
                 try {
-                    const { hasSubscription: checkSubscription } = await import('@/actions/stripe.actions');
-                    const subscriptionStatus = await checkSubscription();
-                    setHasSubscription(subscriptionStatus.isSubscribed);
+                    const { getUserSubscriptionStatus } = await import('@/actions/stripe.actions');
+                    const status = await getUserSubscriptionStatus();
+                    setSubscriptionStatus(status);
                 } catch (error) {
                     console.error('Failed to check subscription status:', error);
                 }
@@ -92,7 +92,7 @@ export default function Pricing() {
     }
 
     // If user has subscription, show subscription confirmation
-    if (hasSubscription) {
+    if (subscriptionStatus?.plan === 'pro') {
         return (
             <>
                 <SimpleHeader />
@@ -114,41 +114,59 @@ export default function Pricing() {
             </>
         );
     }
+
+    // If user is in trial, show trial status
+    if (subscriptionStatus?.plan === 'trial') {
+        return (
+            <>
+                <SimpleHeader />
+                <section className="py-16 md:py-32">
+                    <div className="mx-auto max-w-5xl px-6">
+                        <div className="mx-auto max-w-2xl space-y-6 text-center">
+                            <h1 className="text-center text-4xl font-semibold lg:text-5xl">Free Trial Active!</h1>
+                            <p className="text-lg text-muted-foreground">
+                                You have {subscriptionStatus.daysRemaining} days remaining in your free trial. 
+                                Enjoy unlimited job tracking and all premium features.
+                            </p>
+                            <div className="mt-8 space-y-4">
+                                <Button asChild>
+                                    <Link href="/dashboard">
+                                        Continue to Dashboard
+                                    </Link>
+                                </Button>
+                                <div>
+                                    <Button variant="outline" onClick={handleProPlanClick} disabled={isLoading}>
+                                        {isLoading ? "Loading..." : "Upgrade to Pro"}
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </>
+        );
+    }
     
     return (
         <>
-            {/* Use conditional header based on authentication status */}
-            {isAuthenticated ? <SimpleHeader /> : <HeroHeader />}
-            <section className="py-12 sm:py-16 md:py-24 lg:py-32">
-                <div className="mx-auto max-w-5xl px-4 sm:px-6">
-                    {/* Back to Dashboard button for authenticated users */}
-                    {isAuthenticated && (
-                        <div className="mb-6 sm:mb-8">
-                            <Button
-                                variant="ghost"
-                                asChild
-                                className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
-                            >
-                                <Link href="/dashboard">
-                                    <ArrowLeft className="h-4 w-4" />
-                                    Back to Dashboard
-                                </Link>
-                            </Button>
-                        </div>
-                    )}
-
-                    <div className="mx-auto max-w-2xl space-y-4 sm:space-y-6 text-center">
-                        <h1 className="text-center text-3xl sm:text-4xl font-semibold lg:text-5xl">Pricing that Scales with You</h1>
-                        <p className="text-sm sm:text-base">JobSchedule is a job application tracking system that helps you track your job applications with the power of AI.</p>
+            <SimpleHeader />
+            <section className="py-16 md:py-32">
+                <div className="mx-auto max-w-5xl px-6">
+                    <div className="mx-auto max-w-2xl space-y-6 text-center">
+                        <h1 className="text-center text-4xl font-semibold lg:text-5xl">Simple, Transparent Pricing</h1>
+                        <p className="text-lg text-muted-foreground">
+                            Start with a 7-day free trial, then choose the plan that works for you.
+                        </p>
                     </div>
 
                     <div className="mt-8 grid gap-6 md:mt-16 md:grid-cols-5 md:gap-0">
+                        {/* Basic Plan */}
                         <div className="rounded-(--radius) flex flex-col justify-between space-y-6 sm:space-y-8 border p-4 sm:p-6 md:col-span-2 md:my-2 md:rounded-r-none md:border-r-0 lg:p-10">
                             <div className="space-y-4">
                                 <div>
-                                    <h2 className="font-medium text-lg sm:text-xl">Free</h2>
+                                    <h2 className="font-medium text-lg sm:text-xl">Basic</h2>
                                     <span className="my-3 block text-xl sm:text-2xl font-semibold">$0 / mo</span>
-                                    <p className="text-muted-foreground text-xs sm:text-sm">Perfect for getting started</p>
+                                    <p className="text-muted-foreground text-xs sm:text-sm">After free trial</p>
                                 </div>
 
                                 {isAuthenticated ? (
@@ -169,32 +187,35 @@ export default function Pricing() {
 
                                 <hr className="border-dashed" />
 
-                                <ul className="list-outside space-y-2 sm:space-y-3 text-xs sm:text-sm">
-                                    {[
-                                        'Track up to 10 job applications',
-                                        'Basic job application dashboard',
-                                        'Manual job entry',
-                                        'Job status tracking',
-                                        'Basic analytics'
-                                    ].map((item, index) => (
-                                        <li
-                                            key={index}
-                                            className="flex items-center gap-2">
-                                            <Check className="size-3" />
-                                            {item}
-                                        </li>
-                                    ))}
+                                <ul className="space-y-3 text-sm">
+                                    <li className="flex items-center gap-2">
+                                        <Check className="h-4 w-4" />
+                                        <span>5 job applications per day</span>
+                                    </li>
+                                    <li className="flex items-center gap-2">
+                                        <Check className="h-4 w-4" />
+                                        <span>Basic dashboard</span>
+                                    </li>
+                                    <li className="flex items-center gap-2">
+                                        <Check className="h-4 w-4" />
+                                        <span>Manual job entry</span>
+                                    </li>
+                                    <li className="flex items-center gap-2 text-muted-foreground">
+                                        <Check className="h-4 w-4" />
+                                        <span>Chrome extension</span>
+                                    </li>
                                 </ul>
                             </div>
                         </div>
 
+                        {/* Pro Plan */}
                         <div className="dark:bg-muted rounded-(--radius) border p-4 sm:p-6 shadow-lg shadow-gray-950/5 md:col-span-3 lg:p-10 dark:[--color-muted:var(--color-zinc-900)]">
                             <div className="grid gap-6 sm:grid-cols-2">
                                 <div className="space-y-4">
                                     <div>
                                         <h2 className="font-medium text-lg sm:text-xl">Pro</h2>
                                         <span className="my-3 block text-xl sm:text-2xl font-semibold">$10 / mo</span>
-                                        <p className="text-muted-foreground text-xs sm:text-sm">For serious job seekers</p>
+                                        <p className="text-muted-foreground text-xs sm:text-sm">After 7-day free trial</p>
                                     </div>
 
                                     {isAuthenticated ? (
@@ -202,7 +223,7 @@ export default function Pricing() {
                                             onClick={handleProPlanClick}
                                             disabled={isLoading}
                                             className="w-full">
-                                            {isLoading ? "Loading..." : "Upgrade to Pro"}
+                                            {isLoading ? "Loading..." : "Start Free Trial"}
                                         </Button>
                                     ) : (
                                         <Button
@@ -210,42 +231,53 @@ export default function Pricing() {
                                             disabled={isLoading}
                                             className="w-full">
                                             <LoginLink postLoginRedirectURL="/pricing?checkout=true">
-                                                {isLoading ? "Loading..." : "Get Started"}
+                                                {isLoading ? "Loading..." : "Start Free Trial"}
                                             </LoginLink>
                                         </Button>
                                     )}
                                 </div>
 
-                                <div>
-                                    <div className="text-xs sm:text-sm font-medium">Everything in free plus:</div>
-
-                                    <ul className="mt-4 list-outside space-y-2 sm:space-y-3 text-xs sm:text-sm">
-                                        {[
-                                            'Unlimited job tracking',
-                                            'AI-powered resume review',
-                                            'AI job matching',
-                                            'Advanced analytics',
-                                            'Export job data',
-                                            'Priority support',
-                                            'Chrome extension',
-                                            'Resume parsing',
-                                            'Interview tracking',
-                                            'Custom job categories'
-                                        ].map((item, index) => (
-                                            <li
-                                                key={index}
-                                                className="flex items-center gap-2">
-                                                <Check className="size-3" />
-                                                {item}
+                                <div className="space-y-4">
+                                    <div className="text-sm">
+                                        <p className="font-medium mb-3">Everything in Basic, plus:</p>
+                                        <ul className="space-y-3">
+                                            <li className="flex items-center gap-2">
+                                                <Check className="h-4 w-4" />
+                                                <span>Unlimited job tracking</span>
                                             </li>
-                                        ))}
-                                    </ul>
+                                            <li className="flex items-center gap-2">
+                                                <Check className="h-4 w-4" />
+                                                <span>AI resume review</span>
+                                            </li>
+                                            <li className="flex items-center gap-2">
+                                                <Check className="h-4 w-4" />
+                                                <span>AI job matching</span>
+                                            </li>
+                                            <li className="flex items-center gap-2">
+                                                <Check className="h-4 w-4" />
+                                                <span>Advanced analytics</span>
+                                            </li>
+                                            <li className="flex items-center gap-2">
+                                                <Check className="h-4 w-4" />
+                                                <span>Export functionality</span>
+                                            </li>
+                                            <li className="flex items-center gap-2">
+                                                <Check className="h-4 w-4" />
+                                                <span>Resume parsing</span>
+                                            </li>
+                                            <li className="flex items-center gap-2">
+                                                <Check className="h-4 w-4" />
+                                                <span>Interview tracking</span>
+                                            </li>
+                                        </ul>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+
                 </div>
             </section>
         </>
-    )
+    );
 } 

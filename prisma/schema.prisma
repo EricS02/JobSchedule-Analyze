@@ -15,12 +15,17 @@ model User {
   email              String         @unique
   password           String
   createdAt          DateTime       @default(now())
-  
+
   // Stripe fields
   stripe_customer_id String?        @unique
   stripe_subscription_id String?
   subscription_status String?       @default("free") // "free", "active", "canceled", "past_due"
-  
+
+  // Trial fields
+  trial_start_date   DateTime?
+  trial_end_date     DateTime?
+  has_used_trial     Boolean        @default(false)
+
   Activity     Activity[]
   ActivityType ActivityType[]
   Company      Company[]

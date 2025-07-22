@@ -59,6 +59,8 @@ export async function POST(req: NextRequest) {
 async function handleSubscriptionChange(subscription: any) {
   const customerId = subscription.customer;
   
+  console.log(`Webhook: Processing subscription change for customer: ${customerId}, status: ${subscription.status}`);
+  
   const user = await prisma.user.findFirst({
     where: { stripe_customer_id: customerId },
   });
@@ -68,15 +70,39 @@ async function handleSubscriptionChange(subscription: any) {
     return;
   }
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      stripe_subscription_id: subscription.id,
-      subscription_status: subscription.status,
-    },
-  });
+  console.log(`Webhook: Found user: ${user.id}, email: ${user.email}, current status: ${user.subscription_status}`);
 
-  console.log(`Subscription ${subscription.status} for user: ${user.id}`);
+  // If this is a new subscription creation, end any active trial
+  if (subscription.status === 'active' || subscription.status === 'trialing') {
+    const now = new Date();
+    
+    console.log(`Webhook: Ending trial for user ${user.id} and setting subscription to ${subscription.status}`);
+    
+    // End the trial immediately when subscription is created
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        stripe_subscription_id: subscription.id,
+        subscription_status: subscription.status,
+        // End the trial by setting trial_end_date to now and marking as used
+        trial_end_date: now,
+        has_used_trial: true,
+      },
+    });
+
+    console.log(`Webhook: Successfully updated user ${user.id}. New status: ${updatedUser.subscription_status}, trial ended: ${updatedUser.has_used_trial}`);
+  } else {
+    // For other subscription status changes, just update the status
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        stripe_subscription_id: subscription.id,
+        subscription_status: subscription.status,
+      },
+    });
+
+    console.log(`Webhook: Updated subscription status for user ${user.id} to ${updatedUser.subscription_status}`);
+  }
 }
 
 async function handleSubscriptionCancellation(subscription: any) {

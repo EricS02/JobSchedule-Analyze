@@ -7,6 +7,7 @@ import {
   CreditCard,
   Crown,
   MessageSquare,
+  Settings,
 } from "lucide-react";
 
 export enum APP_CONSTANTS {
@@ -43,7 +44,7 @@ export const SIDEBAR_LINKS = [
   },
   {
     label: "Subscription",
-    icon: Crown,
+    icon: Settings,
     route: "/dashboard/subscription"
   },
   {

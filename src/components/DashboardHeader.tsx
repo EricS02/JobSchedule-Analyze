@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Settings, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useKindeAuth, LogoutLink } from "@kinde-oss/kinde-auth-nextjs";
+import { ModeToggle } from "@/components/ModeToggle";
 
 export default function Header() {
   const { user, isAuthenticated } = useKindeAuth();
@@ -29,6 +30,7 @@ export default function Header() {
       </div>
       
       <div className="flex items-center gap-2 flex-shrink-0">
+        <ModeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
@@ -51,11 +53,6 @@ export default function Header() {
                 </p>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Settings</span>
-            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <LogoutLink 

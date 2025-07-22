@@ -2,17 +2,17 @@
 import Link from "next/link";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Briefcase, Settings } from "lucide-react";
 import { SIDEBAR_LINKS } from "@/lib/constants";
 import NavLink from "./NavLink";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useKindeAuth } from '@kinde-oss/kinde-auth-nextjs';
 import { useEffect, useState } from 'react';
 
 function Sidebar() {
   const path = usePathname();
+  const searchParams = useSearchParams();
   const { isAuthenticated, user } = useKindeAuth();
-  const [hasSubscription, setHasSubscription] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null);
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(false);
 
   // Check subscription status
@@ -21,10 +21,10 @@ function Sidebar() {
       if (isAuthenticated && user?.email) {
         setIsCheckingSubscription(true);
         try {
-          const { hasSubscription: checkSubscription } = await import('@/actions/stripe.actions');
-          const subscriptionStatus = await checkSubscription();
-          console.log('Sidebar - Subscription check:', subscriptionStatus);
-          setHasSubscription(subscriptionStatus.isSubscribed);
+          const { getUserSubscriptionStatus } = await import('@/actions/stripe.actions');
+          const status = await getUserSubscriptionStatus();
+          console.log('Sidebar - Subscription check:', status);
+          setSubscriptionStatus(status);
         } catch (error) {
           console.error('Failed to check subscription status:', error);
         } finally {
@@ -32,7 +32,7 @@ function Sidebar() {
         }
       } else {
         // Reset subscription status when not authenticated
-        setHasSubscription(false);
+        setSubscriptionStatus(null);
         setIsCheckingSubscription(false);
       }
     };
@@ -40,17 +40,38 @@ function Sidebar() {
     checkSubscription();
   }, [isAuthenticated, user?.email]);
 
+  // Refresh subscription status when user returns from successful upgrade
+  useEffect(() => {
+    const success = searchParams.get("success");
+    if (success === "true" && isAuthenticated && user?.email) {
+      // Small delay to ensure webhook has processed
+      const timer = setTimeout(async () => {
+        setIsCheckingSubscription(true);
+        try {
+          const { getUserSubscriptionStatus } = await import('@/actions/stripe.actions');
+          const status = await getUserSubscriptionStatus();
+          console.log('Sidebar - Refresh after upgrade:', status);
+          setSubscriptionStatus(status);
+        } catch (error) {
+          console.error('Failed to refresh subscription status:', error);
+        } finally {
+          setIsCheckingSubscription(false);
+        }
+      }, 1500); // Slightly longer delay for sidebar
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams, isAuthenticated, user?.email]);
+
   // Filter sidebar links based on subscription status
   const filteredSidebarLinks = SIDEBAR_LINKS.filter(item => {
-    // Hide pricing link if user has subscription OR if we're still checking subscription status
-    if (item.label === "Pricing" && (hasSubscription || isCheckingSubscription)) {
-      console.log('Sidebar - Hiding pricing link for subscribed user or while checking');
-      return false;
+    // Show pricing link for all users (free, trial, pro)
+    if (item.label === "Pricing") {
+      return true;
     }
     
-    // Show subscription link only if user has subscription
-    if (item.label === "Subscription" && !hasSubscription) {
-      console.log('Sidebar - Hiding subscription link for free user');
+    // Show subscription link for all authenticated users
+    if (item.label === "Subscription" && !isAuthenticated) {
+      console.log('Sidebar - Hiding subscription link for unauthenticated user');
       return false;
     }
     
@@ -63,7 +84,11 @@ function Sidebar() {
     return true;
   });
 
-  console.log('Sidebar - hasSubscription:', hasSubscription, 'isChecking:', isCheckingSubscription, 'filteredLinks:', filteredSidebarLinks.length);
+  const hasSubscription = subscriptionStatus?.plan === 'pro';
+  const isInTrial = subscriptionStatus?.plan === 'trial';
+  const trialDaysRemaining = subscriptionStatus?.daysRemaining;
+
+  console.log('Sidebar - subscriptionStatus:', subscriptionStatus, 'isChecking:', isCheckingSubscription, 'filteredLinks:', filteredSidebarLinks.length);
 
   return (
     <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">
@@ -71,29 +96,29 @@ function Sidebar() {
         {/* Removed Briefcase icon and home link */}
         <TooltipProvider delayDuration={800}>
           {filteredSidebarLinks.map((item) => {
+            // Add trial indicator for subscription link
+            const isSubscriptionLink = item.label === "Subscription";
+            const showTrialBadge = isSubscriptionLink && isInTrial && trialDaysRemaining;
+            
             return (
-              <div key={item.label} className="text-white fill-color">
+              <div key={item.label} className="text-white fill-color relative">
                 <NavLink
                   label={item.label}
                   Icon={item.icon}
                   route={item.route}
                   pathname={path}
                 />
+                {showTrialBadge && (
+                  <div className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                    {trialDaysRemaining}
+                  </div>
+                )}
               </div>
             );
           })}
         </TooltipProvider>
       </nav>
-      <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
-        <TooltipProvider>
-          <NavLink
-            label="Settings"
-            Icon={Settings}
-            route="/dashboard/settings"
-            pathname={path}
-          />
-        </TooltipProvider>
-      </nav>
+
     </aside>
   );
 }

@@ -14,6 +14,7 @@ interface DailyJobLimitCardProps {
     isEligible: boolean;
     message: string;
     remainingJobs: number;
+    plan: 'free' | 'trial' | 'pro';
   } | null;
 }
 
@@ -58,12 +59,12 @@ export default function DailyJobLimitCard({ className, initialEligibility }: Dai
     return null;
   }
 
-  // If user has unlimited jobs (Pro plan), don't show this card
+  // If user has unlimited jobs (Pro plan or trial), don't show this card
   if (eligibility.remainingJobs === -1) {
     return null;
   }
 
-  const maxJobs = 10; // PLAN_LIMITS.FREE.maxJobs
+  const maxJobs = 5; // Updated limit for Basic plan
   const usedJobs = maxJobs - eligibility.remainingJobs;
   const percentage = (usedJobs / maxJobs) * 100;
 
@@ -73,7 +74,7 @@ export default function DailyJobLimitCard({ className, initialEligibility }: Dai
         <div className="grid gap-0.5">
           <CardTitle className="text-lg">Daily Job Limit</CardTitle>
           <CardDescription>
-            Free plan: {maxJobs} job applications per day
+            Basic plan: {maxJobs} job applications per day
           </CardDescription>
         </div>
         <Calendar className="w-8 h-8 ml-auto text-muted-foreground" />
@@ -102,7 +103,7 @@ export default function DailyJobLimitCard({ className, initialEligibility }: Dai
           ) : (
             <div className="flex items-center space-x-2">
               <Crown className="w-4 h-4 text-yellow-500" />
-              <span className="text-sm text-muted-foreground">Free plan</span>
+              <span className="text-sm text-muted-foreground">Basic plan</span>
             </div>
           )}
         </div>
@@ -110,7 +111,7 @@ export default function DailyJobLimitCard({ className, initialEligibility }: Dai
         {eligibility.remainingJobs === 0 && (
           <div className="pt-2 border-t">
             <p className="text-sm text-muted-foreground mb-3">
-              You've reached your daily limit. Upgrade to Pro for unlimited job tracking.
+              Upgrade now for full features.
             </p>
             <Button asChild size="sm" className="w-full">
               <Link href="/pricing">
