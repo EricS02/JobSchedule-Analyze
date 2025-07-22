@@ -379,7 +379,7 @@ export const addJob = async (
         companyId: finalCompanyId,
         locationId: finalLocationId,
         status: (typeof data.status === 'string' && data.status.trim()) ? data.status : "applied",
-        applied: (typeof data.status === 'string' && data.status === "applied") || data.applied || false, // Set applied to true if status is "applied"
+        applied: (typeof data.status === 'string' && data.status === "applied") || (typeof data.applied === 'boolean' && data.applied) || false, // Set applied to true if status is "applied"
         jobSourceId: (typeof data.source === 'string' && data.source.trim()) ? data.source : undefined,
         createdAt: new Date(),
         description: (typeof data.jobDescription === 'string' && data.jobDescription.trim()) ? data.jobDescription : undefined,
@@ -527,7 +527,7 @@ export const updateJob = async (
       companyId: finalCompanyId,
       locationId: finalLocationId,
       status: (typeof data.status === 'string' && data.status.trim()) ? data.status : "applied",
-      applied: (typeof data.status === 'string' && data.status === "applied") || data.applied || false, // Set applied to true if status is "applied"
+      applied: (typeof data.status === 'string' && data.status === "applied") || (typeof data.applied === 'boolean' && data.applied) || false, // Set applied to true if status is "applied"
       jobSourceId: (typeof data.source === 'string' && data.source.trim()) ? data.source : undefined,
       createdAt: new Date(),
       description: (typeof data.jobDescription === 'string' && data.jobDescription.trim()) ? data.jobDescription : undefined,
