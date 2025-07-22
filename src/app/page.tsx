@@ -18,10 +18,14 @@ import {
 import Link from "next/link";
 import { RegisterLink, LoginLink } from "@kinde-oss/kinde-auth-nextjs/components";
 import Image from "next/image";
+import { AuthRedirect } from "@/components/AuthRedirect";
 
 export default function HomePage() {
   return (
     <div className="min-h-screen">
+      {/* Auth redirect for authenticated users */}
+      <AuthRedirect />
+      
       {/* Hero Section */}
       <HeroSection />
       

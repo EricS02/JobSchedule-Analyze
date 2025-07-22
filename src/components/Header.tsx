@@ -12,6 +12,7 @@ import { usePathname } from 'next/navigation'
 const menuItems = [
     { name: 'Features', href: '#link' },
     { name: 'Pricing', href: '/pricing' },
+    { name: 'Privacy', href: '/privacy' },
 ]
 
 export const HeroHeader = () => {

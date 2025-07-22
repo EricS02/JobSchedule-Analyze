@@ -1,6 +1,7 @@
 import { withAuth } from "@kinde-oss/kinde-auth-nextjs/middleware";
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 
 const allowedOrigins = process.env.NODE_ENV === 'production'
   ? ['https://jobschedule.com']
@@ -46,6 +47,8 @@ export default withAuth(
   function middleware(request: NextRequest) {
     // Get the pathname of the request
     const path = request.nextUrl.pathname;
+    
+    console.log(`Middleware - Processing request to: ${path}, Auth: ${!!request.auth}, User: ${request.auth?.id || 'none'}`);
 
     // Add CORS headers for API routes
     if (path.startsWith('/api/')) {
@@ -66,6 +69,19 @@ export default withAuth(
       return response;
     }
 
+    // Handle home page redirect for authenticated users
+    if (path === '/') {
+      console.log(`Middleware - Home page request, checking auth status`);
+      if (request.auth) {
+        console.log(`Middleware - Redirecting authenticated user from home to dashboard, user: ${request.auth.id}`);
+        const dashboardUrl = new URL('/dashboard', request.url);
+        console.log(`Middleware - Redirect URL: ${dashboardUrl.toString()}`);
+        return NextResponse.redirect(dashboardUrl);
+      } else {
+        console.log(`Middleware - Home page access for unauthenticated user - allowing`);
+      }
+    }
+
     // Only add CSP for HTML responses (not static assets or API)
     const response = NextResponse.next();
     const nonce = generateNonce();
@@ -76,6 +92,8 @@ export default withAuth(
       "https://va.vercel-scripts.com",
       "https://vercel.live",
       "https://cdn.kinde.com",
+      "https://canny.io",
+      "https://*.canny.io",
       ...(isProd ? [] : ["'unsafe-eval'", "'unsafe-inline'"])
     ].join(' ');
     response.headers.set(
@@ -86,8 +104,8 @@ export default withAuth(
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "img-src 'self' data: https: blob:",
         "font-src 'self' https://fonts.gstatic.com data:",
-        "connect-src 'self' https://api.stripe.com https://api.openai.com https://*.kinde.com wss:",
-        "frame-src 'self' https://js.stripe.com https://*.kinde.com",
+        "connect-src 'self' https://api.stripe.com https://api.openai.com https://*.kinde.com https://canny.io https://*.canny.io wss:",
+        "frame-src 'self' https://js.stripe.com https://*.kinde.com https://canny.io https://*.canny.io",
         "object-src 'none'",
         "base-uri 'self'",
         "form-action 'self'",
@@ -104,12 +122,20 @@ export default withAuth(
         const path = req.nextUrl.pathname;
         const isOnDashboard = path.startsWith("/dashboard");
         console.log(`Middleware - Path: ${path}, Auth: ${!!req.auth}, User: ${req.auth?.id || 'none'}`);
-        // Only require authentication for dashboard routes
+        
+        // For dashboard routes, require authentication
         if (isOnDashboard) {
           const isAuthorized = !!req.auth;
           console.log(`Dashboard access - Authorized: ${isAuthorized}`);
           return isAuthorized;
         }
+        
+        // For home page, allow access but let the middleware handle redirects
+        if (path === '/') {
+          console.log(`Home page - allowing access, middleware will handle redirects`);
+          return true;
+        }
+        
         // For all other routes, allow access regardless of auth status
         console.log(`${path} - allowing access regardless of auth status`);
         return true;
@@ -121,6 +147,7 @@ export default withAuth(
 // See: https://nextjs.org/docs/app/building-your-application/routing/middleware#matcher
 export const config = {
   matcher: [
-    '/dashboard/:path*', // Only protect dashboard routes
+    '/dashboard/:path*', // Protect dashboard routes
+    '/', // Include home page for redirect logic
   ],
 };

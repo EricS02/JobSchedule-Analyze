@@ -13,7 +13,7 @@ export default function FeedbackPage() {
       </div>
 
       {/* Canny feedback widget */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-auto">
         <Feedback />
       </div>
     </div>

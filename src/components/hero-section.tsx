@@ -112,7 +112,7 @@ export default function HeroSection() {
                                             size="lg"
                                             className="rounded-xl px-4 sm:px-5 text-sm sm:text-base">
                                             <RegisterLink>
-                                                <span className="text-nowrap">Install Now - It's Free</span>
+                                                <span className="text-nowrap">Start Free Trial</span>
                                             </RegisterLink>
                                         </Button>
                                     </div>

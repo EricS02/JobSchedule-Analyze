@@ -10,6 +10,7 @@ import { RegisterLink, LoginLink } from '@kinde-oss/kinde-auth-nextjs/components
 const menuItems = [
     { name: 'Features', href: '/features' },
     { name: 'Pricing', href: '/pricing' },
+    { name: 'Privacy', href: '/privacy' },
 ]
 
 export const HeroHeader = () => {
@@ -87,13 +88,13 @@ export const HeroHeader = () => {
                                     asChild
                                     size="sm"
                                     className={cn(isScrolled && 'lg:hidden')}>
-                                    <RegisterLink>Install Now - It's Free</RegisterLink>
+                                    <RegisterLink>Start Free Trial</RegisterLink>
                                 </Button>
                                 <Button
                                     asChild
                                     size="sm"
                                     className={cn(isScrolled ? 'lg:inline-flex' : 'hidden')}>
-                                    <RegisterLink>Add To Chrome - It's Free</RegisterLink>
+                                    <RegisterLink>Try now - It's free!</RegisterLink>
                                 </Button>
                             </div>
                         </div>
