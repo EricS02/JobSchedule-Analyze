@@ -411,7 +411,7 @@ export const updateJob = async (
     if (!user) {
       throw new Error("Not authenticated");
     }
-    if (!data.id || user.id != data.userId) {
+    if (!(typeof data.id === 'string' && data.id.trim()) || user.id != (typeof data.userId === 'string' && data.userId.trim() ? data.userId : '')) {
       throw new Error("Id is not provide or no user privilages");
     }
 
@@ -537,7 +537,7 @@ export const updateJob = async (
 
     const job = await prisma.job.update({
       where: {
-        id: data.id,
+        id: (typeof data.id === 'string' && data.id.trim()) ? data.id : '',
       },
       data: updateData,
     });
