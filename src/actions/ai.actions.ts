@@ -2,7 +2,6 @@
 
 import { ChatOpenAI } from "@langchain/openai";
 import {
-  StringOutputParser,
   StructuredOutputParser,
 } from "@langchain/core/output_parsers";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
@@ -107,16 +106,14 @@ export const getResumeReviewByOpenAi = async (
     maxTokens: 3000,
   });
 
-  const stream = await model
-    .pipe(new StringOutputParser())
-    .stream(inputMessage);
+  const stream = await model.stream(inputMessage);
 
   const encoder = new TextEncoder();
 
   return new ReadableStream({
     async start(controller) {
       for await (const chunk of stream) {
-        controller.enqueue(encoder.encode(chunk));
+        controller.enqueue(encoder.encode(chunk.content));
       }
       controller.close();
     },
@@ -201,15 +198,13 @@ export const getJobMatchByOpenAi = async (
     maxTokens: 3000,
   });
 
-  const stream = await model
-    .pipe(new StringOutputParser())
-    .stream(inputMessage);
+  const stream = await model.stream(inputMessage);
   const encoder = new TextEncoder();
 
   return new ReadableStream({
     async start(controller) {
       for await (const chunk of stream) {
-        controller.enqueue(encoder.encode(chunk));
+        controller.enqueue(encoder.encode(chunk.content));
       }
       controller.close();
     },
