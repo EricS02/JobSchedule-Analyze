@@ -115,9 +115,6 @@ export const getResumeById = async (
     if (resume) {
       return {
         ...resume,
-        parsingAttempted: resume.parsingAttempted,
-        parsingSucceeded: resume.parsingSucceeded,
-        parsingError: resume.parsingError,
       };
     }
     return resume;
