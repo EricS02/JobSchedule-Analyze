@@ -282,7 +282,7 @@ export const repairCompanyOwnership = async (): Promise<any | undefined> => {
       select: { companyId: true }
     });
 
-    const companyIds = Array.from(new Set(jobs.map(j => j.companyId).filter(Boolean)));
+    const companyIds = Array.from(new Set(jobs.map(j => j.companyId).filter((id): id is string => id !== null)));
 
     // Update all these companies to have createdBy = user.id
     const updateResult = await prisma.company.updateMany({

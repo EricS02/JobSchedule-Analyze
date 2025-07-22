@@ -285,7 +285,7 @@ export const addJob = async (
 
     // Find or create the job title record
     let finalJobTitleId: string | undefined;
-    if (jobTitleId) {
+    if (jobTitleId && typeof jobTitleId === 'string' && jobTitleId.trim()) {
       // If a specific job title ID was provided, use it
       finalJobTitleId = jobTitleId;
     } else if (title && title.trim()) {
@@ -314,7 +314,7 @@ export const addJob = async (
 
     // Find or create the company record
     let finalCompanyId: string | undefined;
-    if (companyId) {
+    if (companyId && typeof companyId === 'string' && companyId.trim()) {
       // If a specific company ID was provided, use it
       finalCompanyId = companyId;
     } else if (company && company.trim()) {
@@ -343,7 +343,7 @@ export const addJob = async (
 
     // Find or create the location record
     let finalLocationId: string | undefined;
-    if (providedLocationId) {
+    if (providedLocationId && typeof providedLocationId === 'string' && providedLocationId.trim()) {
       // If a specific location ID was provided, use it
       finalLocationId = providedLocationId;
     } else if (location && location.trim()) {
@@ -434,7 +434,7 @@ export const updateJob = async (
 
     // Find or create the job title record
     let finalJobTitleId: string | undefined;
-    if (jobTitleId) {
+    if (jobTitleId && typeof jobTitleId === 'string' && jobTitleId.trim()) {
       // If a specific job title ID was provided, use it
       finalJobTitleId = jobTitleId;
     } else if (title && title.trim()) {
@@ -463,7 +463,7 @@ export const updateJob = async (
 
     // Find or create the company record
     let finalCompanyId: string | undefined;
-    if (companyId) {
+    if (companyId && typeof companyId === 'string' && companyId.trim()) {
       // If a specific company ID was provided, use it
       finalCompanyId = companyId;
     } else if (company && company.trim()) {
@@ -492,7 +492,7 @@ export const updateJob = async (
 
     // Find or create the location record
     let finalLocationId: string | undefined;
-    if (providedLocationId) {
+    if (providedLocationId && typeof providedLocationId === 'string' && providedLocationId.trim()) {
       // If a specific location ID was provided, use it
       finalLocationId = providedLocationId;
     } else if (location && location.trim()) {
