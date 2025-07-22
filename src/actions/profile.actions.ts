@@ -655,8 +655,8 @@ const populateResumeFromParsedData = async (
                     connect: { id: location.id }
                   },
                   description: exp.description,
-                  startDate: exp.startDate ? new Date(exp.startDate) : null,
-                  endDate: exp.endDate ? new Date(exp.endDate) : null,
+                  startDate: exp.startDate ? new Date(exp.startDate) : new Date(),
+                  endDate: exp.endDate ? new Date(exp.endDate) : new Date(),
                   currentJob: exp.currentJob || false,
                 },
               },
@@ -697,8 +697,8 @@ const populateResumeFromParsedData = async (
                     connect: { id: location.id }
                   },
                   description: edu.description || null,
-                  startDate: edu.startDate ? new Date(edu.startDate) : null,
-                  endDate: edu.endDate ? new Date(edu.endDate) : null,
+                  startDate: edu.startDate ? new Date(edu.startDate) : new Date(),
+                  endDate: edu.endDate ? new Date(edu.endDate) : new Date(),
                 },
               },
             },
@@ -773,8 +773,8 @@ const populateResumeFromParsedData = async (
                 create: {
                   title: cert.title,
                   organization: cert.organization,
-                  issueDate: cert.issueDate ? new Date(cert.issueDate) : null,
-                  expirationDate: cert.expirationDate ? new Date(cert.expirationDate) : null,
+                  issueDate: cert.issueDate ? new Date(cert.issueDate) : new Date(),
+                  expirationDate: cert.expirationDate ? new Date(cert.expirationDate) : new Date(),
                   credentialUrl: cert.credentialUrl || null,
                 },
               },
