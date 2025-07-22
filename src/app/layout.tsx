@@ -1,41 +1,41 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { cn } from "@/lib/utils";
 import { Providers } from "@/components/providers";
-import ExtensionListener from "@/components/ExtensionListener";
-export const dynamic = "force-dynamic";
+import { validateProductionEnv } from "@/lib/config";
+import logger from "@/lib/logger";
+import { Analytics } from '@vercel/analytics/react';
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-});
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: {
-    template: "%s | JobSchedule",
-    default: "JobSchedule",
-  },
-  description: "Job Application Tracking System",
+  title: "JobSchedule - Track Your Job Applications",
+  description: "Streamline your job application process with our comprehensive tracking system powered by AI.",
 };
 
-interface Props {
-  children: React.ReactNode;
+// Validate production environment variables
+if (process.env.NODE_ENV === 'production') {
+  try {
+    validateProductionEnv();
+    logger.info('Production environment validation passed');
+  } catch (error) {
+    logger.error('Production environment validation failed', error as Error);
+    throw error; // Prevent app from starting with missing env vars
+  }
 }
 
-export default function RootLayout({ children }: Readonly<Props>) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html lang="en">
-      <body
-        className={cn(
-          "min-h-screen bg-background font-sans antialiased",
-          inter.variable
-        )}
-      >
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className}>
         <Providers>
-          <ExtensionListener />
           {children}
         </Providers>
+        <Analytics />
       </body>
     </html>
   );

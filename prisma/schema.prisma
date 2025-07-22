@@ -26,6 +26,8 @@ model User {
   trial_end_date     DateTime?
   has_used_trial     Boolean        @default(false)
 
+  lastLoginAt        DateTime?
+
   Activity     Activity[]
   ActivityType ActivityType[]
   Company      Company[]

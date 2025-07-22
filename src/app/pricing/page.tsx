@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button'
 import { Check, ArrowLeft } from 'lucide-react'
-import { HeroHeader, SimpleHeader } from '@/components/header'
+import { HeroHeader, SimpleHeader } from '@/components/Header'
 import { RegisterLink, LoginLink } from '@kinde-oss/kinde-auth-nextjs/components'
 import { useKindeAuth } from '@kinde-oss/kinde-auth-nextjs'
 import { handleProPlanUpgrade } from '@/actions/pricing.actions'

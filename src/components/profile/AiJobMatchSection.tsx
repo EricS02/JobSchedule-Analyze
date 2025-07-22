@@ -29,6 +29,7 @@ import {
   TooltipTrigger,
 } from "../ui/tooltip";
 import { Info } from "lucide-react";
+import { analytics } from "@/lib/analytics";
 
 interface AiSectionProps {
   aISectionOpen: boolean;
@@ -157,6 +158,14 @@ export const AiJobMatchSection = ({
 
   const onSelectResume = async (resumeId: string) => {
     setSelectedResumeId(resumeId);
+    
+    // Track AI feature usage
+    analytics.trackAIEvent('job_match_requested', {
+      resumeId,
+      jobId,
+      model: selectedModel.model
+    });
+    
     await getJobMatch(resumeId, jobId);
   };
   useEffect(() => {

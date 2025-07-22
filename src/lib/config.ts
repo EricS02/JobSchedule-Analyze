@@ -1,18 +1,55 @@
 // src/lib/config.ts - Server-side only configuration with secure env var access
 
-function getEnvVar(name: string): string {
+export function getEnvVar(name: string, fallback?: string): string {
   const value = process.env[name];
   if (!value) {
+    if (fallback && process.env.NODE_ENV === 'development') {
+      console.warn(`⚠️ Using fallback for ${name} in development`);
+      return fallback;
+    }
     throw new Error(`Missing required environment variable: ${name}`);
   }
   return value;
 }
 
+// Add validation for critical variables
+export function validateProductionEnv() {
+  const requiredVars = [
+    'DATABASE_URL',
+    'KINDE_CLIENT_SECRET',
+    'STRIPE_SECRET_KEY',
+    'OPENAI_API_KEY'
+  ];
+  
+  // AUTH_SECRET has a fallback in next.config.mjs, so it's not strictly required
+  const optionalVars = [
+    'AUTH_SECRET',
+    'ENCRYPTION_KEY'
+  ];
+  
+  const missing = requiredVars.filter(v => !process.env[v]);
+  if (missing.length > 0) {
+    throw new Error(`Production deployment blocked - Missing: ${missing.join(', ')}`);
+  }
+  
+  // Warn about optional variables in production
+  const missingOptional = optionalVars.filter(v => !process.env[v]);
+  if (missingOptional.length > 0 && process.env.NODE_ENV === 'production') {
+    console.warn(`⚠️ Optional environment variables not set: ${missingOptional.join(', ')}`);
+  }
+}
+
 export const serverConfig = {
   // These should ONLY be used on the server side
-  DATABASE_URL: getEnvVar('DATABASE_URL'),
-  AUTH_SECRET: getEnvVar('AUTH_SECRET'),
-  ENCRYPTION_KEY: getEnvVar('ENCRYPTION_KEY'),
+  DATABASE_URL: getEnvVar('DATABASE_URL', 
+    process.env.NODE_ENV === 'development' ? "file:./dev.db" : undefined
+  ),
+  AUTH_SECRET: getEnvVar('AUTH_SECRET', 
+    process.env.NODE_ENV === 'development' ? "Z5jXQ5zznTNgKpNf0SOqDxPkTFQtapMF0B3T6J9owzg=" : undefined
+  ),
+  ENCRYPTION_KEY: getEnvVar('ENCRYPTION_KEY', 
+    process.env.NODE_ENV === 'development' ? "dev-encryption-key-32-chars-long!!" : undefined
+  ),
   // Authentication
   KINDE_CLIENT_SECRET: getEnvVar('KINDE_CLIENT_SECRET'),
   KINDE_ISSUER_URL: getEnvVar('KINDE_ISSUER_URL'),
@@ -39,12 +76,15 @@ export const clientConfig = {
 // Validation function to ensure all required env vars are present
 export function validateEnvironmentVariables() {
   const requiredServerVars = [
-    'DATABASE_URL',
-    'AUTH_SECRET', 
-    'ENCRYPTION_KEY',
     'KINDE_CLIENT_SECRET',
     'STRIPE_SECRET_KEY',
     'OPENAI_API_KEY'
+  ];
+
+  const optionalServerVars = [
+    'AUTH_SECRET',
+    'ENCRYPTION_KEY',
+    'DATABASE_URL'
   ];
 
   const requiredClientVars = [
@@ -55,7 +95,7 @@ export function validateEnvironmentVariables() {
 
   const missing: string[] = [];
 
-  // Check server vars
+  // Check required server vars
   requiredServerVars.forEach(varName => {
     if (!process.env[varName]) {
       missing.push(varName);
@@ -68,6 +108,14 @@ export function validateEnvironmentVariables() {
       missing.push(varName);
     }
   });
+
+  // Warn about optional vars in production
+  if (process.env.NODE_ENV === 'production') {
+    const missingOptional = optionalServerVars.filter(varName => !process.env[varName]);
+    if (missingOptional.length > 0) {
+      console.warn(`⚠️ Optional environment variables not set: ${missingOptional.join(', ')}`);
+    }
+  }
 
   if (missing.length > 0) {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);

@@ -10,7 +10,7 @@ import { useKindeAuth } from '@kinde-oss/kinde-auth-nextjs'
 import { usePathname } from 'next/navigation'
 
 const menuItems = [
-    { name: 'Features', href: '#link' },
+    { name: 'Features', href: '/features' },
     { name: 'Pricing', href: '/pricing' },
     { name: 'Privacy', href: '/privacy' },
 ]

@@ -1,73 +1,36 @@
 import { z } from "zod";
-import DOMPurify from 'isomorphic-dompurify';
-
-function sanitizeText(text: string): string {
-  if (!text) return '';
-  // Remove HTML tags and encode special characters
-  const clean = DOMPurify.sanitize(text, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
-  return clean.trim();
-}
+import { secureStringSchema, secureTextSchema, urlSchema } from "@/lib/security";
 
 export const AddJobFormSchema = z.object({
   id: z.string().optional(),
   userId: z.string().optional(),
-  title: z
-    .string({
-      required_error: "Job title is required.",
-    })
-    .min(2, {
-      message: "Job title must be at least 2 characters.",
-    })
-    .transform(sanitizeText),
-  company: z
-    .string({
-      required_error: "Company name is required.",
-    })
-    .min(2, {
-      message: "Company name must be at least 2 characters.",
-    })
-    .transform(sanitizeText),
-  location: z
-    .string({
-      required_error: "Location is required.",
-    })
-    .min(2, {
-      message: "Location name must be at least 2 characters.",
-    })
-    .transform(sanitizeText),
-  type: z.string().min(1).transform(sanitizeText),
-  source: z
-    .string({
-      required_error: "Source is required.",
-    })
-    .min(2, {
-      message: "Source name must be at least 2 characters.",
-    })
-    .transform(sanitizeText),
-  status: z
-    .string({
-      required_error: "Status is required.",
-    })
-    .min(2, {
-      message: "Status must be at least 2 characters.",
-    })
-    .default("draft")
-    .transform(sanitizeText),
+  title: secureStringSchema
+    .min(2, "Job title must be at least 2 characters.")
+    .max(100, "Job title must be less than 100 characters."),
+  company: secureStringSchema
+    .min(2, "Company name must be at least 2 characters.")
+    .max(100, "Company name must be less than 100 characters."),
+  location: secureStringSchema
+    .min(2, "Location must be at least 2 characters.")
+    .max(100, "Location must be less than 100 characters."),
+  type: secureStringSchema.min(1).max(50),
+  source: secureStringSchema
+    .min(2, "Source must be at least 2 characters.")
+    .max(50, "Source must be less than 50 characters."),
+  status: secureStringSchema
+    .min(2, "Status must be at least 2 characters.")
+    .max(20, "Status must be less than 20 characters.")
+    .default("draft"),
   dueDate: z.date(),
   dateApplied: z.date().optional(),
-  salaryRange: z.string().transform(sanitizeText),
-  jobDescription: z
-    .string({
-      required_error: "Job description is required.",
-    })
-    .min(10, {
-      message: "Job description must be at least 10 characters.",
-    })
-    .transform(sanitizeText),
-  jobUrl: z.string().optional().transform((v) => v ? sanitizeText(v) : v),
+  salaryRange: secureStringSchema.max(100).optional(),
+  jobDescription: secureTextSchema
+    .min(10, "Job description must be at least 10 characters.")
+    .max(10000, "Job description must be less than 10000 characters."),
+  jobUrl: urlSchema.optional(),
   applied: z.boolean().default(false),
-  resume: z.string().optional().transform((v) => v ? sanitizeText(v) : v),
-  jobTitleId: z.string().optional().transform((v) => v ? sanitizeText(v) : v),
-  companyId: z.string().optional().transform((v) => v ? sanitizeText(v) : v),
-  locationId: z.string().optional().transform((v) => v ? sanitizeText(v) : v),
+  resume: secureStringSchema.max(1000).optional(),
+  jobTitleId: secureStringSchema.max(50).optional(),
+  companyId: secureStringSchema.max(50).optional(),
+  locationId: secureStringSchema.max(50).optional(),
 });

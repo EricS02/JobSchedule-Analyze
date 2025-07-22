@@ -46,6 +46,7 @@ import { Combobox } from "../ComboBox";
 import { Resume } from "@/models/profile.model";
 import CreateResume from "../profile/CreateResume";
 import { getResumeList } from "@/actions/profile.actions";
+import { analytics } from "@/lib/analytics";
 
 type AddJobProps = {
   jobStatuses: JobStatus[];
@@ -194,6 +195,15 @@ export function AddJob({
           return;
         }
       }
+      
+      // Track analytics
+      analytics.trackJobEvent(editJob ? 'updated' : 'created', {
+        jobTitle: data.title,
+        company: data.company,
+        location: data.location,
+        status: data.status,
+        applied: data.applied
+      });
       
       reset();
       setDialogOpen(false);

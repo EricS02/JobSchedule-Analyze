@@ -15,6 +15,40 @@ function generateNonce() {
   return btoa(String.fromCharCode(...array));
 }
 
+function getSecurityHeaders(nonce: string) {
+  const isDev = process.env.NODE_ENV === 'development';
+  
+  return {
+    // Strict CSP
+    'Content-Security-Policy': [
+      `default-src 'self'`,
+      `script-src 'self' 'nonce-${nonce}' https://va.vercel-scripts.com https://cdn.kinde.com ${isDev ? "'unsafe-eval'" : ''}`,
+      `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+      `img-src 'self' data: https: blob:`,
+      `font-src 'self' https://fonts.gstatic.com data:`,
+      `connect-src 'self' https://api.stripe.com https://api.openai.com https://*.kinde.com wss:`,
+      `frame-src 'self' https://js.stripe.com https://*.kinde.com`,
+      `object-src 'none'`,
+      `base-uri 'self'`,
+      `form-action 'self'`,
+      `frame-ancestors 'none'`,
+      `upgrade-insecure-requests`,
+      `block-all-mixed-content`
+    ].join('; '),
+    
+    // Additional security headers
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-XSS-Protection': '1; mode=block',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+    'X-DNS-Prefetch-Control': 'off',
+    'X-Download-Options': 'noopen',
+    'X-Permitted-Cross-Domain-Policies': 'none'
+  };
+}
+
 function isSuspiciousUserAgent(userAgent) {
   if (!userAgent) return true;
   const suspiciousPatterns = [
@@ -43,111 +77,84 @@ function isSuspiciousOrigin(origin) {
   return false;
 }
 
-export default withAuth(
-  function middleware(request: NextRequest) {
-    // Get the pathname of the request
-    const path = request.nextUrl.pathname;
-    
-    console.log(`Middleware - Processing request to: ${path}, Auth: ${!!request.auth}, User: ${request.auth?.id || 'none'}`);
+export default function middleware(request: NextRequest) {
+  // Get the pathname of the request
+  const path = request.nextUrl.pathname;
+  
+  console.log(`Middleware - Processing request to: ${path}`);
 
-    // Add CORS headers for API routes
-    if (path.startsWith('/api/')) {
-      const origin = request.headers.get('origin');
-      const userAgent = request.headers.get('user-agent');
-      if (origin && !allowedOrigins.includes(origin)) {
-        return new NextResponse('Forbidden', { status: 403 });
-      }
-      if (isSuspiciousUserAgent(userAgent) || isSuspiciousOrigin(origin)) {
-        console.warn('Suspicious request detected:', { origin, userAgent, path });
-        // Optionally block or rate limit more strictly here
-        // return new NextResponse('Too Many Requests', { status: 429 });
-      }
-      const response = NextResponse.next();
-      response.headers.set('Access-Control-Allow-Origin', origin || allowedOrigins[0]);
-      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-      return response;
+  // Add CORS headers for API routes
+  if (path.startsWith('/api/')) {
+    const origin = request.headers.get('origin');
+    const userAgent = request.headers.get('user-agent');
+    if (origin && !allowedOrigins.includes(origin)) {
+      return new NextResponse('Forbidden', { status: 403 });
     }
-
-    // Handle home page redirect for authenticated users
-    if (path === '/') {
-      console.log(`Middleware - Home page request, checking auth status`);
-      if (request.auth) {
-        console.log(`Middleware - Redirecting authenticated user from home to dashboard, user: ${request.auth.id}`);
-        const dashboardUrl = new URL('/dashboard', request.url);
-        console.log(`Middleware - Redirect URL: ${dashboardUrl.toString()}`);
-        return NextResponse.redirect(dashboardUrl);
-      } else {
-        console.log(`Middleware - Home page access for unauthenticated user - allowing`);
-      }
+    if (isSuspiciousUserAgent(userAgent) || isSuspiciousOrigin(origin)) {
+      console.warn('Suspicious request detected:', { origin, userAgent, path });
+      // Optionally block or rate limit more strictly here
+      // return new NextResponse('Too Many Requests', { status: 429 });
     }
-
-    // Only add CSP for HTML responses (not static assets or API)
     const response = NextResponse.next();
-    const nonce = generateNonce();
-    const isProd = process.env.NODE_ENV === 'production';
-    const scriptSrc = [
-      "'self'",
-      `'nonce-${nonce}'`,
-      "https://va.vercel-scripts.com",
-      "https://vercel.live",
-      "https://cdn.kinde.com",
-      "https://canny.io",
-      "https://*.canny.io",
-      ...(isProd ? [] : ["'unsafe-eval'", "'unsafe-inline'"])
-    ].join(' ');
-    response.headers.set(
-      'Content-Security-Policy',
-      [
-        `default-src 'self'`,
-        `script-src ${scriptSrc}`,
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-        "img-src 'self' data: https: blob:",
-        "font-src 'self' https://fonts.gstatic.com data:",
-        "connect-src 'self' https://api.stripe.com https://api.openai.com https://*.kinde.com https://canny.io https://*.canny.io wss:",
-        "frame-src 'self' https://js.stripe.com https://*.kinde.com https://canny.io https://*.canny.io",
-        "object-src 'none'",
-        "base-uri 'self'",
-        "form-action 'self'",
-        "frame-ancestors 'none'",
-        "upgrade-insecure-requests"
-      ].join('; ')
-    );
-    response.headers.set('X-CSP-Nonce', nonce);
+    response.headers.set('Access-Control-Allow-Origin', origin || allowedOrigins[0]);
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     return response;
-  },
-  {
-    callbacks: {
-      authorized: ({ req }) => {
-        const path = req.nextUrl.pathname;
-        const isOnDashboard = path.startsWith("/dashboard");
-        console.log(`Middleware - Path: ${path}, Auth: ${!!req.auth}, User: ${req.auth?.id || 'none'}`);
-        
-        // For dashboard routes, require authentication
-        if (isOnDashboard) {
-          const isAuthorized = !!req.auth;
-          console.log(`Dashboard access - Authorized: ${isAuthorized}`);
-          return isAuthorized;
-        }
-        
-        // For home page, allow access but let the middleware handle redirects
-        if (path === '/') {
-          console.log(`Home page - allowing access, middleware will handle redirects`);
-          return true;
-        }
-        
-        // For all other routes, allow access regardless of auth status
-        console.log(`${path} - allowing access regardless of auth status`);
-        return true;
-      },
-    },
   }
-);
+
+  // For dashboard routes, use Kinde auth
+  if (path.startsWith('/dashboard')) {
+    return withAuth(
+      function dashboardMiddleware(req: NextRequest) {
+        // Add security headers for dashboard
+        const response = NextResponse.next();
+        const nonce = generateNonce();
+        const securityHeaders = getSecurityHeaders(nonce);
+        
+        Object.entries(securityHeaders).forEach(([key, value]) => {
+          response.headers.set(key, value);
+        });
+        
+        response.headers.set('X-CSP-Nonce', nonce);
+        return response;
+      },
+      {
+        callbacks: {
+          authorized: ({ req }) => {
+            const isAuthorized = !!req.auth;
+            console.log(`Dashboard access - Authorized: ${isAuthorized}, User: ${req.auth?.id || 'none'}`);
+            return isAuthorized;
+          },
+        },
+      }
+    )(request);
+  }
+
+  // Handle home page redirect for authenticated users
+  if (path === '/') {
+    console.log(`Middleware - Home page request - allowing access for all users`);
+    // The AuthRedirect component in the home page will handle redirecting authenticated users
+  }
+
+  // Add comprehensive security headers for all responses
+  const response = NextResponse.next();
+  const nonce = generateNonce();
+  const securityHeaders = getSecurityHeaders(nonce);
+  
+  // Apply all security headers
+  Object.entries(securityHeaders).forEach(([key, value]) => {
+    response.headers.set(key, value);
+  });
+  
+  response.headers.set('X-CSP-Nonce', nonce);
+  return response;
+}
 
 // See: https://nextjs.org/docs/app/building-your-application/routing/middleware#matcher
 export const config = {
   matcher: [
     '/dashboard/:path*', // Protect dashboard routes
     '/', // Include home page for redirect logic
+    '/api/:path*', // Include API routes for CORS
   ],
 };

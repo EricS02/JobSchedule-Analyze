@@ -1,8 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { HeroHeader } from "@/components/Header";
 
 export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-background">
+      <HeroHeader />
+      <div className="pt-20">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-4">Privacy Policy</h1>
@@ -369,6 +372,7 @@ export default function PrivacyPage() {
             </CardContent>
           </Card>
         </div>
+      </div>
       </div>
     </div>
   );

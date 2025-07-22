@@ -78,7 +78,7 @@ export default function HeroSection() {
                                     preset="fade-in-blur"
                                     speedSegment={0.3}
                                     as="h1"
-                                    className="mt-8 text-balance text-4xl sm:text-5xl md:text-6xl lg:mt-16 lg:text-7xl xl:text-[5.25rem]">
+                                    className="mt-8  mx-auto text-balance text-4xl sm:text-5xl md:text-6xl lg:mt-16 lg:text-7xl xl:text-[5.25rem]">
                                     Help track your job applications with the power of AI
                                 </TextEffect>
                                 <TextEffect

@@ -20,6 +20,7 @@ import { Crown, Clock, AlertCircle, CreditCard, X, RefreshCw } from "lucide-reac
 import { getUserSubscriptionStatus, cancelSubscriptionAtPeriodEnd } from "@/actions/stripe.actions";
 import { useKindeAuth } from "@kinde-oss/kinde-auth-nextjs";
 import Link from "next/link";
+import { analytics } from "@/lib/analytics";
 
 interface SubscriptionStatus {
   plan: "free" | "trial" | "pro";
@@ -78,6 +79,13 @@ export default function SubscriptionManager() {
     setIsCanceling(true);
     try {
       await cancelSubscriptionAtPeriodEnd(subscription.subscriptionId);
+      
+      // Track subscription cancellation
+      analytics.trackSubscriptionEvent('canceled', {
+        plan: subscription.plan,
+        subscriptionId: subscription.subscriptionId
+      });
+      
       setCancelSuccess(true);
       await loadSubscriptionStatus(); // Refresh status
     } catch (error) {
@@ -112,6 +120,12 @@ export default function SubscriptionManager() {
   };
 
   const handleUpgrade = () => {
+    // Track upgrade click
+    analytics.trackSubscriptionEvent('upgrade_clicked', {
+      currentPlan: subscription.plan,
+      status: subscription.status
+    });
+    
     window.location.href = "/pricing";
   };
 

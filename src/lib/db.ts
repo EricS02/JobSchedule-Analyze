@@ -1,17 +1,15 @@
 import { PrismaClient } from '@prisma/client';
+import { getEnvVar } from './config';
 
-// Create a new PrismaClient with caching disabled
+// Create a new PrismaClient with enhanced security
 const prismaClientSingleton = () => {
-  // Set fallback environment variables if not present
-  if (!process.env.DATABASE_URL) {
-    process.env.DATABASE_URL = "file:./dev.db";
-    console.log('Set fallback DATABASE_URL:', process.env.DATABASE_URL);
-  }
-
-  console.log('Creating Prisma client with DATABASE_URL:', process.env.DATABASE_URL);
+  const dbUrl = getEnvVar('DATABASE_URL', 
+    process.env.NODE_ENV === 'development' ? "file:./dev.db" : undefined
+  );
 
   return new PrismaClient({
-    log: ['query', 'error', 'warn'],
+    datasources: { db: { url: dbUrl } },
+    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
   });
 };
 
