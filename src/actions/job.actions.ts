@@ -372,9 +372,9 @@ export const addJob = async (
 
     const job = await prisma.job.create({
       data: {
-        title: data.title || "Untitled Job",
-        company: data.company || "Unknown Company",
-        location: data.location || "Remote",
+        title: (typeof data.title === 'string' && data.title.trim()) ? data.title : "Untitled Job",
+        company: (typeof data.company === 'string' && data.company.trim()) ? data.company : "Unknown Company",
+        location: (typeof data.location === 'string' && data.location.trim()) ? data.location : "Remote",
         jobTitleId: finalJobTitleId,
         companyId: finalCompanyId,
         locationId: finalLocationId,
@@ -520,9 +520,9 @@ export const updateJob = async (
     }
 
     const updateData = {
-      title: data.title || "Untitled Job",
-      company: data.company || "Unknown Company",
-      location: data.location || "Remote",
+      title: (typeof data.title === 'string' && data.title.trim()) ? data.title : "Untitled Job",
+      company: (typeof data.company === 'string' && data.company.trim()) ? data.company : "Unknown Company",
+      location: (typeof data.location === 'string' && data.location.trim()) ? data.location : "Remote",
       jobTitleId: finalJobTitleId,
       companyId: finalCompanyId,
       locationId: finalLocationId,
