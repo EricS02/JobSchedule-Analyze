@@ -288,7 +288,7 @@ export const addJob = async (
     if (jobTitleId && typeof jobTitleId === 'string' && jobTitleId.trim()) {
       // If a specific job title ID was provided, use it
       finalJobTitleId = jobTitleId;
-    } else if (title && title.trim()) {
+    } else if (title && typeof title === 'string' && title.trim()) {
       const titleValue = title.trim().toLowerCase().replace(/\s+/g, '-');
       const existingJobTitle = await prisma.jobTitle.findFirst({
         where: {
@@ -317,7 +317,7 @@ export const addJob = async (
     if (companyId && typeof companyId === 'string' && companyId.trim()) {
       // If a specific company ID was provided, use it
       finalCompanyId = companyId;
-    } else if (company && company.trim()) {
+    } else if (company && typeof company === 'string' && company.trim()) {
       const companyValue = company.trim().toLowerCase().replace(/\s+/g, '-');
       const existingCompany = await prisma.company.findFirst({
         where: {
@@ -346,7 +346,7 @@ export const addJob = async (
     if (providedLocationId && typeof providedLocationId === 'string' && providedLocationId.trim()) {
       // If a specific location ID was provided, use it
       finalLocationId = providedLocationId;
-    } else if (location && location.trim()) {
+    } else if (location && typeof location === 'string' && location.trim()) {
       const locationValue = location.trim().toLowerCase().replace(/\s+/g, '-');
       const existingLocation = await prisma.location.findFirst({
         where: {
@@ -437,7 +437,7 @@ export const updateJob = async (
     if (jobTitleId && typeof jobTitleId === 'string' && jobTitleId.trim()) {
       // If a specific job title ID was provided, use it
       finalJobTitleId = jobTitleId;
-    } else if (title && title.trim()) {
+    } else if (title && typeof title === 'string' && title.trim()) {
       const titleValue = title.trim().toLowerCase().replace(/\s+/g, '-');
       const existingJobTitle = await prisma.jobTitle.findFirst({
         where: {
@@ -466,7 +466,7 @@ export const updateJob = async (
     if (companyId && typeof companyId === 'string' && companyId.trim()) {
       // If a specific company ID was provided, use it
       finalCompanyId = companyId;
-    } else if (company && company.trim()) {
+    } else if (company && typeof company === 'string' && company.trim()) {
       const companyValue = company.trim().toLowerCase().replace(/\s+/g, '-');
       const existingCompany = await prisma.company.findFirst({
         where: {
@@ -495,7 +495,7 @@ export const updateJob = async (
     if (providedLocationId && typeof providedLocationId === 'string' && providedLocationId.trim()) {
       // If a specific location ID was provided, use it
       finalLocationId = providedLocationId;
-    } else if (location && location.trim()) {
+    } else if (location && typeof location === 'string' && location.trim()) {
       const locationValue = location.trim().toLowerCase().replace(/\s+/g, '-');
       const existingLocation = await prisma.location.findFirst({
         where: {
