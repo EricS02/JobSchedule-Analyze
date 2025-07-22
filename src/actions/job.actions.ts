@@ -378,14 +378,14 @@ export const addJob = async (
         jobTitleId: finalJobTitleId,
         companyId: finalCompanyId,
         locationId: finalLocationId,
-        status: data.status || "applied",
-        applied: data.status === "applied" || data.applied || false, // Set applied to true if status is "applied"
-        jobSourceId: data.source,
+        status: (typeof data.status === 'string' && data.status.trim()) ? data.status : "applied",
+        applied: (typeof data.status === 'string' && data.status === "applied") || data.applied || false, // Set applied to true if status is "applied"
+        jobSourceId: (typeof data.source === 'string' && data.source.trim()) ? data.source : undefined,
         createdAt: new Date(),
-        description: data.jobDescription,
+        description: (typeof data.jobDescription === 'string' && data.jobDescription.trim()) ? data.jobDescription : undefined,
         userId: user.id,
-        jobUrl,
-        resumeId: resume,
+        jobUrl: (typeof data.jobUrl === 'string' && data.jobUrl.trim()) ? data.jobUrl : undefined,
+        resumeId: (typeof data.resume === 'string' && data.resume.trim()) ? data.resume : undefined,
       },
     });
     
@@ -526,13 +526,13 @@ export const updateJob = async (
       jobTitleId: finalJobTitleId,
       companyId: finalCompanyId,
       locationId: finalLocationId,
-      status: data.status || "applied",
-      applied: data.status === "applied" || data.applied || false, // Set applied to true if status is "applied"
-      jobSourceId: data.source,
+      status: (typeof data.status === 'string' && data.status.trim()) ? data.status : "applied",
+      applied: (typeof data.status === 'string' && data.status === "applied") || data.applied || false, // Set applied to true if status is "applied"
+      jobSourceId: (typeof data.source === 'string' && data.source.trim()) ? data.source : undefined,
       createdAt: new Date(),
-      description: data.jobDescription,
-      jobUrl: data.jobUrl,
-      resumeId: data.resume,
+      description: (typeof data.jobDescription === 'string' && data.jobDescription.trim()) ? data.jobDescription : undefined,
+      jobUrl: (typeof data.jobUrl === 'string' && data.jobUrl.trim()) ? data.jobUrl : undefined,
+      resumeId: (typeof data.resume === 'string' && data.resume.trim()) ? data.resume : undefined,
     };
 
     const job = await prisma.job.update({
