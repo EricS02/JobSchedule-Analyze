@@ -83,7 +83,7 @@ export async function isUserInTrial(userId: string): Promise<{
 
 export async function hasSubscription(): Promise<{
   isSubscribed: boolean;
-  subscriptionData: StripeSubscription[];
+  subscriptionData: any[];
 }> {
   const { getUser } = getKindeServerSession();
   const user = await getUser();
