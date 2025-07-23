@@ -5,7 +5,7 @@ import { encrypt } from "@/lib/secure-crypto";
 
 export async function POST(req: NextRequest) {
   try {
-    const { getUser } = getKindeServerSession(req);
+    const { getUser } = getKindeServerSession();
     const user = await getUser();
     if (!user) {
       return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
