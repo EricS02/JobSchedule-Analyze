@@ -11,8 +11,8 @@ export async function GET() {
       },
       include: {
         jobTitle: true,
-        jobCompany: true,
-        jobLocation: true
+        jobsAppliedCompany: true,
+        jobsAppliedLocation: true
       }
     });
     
