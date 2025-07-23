@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
 
     const jobs = await prisma.job.findMany({
       where: {
-        userId: user.id || user.$id,
+        userId: user.id,
       },
       select: {
         id: true,
