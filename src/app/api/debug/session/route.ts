@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { getUser } from "@/auth";
 import prisma from "@/lib/db";
 
 export async function GET() {
   try {
-    // Get the session
-    const session = await auth();
+    // Get the user session using Kinde
+    const user = await getUser();
     
-    if (!session || !session.user?.email) {
+    if (!user || !user.email) {
       return NextResponse.json({
         success: false,
         message: "No valid session found",
@@ -16,17 +16,17 @@ export async function GET() {
     }
     
     // Get the user from the database
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+    const dbUser = await prisma.user.findUnique({
+      where: { email: user.email },
     });
     
     return NextResponse.json({
       success: true,
-      sessionEmail: session.user.email,
-      sessionUserId: session.user.id,
-      databaseUserId: user?.id,
-      emailMatch: session.user.email === user?.email,
-      idMatch: session.user.id === user?.id
+      sessionEmail: user.email,
+      sessionUserId: user.id,
+      databaseUserId: dbUser?.id,
+      emailMatch: user.email === dbUser?.email,
+      idMatch: user.id === dbUser?.id
     });
   } catch (error) {
     console.error("Session debug error:", error);

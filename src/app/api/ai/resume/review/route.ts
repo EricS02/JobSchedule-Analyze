@@ -1,6 +1,5 @@
 import "server-only";
 
-import { auth } from "@/auth";
 import { NextApiRequest, NextApiResponse } from "next";
 import {
   getResumeReviewByOpenAi,
