@@ -10,7 +10,7 @@ import { AiModel } from "@/models/ai.model";
 import { JobResponse } from "@/models/job.model";
 
 export const POST = async (req: NextRequest) => {
-  const { getUser } = getKindeServerSession(req);
+  const { getUser } = getKindeServerSession();
   const user = await getUser();
   const userId = user?.id;
   if (!user) {
