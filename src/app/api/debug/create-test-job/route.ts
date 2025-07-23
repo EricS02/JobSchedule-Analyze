@@ -42,7 +42,9 @@ export async function POST() {
       company = await prisma.company.create({
         data: {
           label: randomCompany.name,
-          logoUrl: randomCompany.logoUrl
+          value: randomCompany.name.toLowerCase().replace(/\s+/g, '-'), // Create a URL-friendly value
+          logoUrl: randomCompany.logoUrl,
+          createdBy: user.id // Add the required createdBy field
         }
       });
     }
@@ -64,7 +66,11 @@ export async function POST() {
     
     if (!jobTitle) {
       jobTitle = await prisma.jobTitle.create({
-        data: { label: randomTitle }
+        data: { 
+          label: randomTitle,
+          value: randomTitle.toLowerCase().replace(/\s+/g, '-'), // Create a URL-friendly value
+          createdBy: user.id // Add the required createdBy field
+        }
       });
     }
     
@@ -79,7 +85,11 @@ export async function POST() {
     
     if (!location) {
       location = await prisma.location.create({
-        data: { label: randomLocation }
+        data: { 
+          label: randomLocation,
+          value: randomLocation.toLowerCase().replace(/\s+/g, '-'), // Create a URL-friendly value
+          createdBy: user.id // Add the required createdBy field
+        }
       });
     }
     
