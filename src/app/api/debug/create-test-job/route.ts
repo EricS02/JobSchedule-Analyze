@@ -113,9 +113,9 @@ export async function POST() {
         locationId: location.id
       },
       include: {
-        Company: true,
-        JobTitle: true,
-        Location: true
+        jobsAppliedCompany: true,
+        jobTitle: true,
+        jobsAppliedLocation: true
       }
     });
     
