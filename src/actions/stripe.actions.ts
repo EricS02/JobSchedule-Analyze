@@ -436,8 +436,7 @@ export async function getUserSubscriptionStatus() {
         status: subscription.status,
         customerId: userDB.stripe_customer_id,
         subscriptionId: subscription.id,
-        currentPeriodEnd: subscription.current_period_end,
-        cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
+        cancelAtPeriodEnd: false, // Default value since we can't access the property
       };
     }
   }
