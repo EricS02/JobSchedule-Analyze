@@ -22,7 +22,6 @@ export async function POST(req: NextRequest) {
     // Create a simple job title
     const jobTitle = await prisma.jobTitle.create({
       data: {
-        title: "Test Job Title",
         label: "Test Job Title",
         value: "test-job-title-" + Date.now(), // Make it unique
         createdBy: testUser.id
