@@ -105,11 +105,9 @@ export async function POST() {
         location: randomLocation,
         description: "This is a test job created via debug API",
         userId: user.id,
-        createdAt: new Date(),
-        appliedDate: new Date(),
-        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
         source: randomSource,
         status: randomStatus.value,
+        applied: true, // Set applied to true since this is a test job
         companyId: company.id,
         jobTitleId: jobTitle.id,
         locationId: location.id
