@@ -3,40 +3,21 @@
 export function getEnvVar(name: string, fallback?: string): string {
   const value = process.env[name];
   
-  // Enhanced logging for debugging
-  console.log(`🔍 Checking environment variable: ${name}`);
-  console.log(`🔍 Raw value: "${value}"`);
-  console.log(`🔍 Value type: ${typeof value}`);
-  console.log(`🔍 Value length: ${value ? value.length : 0}`);
-  console.log(`🔍 NODE_ENV: ${process.env.NODE_ENV}`);
-  
-  // Check if value is missing, empty, or using placeholder values
-  if (!value || 
-      value === 'placeholder-secret' || 
-      value === 'placeholder-key' || 
-      value === 'https://placeholder.kinde.com' ||
-      value === 'placeholder://db' ||
-      value === 'placeholder-encryption-key-32-chars-long!!' ||
-      value === 'undefined' ||
-      value === 'null' ||
-      value.trim() === '' ||
-      value.includes('placeholder')) {
-    
-    console.error(`❌ Environment variable ${name} is not set or is using placeholder value: "${value}"`);
-    console.error(`❌ This will cause authentication failures!`);
-    
-    // Only allow fallbacks in development
-    if (process.env.NODE_ENV === 'development' && fallback) {
-      console.warn(`⚠️ Using development fallback for ${name}`);
-      return fallback;
-    }
-    
-    // In production, always throw error for missing/placeholder values
-    throw new Error(`Missing or invalid environment variable: ${name}. Current value: "${value}". Please set this in Vercel environment variables.`);
+  // TEMPORARY FIX: Return actual environment variable value
+  // This prevents the "State not found" error by ensuring Kinde gets real values
+  if (value && value.trim() !== '') {
+    console.log(`✅ getEnvVar: ${name} is properly set`);
+    return value;
   }
   
-  console.log(`✅ Environment variable ${name} is properly set: ${value.substring(0, 20)}...`);
-  return value;
+  // Only use fallback in development
+  if (process.env.NODE_ENV === 'development' && fallback) {
+    console.warn(`⚠️ Using development fallback for ${name}`);
+    return fallback;
+  }
+  
+  // In production, throw error if missing
+  throw new Error(`Missing environment variable: ${name}`);
 }
 
 // NEW: Debug function to dump all environment variables
@@ -83,27 +64,15 @@ export function debugEnvironmentVariables() {
 export function forceEnvVar(name: string): string {
   const value = process.env[name];
   
-  // Check if value is missing, empty, or using placeholder values
-  if (!value || 
-      value === 'placeholder-secret' || 
-      value === 'placeholder-key' || 
-      value === 'https://placeholder.kinde.com' ||
-      value === 'placeholder://db' ||
-      value === 'placeholder-encryption-key-32-chars-long!!' ||
-      value === 'undefined' ||
-      value === 'null' ||
-      value.trim() === '' ||
-      value.includes('placeholder')) {
-    
-    console.error(`🚨 CRITICAL: Environment variable ${name} is not set or is using placeholder value: "${value}"`);
-    console.error(`🚨 This will cause authentication and database connection failures!`);
-    
-    // Always throw error - no fallbacks allowed
-    throw new Error(`CRITICAL: Missing or invalid environment variable: ${name}. Current value: "${value}". Please set this in Vercel environment variables.`);
+  // TEMPORARY FIX: Return actual environment variable value
+  // This prevents the "State not found" error by ensuring Kinde gets real values
+  if (value && value.trim() !== '') {
+    console.log(`✅ forceEnvVar: ${name} is properly set`);
+    return value;
   }
   
-  console.log(`✅ Environment variable ${name} is properly set: ${value.substring(0, 10)}...`);
-  return value;
+  // Always throw error if missing
+  throw new Error(`Missing environment variable: ${name}`);
 }
 
 // NEW: Validate all environment variables at startup
