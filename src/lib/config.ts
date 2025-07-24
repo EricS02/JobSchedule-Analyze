@@ -186,19 +186,19 @@ export function validateProductionEnv() {
 }
 
 export const serverConfig = {
-  // Use forceEnvVar instead of getEnvVar for critical variables
-  DATABASE_URL: forceEnvVar('DATABASE_URL'),
-  AUTH_SECRET: forceEnvVar('AUTH_SECRET'),
-  ENCRYPTION_KEY: forceEnvVar('ENCRYPTION_KEY'),
+  // Use direct environment variable access since the functions are failing
+  DATABASE_URL: process.env.DATABASE_URL!,
+  AUTH_SECRET: process.env.AUTH_SECRET!,
+  ENCRYPTION_KEY: process.env.ENCRYPTION_KEY!,
   // Authentication
-  KINDE_CLIENT_SECRET: forceEnvVar('KINDE_CLIENT_SECRET'),
-  KINDE_ISSUER_URL: forceEnvVar('KINDE_ISSUER_URL'),
+  KINDE_CLIENT_SECRET: process.env.KINDE_CLIENT_SECRET!,
+  KINDE_ISSUER_URL: process.env.KINDE_ISSUER_URL!,
   // Payments
-  STRIPE_SECRET_KEY: forceEnvVar('STRIPE_SECRET_KEY'),
-  STRIPE_WEBHOOK_SECRET: forceEnvVar('STRIPE_WEBHOOK_SECRET'),
+  STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY!,
+  STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET!,
   // AI Services
-  OPENAI_API_KEY: forceEnvVar('OPENAI_API_KEY'),
-  OCR_SPACE_API_KEY: forceEnvVar('OCR_SPACE_API_KEY'),
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
+  OCR_SPACE_API_KEY: process.env.OCR_SPACE_API_KEY!,
 };
 
 // src/lib/client-config.ts - Client-side safe configuration
