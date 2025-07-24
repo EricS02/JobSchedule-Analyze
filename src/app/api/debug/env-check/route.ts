@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
+    console.log('🔍 === ENV-CHECK DEBUG ===');
+    console.log(`🔍 NODE_ENV: ${process.env.NODE_ENV}`);
+    console.log(`🔍 VERCEL_ENV: ${process.env.VERCEL_ENV}`);
+    console.log(`🔍 VERCEL_URL: ${process.env.VERCEL_URL}`);
+    
     const envVars = {
       NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
       STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY ? "SET" : "NOT SET",
@@ -13,7 +18,17 @@ export async function GET() {
       DATABASE_URL: process.env.DATABASE_URL ? "SET" : "NOT SET",
     };
     
+    // Enhanced logging for debugging
+    Object.entries(envVars).forEach(([key, value]) => {
+      const rawValue = process.env[key];
+      console.log(`🔍 ${key}: ${value}`);
+      if (rawValue) {
+        console.log(`🔍   Raw value: ${rawValue.substring(0, 20)}...`);
+      }
+    });
+    
     console.log("Environment variables check:", envVars);
+    console.log('🔍 === END ENV-CHECK DEBUG ===');
     
     return NextResponse.json({
       success: true,

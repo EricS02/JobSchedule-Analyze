@@ -3,6 +3,13 @@
 export function getEnvVar(name: string, fallback?: string): string {
   const value = process.env[name];
   
+  // Enhanced logging for debugging
+  console.log(`🔍 Checking environment variable: ${name}`);
+  console.log(`🔍 Raw value: "${value}"`);
+  console.log(`🔍 Value type: ${typeof value}`);
+  console.log(`🔍 Value length: ${value ? value.length : 0}`);
+  console.log(`🔍 NODE_ENV: ${process.env.NODE_ENV}`);
+  
   // Check if value is missing, empty, or using placeholder values
   if (!value || 
       value === 'placeholder-secret' || 
@@ -12,9 +19,11 @@ export function getEnvVar(name: string, fallback?: string): string {
       value === 'placeholder-encryption-key-32-chars-long!!' ||
       value === 'undefined' ||
       value === 'null' ||
-      value.trim() === '') {
+      value.trim() === '' ||
+      value.includes('placeholder')) {
     
     console.error(`❌ Environment variable ${name} is not set or is using placeholder value: "${value}"`);
+    console.error(`❌ This will cause authentication failures!`);
     
     // Only allow fallbacks in development
     if (process.env.NODE_ENV === 'development' && fallback) {
@@ -23,11 +32,51 @@ export function getEnvVar(name: string, fallback?: string): string {
     }
     
     // In production, always throw error for missing/placeholder values
-    throw new Error(`Missing or invalid environment variable: ${name}. Current value: "${value}"`);
+    throw new Error(`Missing or invalid environment variable: ${name}. Current value: "${value}". Please set this in Vercel environment variables.`);
   }
   
-  console.log(`✅ Environment variable ${name} is properly set`);
+  console.log(`✅ Environment variable ${name} is properly set: ${value.substring(0, 20)}...`);
   return value;
+}
+
+// NEW: Debug function to dump all environment variables
+export function debugEnvironmentVariables() {
+  console.log('🔍 === ENVIRONMENT VARIABLES DEBUG ===');
+  console.log(`🔍 NODE_ENV: ${process.env.NODE_ENV}`);
+  console.log(`🔍 VERCEL_ENV: ${process.env.VERCEL_ENV}`);
+  console.log(`🔍 VERCEL_URL: ${process.env.VERCEL_URL}`);
+  
+  const criticalVars = [
+    'DATABASE_URL',
+    'KINDE_CLIENT_ID',
+    'KINDE_CLIENT_SECRET',
+    'KINDE_ISSUER_URL',
+    'AUTH_SECRET',
+    'ENCRYPTION_KEY',
+    'STRIPE_SECRET_KEY',
+    'OPENAI_API_KEY'
+  ];
+  
+  criticalVars.forEach(varName => {
+    const value = process.env[varName];
+    const status = value && 
+      value !== 'placeholder-secret' && 
+      value !== 'placeholder-key' && 
+      value !== 'https://placeholder.kinde.com' &&
+      value !== 'placeholder://db' &&
+      value !== 'placeholder-encryption-key-32-chars-long!!' &&
+      value !== 'undefined' &&
+      value !== 'null' &&
+      !value.includes('placeholder') &&
+      value.trim() !== '' ? '✅ SET' : '❌ NOT SET';
+    
+    console.log(`🔍 ${varName}: ${status}`);
+    if (value) {
+      console.log(`🔍   Value: ${value.substring(0, 20)}...`);
+    }
+  });
+  
+  console.log('🔍 === END ENVIRONMENT DEBUG ===');
 }
 
 // NEW: Force environment variables function - no fallbacks allowed
