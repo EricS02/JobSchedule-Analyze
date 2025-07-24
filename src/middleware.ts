@@ -9,20 +9,14 @@ const allowedOrigins = process.env.NODE_ENV === 'production'
 
 export { middleware as corsMiddleware } from './middleware/cors';
 
-function generateNonce() {
-  const array = new Uint8Array(16);
-  crypto.getRandomValues(array);
-  return btoa(String.fromCharCode(...array));
-}
-
-function getSecurityHeaders(nonce: string) {
+function getSecurityHeaders() {
   const isDev = process.env.NODE_ENV === 'development';
   
   return {
     // Less restrictive CSP for better compatibility
     'Content-Security-Policy': [
       `default-src 'self'`,
-      `script-src 'self' 'unsafe-inline' 'unsafe-eval' 'nonce-${nonce}' https://va.vercel-scripts.com https://cdn.kinde.com https://vercel.live https://*.vercel.com`,
+      `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com https://cdn.kinde.com https://vercel.live https://*.vercel.com`,
       `style-src 'self' 'unsafe-inline' 'unsafe-hashes' https://fonts.googleapis.com`,
       `img-src 'self' data: https: blob:`,
       `font-src 'self' https://fonts.gstatic.com data:`,
@@ -105,19 +99,17 @@ export default function middleware(request: NextRequest) {
   // For dashboard routes, use Kinde auth
   if (path.startsWith('/dashboard')) {
     return withAuth(
-      function dashboardMiddleware(req: NextRequest) {
-        // Add security headers for dashboard
-        const response = NextResponse.next();
-        const nonce = generateNonce();
-        const securityHeaders = getSecurityHeaders(nonce);
-        
-        Object.entries(securityHeaders).forEach(([key, value]) => {
-          response.headers.set(key, value);
-        });
-        
-        response.headers.set('X-CSP-Nonce', nonce);
-        return response;
-      },
+             function dashboardMiddleware(req: NextRequest) {
+         // Add security headers for dashboard
+         const response = NextResponse.next();
+         const securityHeaders = getSecurityHeaders();
+         
+         Object.entries(securityHeaders).forEach(([key, value]) => {
+           response.headers.set(key, value);
+         });
+         
+         return response;
+       },
       {
         callbacks: {
           authorized: ({ req }: { req: any }) => {
@@ -138,15 +130,13 @@ export default function middleware(request: NextRequest) {
 
   // Add comprehensive security headers for all responses
   const response = NextResponse.next();
-  const nonce = generateNonce();
-  const securityHeaders = getSecurityHeaders(nonce);
+  const securityHeaders = getSecurityHeaders();
   
   // Apply all security headers
   Object.entries(securityHeaders).forEach(([key, value]) => {
     response.headers.set(key, value);
   });
   
-  response.headers.set('X-CSP-Nonce', nonce);
   return response;
 }
 

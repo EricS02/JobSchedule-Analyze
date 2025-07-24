@@ -8,6 +8,7 @@ const nextConfig = {
   env: {
     ...process.env,
     NEXT_DISABLE_VERCEL_TOOLBAR: '1',
+    VERCEL_TOOLBAR_DISABLED: '1',
   },
   images: {
     remotePatterns: [

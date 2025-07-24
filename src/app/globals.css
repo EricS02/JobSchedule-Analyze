@@ -80,9 +80,26 @@
 }
 
 @layer utilities {
-  /* Hide Vercel Toolbar */
-  .g_U3r8dd_7sgVHnNnVpT {
+  /* Hide Vercel Toolbar - Comprehensive approach */
+  .g_U3r8dd_7sgVHnNnVpT,
+  [class*="g_U3r8dd_7sgVHnNnVpT"],
+  [class*="sF5uu1wZYWXEZpfeWyAr"],
+  [class*="UrncQQ9DDT5yb13q4rQ5"],
+  [class*="_472I4HBgsrXA25rrRN7g"],
+  [class*="cDmbUw8NpHadAxKa_6Ny"],
+  [data-vercel-toolbar],
+  [data-vercel-toolbar-id],
+  [class*="vercel"],
+  [class*="Vercel"],
+  [class*="VERCEL"] {
     display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    position: absolute !important;
+    left: -9999px !important;
+    top: -9999px !important;
+    z-index: -9999 !important;
   }
   
   .text-14 {
@@ -164,4 +181,31 @@
 }
 .rdp-dropdown_year > div {
   @apply hidden;
+}
+
+/* Global Vercel Toolbar removal - highest priority */
+.g_U3r8dd_7sgVHnNnVpT,
+[class*="g_U3r8dd_7sgVHnNnVpT"],
+[class*="sF5uu1wZYWXEZpfeWyAr"],
+[class*="UrncQQ9DDT5yb13q4rQ5"],
+[class*="_472I4HBgsrXA25rrRN7g"],
+[class*="cDmbUw8NpHadAxKa_6Ny"],
+[data-vercel-toolbar],
+[data-vercel-toolbar-id],
+[class*="vercel"],
+[class*="Vercel"],
+[class*="VERCEL"],
+button[aria-label*="Vercel"],
+button[aria-label*="vercel"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
+  z-index: -9999 !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
 }
