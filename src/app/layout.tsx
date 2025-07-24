@@ -14,8 +14,8 @@ export const metadata: Metadata = {
 };
 
 // Validate production environment variables (only at runtime, not build time)
-if (process.env.NODE_ENV === 'production' && typeof window === 'undefined') {
-  // Only run validation on the server side during runtime
+if (process.env.NODE_ENV === 'production' && typeof window === 'undefined' && !process.env.NEXT_PHASE) {
+  // Only run validation on the server side during runtime, not during build
   try {
     validateProductionEnv();
     logger.info('Production environment validation passed');
