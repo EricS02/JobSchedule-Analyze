@@ -49,7 +49,7 @@ function getSecurityHeaders(nonce: string) {
   };
 }
 
-function isSuspiciousUserAgent(userAgent) {
+function isSuspiciousUserAgent(userAgent: string | null) {
   if (!userAgent) return true;
   const suspiciousPatterns = [
     /curl/i,
@@ -71,7 +71,7 @@ function isSuspiciousUserAgent(userAgent) {
   return suspiciousPatterns.some((pat) => pat.test(userAgent));
 }
 
-function isSuspiciousOrigin(origin) {
+function isSuspiciousOrigin(origin: string | null) {
   if (!origin) return true;
   // Optionally add more checks for known bad origins
   return false;
@@ -120,14 +120,14 @@ export default function middleware(request: NextRequest) {
       },
       {
         callbacks: {
-          authorized: ({ req }) => {
-            const isAuthorized = !!req.auth;
-            console.log(`Dashboard access - Authorized: ${isAuthorized}, User: ${req.auth?.id || 'none'}`);
+          authorized: ({ req }: { req: any }) => {
+            const isAuthorized = !!(req as any).auth;
+            console.log(`Dashboard access - Authorized: ${isAuthorized}, User: ${(req as any).auth?.id || 'none'}`);
             return isAuthorized;
           },
         },
       }
-    )(request);
+    );
   }
 
   // Handle home page redirect for authenticated users

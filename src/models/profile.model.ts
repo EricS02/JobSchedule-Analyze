@@ -71,6 +71,7 @@ export interface ResumeSection {
   summary?: Summary;
   workExperiences?: WorkExperience[];
   educations?: Education[];
+  others?: any[];
 }
 
 export interface WorkExperience {

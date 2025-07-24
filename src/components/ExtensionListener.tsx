@@ -26,7 +26,7 @@ export default function ExtensionListener() {
       window.addEventListener('message', handleExtensionMessage);
       
       // Also listen for Chrome runtime messages if available
-      if (window.chrome?.runtime?.onMessage) {
+      if ((window as any).chrome?.runtime?.onMessage) {
         const extensionMessageListener = (message: any, sender: any, sendResponse: any) => {
           if (message.action === 'jobCreated') {
             console.log('JobSync: New job created via extension', message.jobData);
@@ -43,12 +43,12 @@ export default function ExtensionListener() {
           }
         };
         
-        window.chrome.runtime.onMessage.addListener(extensionMessageListener);
+        (window as any).chrome.runtime.onMessage.addListener(extensionMessageListener);
         
         return () => {
           window.removeEventListener('message', handleExtensionMessage);
-          if (window.chrome?.runtime?.onMessage) {
-            window.chrome.runtime.onMessage.removeListener(extensionMessageListener);
+          if ((window as any).chrome?.runtime?.onMessage) {
+            (window as any).chrome.runtime.onMessage.removeListener(extensionMessageListener);
           }
         };
       }

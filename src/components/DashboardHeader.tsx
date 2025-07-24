@@ -57,7 +57,7 @@ export default function Header() {
             <DropdownMenuItem asChild>
               <LogoutLink 
                 className="flex w-full cursor-pointer items-center"
-                post_logout_redirect_url={process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}
+                postLogoutRedirectURL={process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}
               >
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>

@@ -127,7 +127,6 @@ function CreateResume({
                 setExtractionResult({
                   success: true,
                   pageCount: result.pageCount,
-                  metadata: result.metadata
                 });
                 
                 // Add extracted text to form data for server processing
@@ -158,7 +157,6 @@ function CreateResume({
                 setExtractionResult({
                   success: false,
                   error: result.error || "No readable text found in PDF",
-                  metadata: result.metadata
                 });
                 
                 const userMessage = result.metadata?.userMessage || result.error || "No readable text found in PDF. Please try another file or check the file format.";
@@ -335,26 +333,11 @@ function CreateResume({
                                 Text extracted successfully from {extractionResult.pageCount} pages!
                               </p>
                             </div>
-                            {extractionResult.metadata?.userMessage && (
-                              <p className="text-xs mt-1 text-green-600 dark:text-green-200">
-                                {extractionResult.metadata.userMessage}
-                              </p>
-                            )}
-                            {extractionResult.metadata?.usedOcr && (
-                              <p className="text-xs mt-1 text-blue-600 font-medium dark:text-blue-200">
-                                🔍 Used OCR (optical character recognition) for text extraction
-                              </p>
-                            )}
                           </div>
                         ) : (
                           <div>
                             <p className="font-medium">⚠️ Text extraction failed</p>
                             <p className="text-xs mt-1">{extractionResult.error}</p>
-                            {extractionResult.metadata?.userMessage && (
-                              <p className="text-xs mt-1 text-yellow-600 dark:text-yellow-200">
-                                {extractionResult.metadata.userMessage}
-                              </p>
-                            )}
                           </div>
                         )}
                       </div>

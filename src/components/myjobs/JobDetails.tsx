@@ -49,7 +49,7 @@ function formatJobDescription(text: string) {
   const lines = text.split(/\n|(?=\b[A-Z][^\n:]{2,40}:)/g);
   let content: React.ReactNode[] = [];
   let currentSection: string | null = null;
-  let sectionContent: string[] = [];
+  let sectionContent: React.ReactNode[] = [];
   const pushSection = () => {
     if (currentSection) {
       content.push(

@@ -88,7 +88,7 @@ function JobLocationsContainer() {
       // Then load the locations
       await loadJobLocations(1);
     })();
-  }, [loadJobLocations]);
+  }, [loadJobLocations, handleFixJobRelationships, repairLocationOwnership]);
 
   return (
     <>

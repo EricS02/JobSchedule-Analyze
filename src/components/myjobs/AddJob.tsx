@@ -281,6 +281,7 @@ export function AddJob({
                           <Input
                             placeholder="Copy and paste job link here"
                             {...field}
+                            value={field.value as string | number | readonly string[] | undefined}
                           />
                         </FormControl>
                         <FormMessage />
@@ -360,7 +361,7 @@ export function AddJob({
                         <RadioGroup
                           name="type"
                           onValueChange={field.onChange}
-                          defaultValue={field.value}
+                          defaultValue={field.value as string | undefined}
                           className="flex space-y-1"
                         >
                           {Object.entries(JOB_TYPES).map(([key, value]) => (
@@ -409,7 +410,7 @@ export function AddJob({
                       <FormItem className="flex flex-row">
                         <Switch
                           id="applied-switch"
-                          checked={field.value}
+                          checked={field.value as boolean | undefined}
                           onCheckedChange={(a) => {
                             field.onChange(a);
                             jobAppliedChange(a);
@@ -436,10 +437,9 @@ export function AddJob({
                     render={({ field }) => (
                       <FormItem className="flex flex-col [&>button]:capitalize">
                         <FormLabel>Status</FormLabel>
-                        <SelectFormCtrl
-                          label="Job Status"
+                        <Combobox
                           options={jobStatuses}
-                          field={field}
+                          field={{ ...field, value: field.value as string | undefined }}
                         />
                         <FormMessage />
                       </FormItem>
@@ -458,7 +458,7 @@ export function AddJob({
                         <DatePicker
                           field={field}
                           presets={false}
-                          isEnabled={appliedValue}
+                          isEnabled={appliedValue as boolean}
                         />
                         <FormMessage />
                       </FormItem>
@@ -494,10 +494,9 @@ export function AddJob({
                       <FormItem className="flex flex-col">
                         <FormLabel>Salary Range</FormLabel>
                         <FormControl>
-                          <SelectFormCtrl
-                            label="Salary Range"
+                          <Combobox
                             options={SALARY_RANGES}
-                            field={field}
+                            field={{ ...field, value: field.value as string | undefined }}
                           />
                         </FormControl>
                         <FormMessage />
@@ -514,10 +513,9 @@ export function AddJob({
                     render={({ field }) => (
                       <FormItem className="flex flex-col [&>button]:capitalize">
                         <FormLabel>Resume</FormLabel>
-                        <SelectFormCtrl
-                          label="Resume"
+                        <Combobox
                           options={resumes}
-                          field={field}
+                          field={{ ...field, value: field.value as string | undefined }}
                         />
                         <FormMessage />
                       </FormItem>

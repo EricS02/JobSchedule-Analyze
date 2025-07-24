@@ -33,14 +33,6 @@ export default function Pricing() {
         checkSubscription();
     }, [isAuthenticated, user?.email, authLoading]);
 
-    // Check if user just logged in and should proceed to checkout
-    useEffect(() => {
-        if (isAuthenticated && !authLoading && searchParams.get('checkout') === 'true') {
-            console.log("User authenticated, proceeding to checkout...");
-            handleProPlanClick();
-        }
-    }, [isAuthenticated, authLoading, searchParams]);
-
     const handleProPlanClick = async () => {
         console.log("handleProPlanClick called - isAuthenticated:", isAuthenticated, "user:", user?.email);
         
@@ -74,6 +66,14 @@ export default function Pricing() {
             setIsLoading(false);
         }
     };
+
+    // Check if user just logged in and should proceed to checkout
+    useEffect(() => {
+        if (isAuthenticated && !authLoading && searchParams.get('checkout') === 'true') {
+            console.log("User authenticated, proceeding to checkout...");
+            handleProPlanClick();
+        }
+    }, [isAuthenticated, authLoading, searchParams, handleProPlanClick]);
 
     // Show loading state while auth is loading
     if (authLoading) {

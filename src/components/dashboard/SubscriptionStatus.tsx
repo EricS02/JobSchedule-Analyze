@@ -8,13 +8,7 @@ import { Crown, AlertCircle } from "lucide-react";
 import { getUserSubscriptionStatus } from "@/actions/stripe.actions";
 import { useKindeAuth } from "@kinde-oss/kinde-auth-nextjs";
 import Link from "next/link";
-
-interface SubscriptionStatus {
-  plan: "free" | "pro";
-  status: "free" | "active" | "canceled" | "past_due" | "not_logged_in" | "user_not_found";
-  customerId?: string;
-  cancelAtPeriodEnd?: boolean;
-}
+import type { SubscriptionStatus } from "@/actions/stripe.actions";
 
 export default function SubscriptionStatus() {
   const { isAuthenticated } = useKindeAuth();

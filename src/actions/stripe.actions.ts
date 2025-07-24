@@ -398,12 +398,23 @@ export async function checkAIFeatureEligibility(): Promise<{
 }
 
 // ✅ UPDATED: Enhanced subscription status with trial info
-export async function getUserSubscriptionStatus() {
+export type SubscriptionStatus = {
+  plan: 'free' | 'trial' | 'pro';
+  status: string;
+  customerId?: string;
+  subscriptionId?: string;
+  cancelAtPeriodEnd?: boolean;
+  trialEndDate?: Date;
+  daysRemaining?: number;
+  currentPeriodEnd?: number;
+};
+
+export async function getUserSubscriptionStatus(): Promise<SubscriptionStatus> {
   const { getUser } = getKindeServerSession();
   const user = await getUser();
   
   if (!user || !user.email) {
-    return { plan: "free", status: "not_logged_in" };
+    return { plan: 'free', status: 'not_logged_in' };
   }
 
   const userDB = await prisma.user.findFirst({
@@ -411,7 +422,7 @@ export async function getUserSubscriptionStatus() {
   });
 
   if (!userDB) {
-    return { plan: "free", status: "user_not_found" };
+    return { plan: 'free', status: 'user_not_found' };
   }
 
   console.log(`getUserSubscriptionStatus: User ${userDB.email}, stripe_customer_id: ${userDB.stripe_customer_id}, subscription_status: ${userDB.subscription_status}, has_used_trial: ${userDB.has_used_trial}`);
@@ -461,7 +472,7 @@ export async function getUserSubscriptionStatus() {
   return { 
     plan: "free", 
     status: "free", 
-    customerId: userDB.stripe_customer_id 
+    customerId: userDB.stripe_customer_id ?? undefined
   };
 }
 

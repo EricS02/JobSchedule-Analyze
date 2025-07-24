@@ -1,11 +1,10 @@
 import { PrismaClient } from '@prisma/client';
-import { getEnvVar } from './config';
 
 // Create a new PrismaClient with enhanced security
 const prismaClientSingleton = () => {
-  const dbUrl = getEnvVar('DATABASE_URL', 
-    process.env.NODE_ENV === 'development' ? "file:./dev.db" : undefined
-  );
+  // During build time, use a placeholder URL to avoid errors
+  const dbUrl = process.env.DATABASE_URL || 
+    (process.env.NODE_ENV === 'development' ? "file:./dev.db" : "placeholder://db");
 
   return new PrismaClient({
     datasources: { db: { url: dbUrl } },

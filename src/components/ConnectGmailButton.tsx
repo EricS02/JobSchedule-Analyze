@@ -13,6 +13,8 @@ export default function ConnectGmailButton({ onSuccess }: { onSuccess?: () => vo
         onSuccess={async (credentialResponse) => {
           setLoading(true);
           try {
+            // For Google Sign-In, we get a credential (JWT token)
+            // We need to exchange this for Gmail API access tokens
             const res = await fetch("/api/store-gmail-token", {
               method: "POST",
               headers: {
@@ -20,8 +22,9 @@ export default function ConnectGmailButton({ onSuccess }: { onSuccess?: () => vo
                 "Authorization": `Bearer ${localStorage.getItem('kinde_token')}`,
               },
               body: JSON.stringify({
-                accessToken: credentialResponse.access_token,
-                refreshToken: credentialResponse.refresh_token || ""
+                credential: credentialResponse.credential,
+                // Note: For Gmail API access, we'll need to implement proper OAuth 2.0 flow
+                // This is a placeholder for now
               }),
             });
             if (res.ok) {
@@ -37,10 +40,9 @@ export default function ConnectGmailButton({ onSuccess }: { onSuccess?: () => vo
           }
         }}
         onError={() => toast({ title: "Google OAuth failed", description: "Please try again.", variant: "destructive" })}
-        scope="https://www.googleapis.com/auth/gmail.readonly"
         useOneTap={false}
         theme="filled_blue"
-        text={loading ? "Connecting..." : "Connect Gmail"}
+        text="continue_with"
       />
     </GoogleOAuthProvider>
   );

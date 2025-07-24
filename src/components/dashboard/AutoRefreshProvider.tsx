@@ -36,7 +36,7 @@ export default function AutoRefreshProvider({
     
     // Clean up on unmount
     return () => clearInterval(refreshTimer);
-  }, [interval]);
+  }, [interval, refreshData]);
 
   useEffect(() => {
     setMounted(true);

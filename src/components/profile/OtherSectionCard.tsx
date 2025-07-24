@@ -31,7 +31,7 @@ function OtherSectionCard({ section, openDialogForEdit }: OtherSectionCardProps)
     
     startTransition(async () => {
       try {
-        const response = await deleteOtherSection(section.others[0].id);
+        const response = await deleteOtherSection(section.others?.[0]?.id);
         
         if (!response.success) {
           toast({

@@ -12,6 +12,7 @@ import AiResumeReviewSection from "./AiResumeReviewSection";
 import { DownloadFileButton } from "./DownloadFileButton";
 import { FileText, Plus } from "lucide-react";
 import { Button } from "../ui/button";
+import { WorkExperience, Education } from "@/models/profile.model";
 
 function ResumeContainer({ resume }: { resume: any }) {
   const resumeSectionRef = useRef<AddResumeSectionRef>(null);
@@ -29,18 +30,18 @@ function ResumeContainer({ resume }: { resume: any }) {
 
   const { title, ContactInfo, ResumeSections, File, parsingAttempted, parsingSucceeded, parsingError } = resume;
   const summarySection = ResumeSections?.find(
-    (section) => section.sectionType === SectionType.SUMMARY
+    (section: ResumeSection) => section.sectionType === SectionType.SUMMARY
   );
   const experienceSection = ResumeSections?.find(
-    (section) => section.sectionType === SectionType.EXPERIENCE
+    (section: ResumeSection) => section.sectionType === SectionType.EXPERIENCE
   );
   const educationSection = ResumeSections?.find(
-    (section) => section.sectionType === SectionType.EDUCATION
+    (section: ResumeSection) => section.sectionType === SectionType.EDUCATION
   );
   
   // Get all other sections (Technical Skills, Projects, etc.)
   const otherSections = ResumeSections?.filter(
-    (section) => section.sectionType === SectionType.OTHER || section.sectionType === SectionType.PROJECT
+    (section: ResumeSection) => section.sectionType === SectionType.OTHER || section.sectionType === SectionType.PROJECT
   ) || [];
   
   const hasStructuredContent = ContactInfo || (ResumeSections && ResumeSections.length > 0);
@@ -55,7 +56,7 @@ function ResumeContainer({ resume }: { resume: any }) {
     const section: ResumeSection = {
       ...experienceSection!,
       workExperiences: experienceSection?.workExperiences?.filter(
-        (exp) => exp.id === experienceId
+        (exp: WorkExperience) => exp.id === experienceId
       ),
     };
     resumeSectionRef.current?.openExperienceDialog(section);
@@ -64,7 +65,7 @@ function ResumeContainer({ resume }: { resume: any }) {
     const section: ResumeSection = {
       ...educationSection!,
       educations: educationSection?.educations?.filter(
-        (edu) => edu.id === educationId
+        (edu: Education) => edu.id === educationId
       ),
     };
     resumeSectionRef.current?.openEducationDialog(section);
@@ -129,7 +130,7 @@ function ResumeContainer({ resume }: { resume: any }) {
                 </p>
               </div>
               <Button
-                onClick={() => resumeSectionRef.current?.openContactInfoDialog()}
+                onClick={() => resumeSectionRef.current?.openContactInfoDialog(ContactInfo!)}
                 className="flex items-center gap-2"
               >
                 <Plus className="h-4 w-4" />
@@ -163,7 +164,7 @@ function ResumeContainer({ resume }: { resume: any }) {
           openDialogForEdit={openEducationDialogForEdit}
         />
       )}
-      {otherSections.map((section) => (
+      {otherSections.map((section: ResumeSection) => (
         <OtherSectionCard
           key={section.id}
           section={section}

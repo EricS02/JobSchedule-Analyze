@@ -73,6 +73,8 @@ export async function extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
  * Uses AI to parse resume text into structured data
  */
 export async function parseResumeWithAI(resumeText: string): Promise<ParsedResumeData> {
+  let result: any;
+
   try {
     // Sanitize curly braces in resume text to avoid LangChain template errors
     const safeResumeText = resumeText.replace(/[{}]/g, '');
@@ -173,14 +175,14 @@ Content Rules:
 
 ${safeResumeText}`;
 
-    const result = await model.invoke([
+    result = await model.invoke([
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt }
     ]);
 
     // Parse the JSON response
     try {
-      let content = result.content.trim();
+      let content = typeof result.content === 'string' ? result.content.trim() : String(result.content);
       
       // Remove any markdown code block formatting
       if (content.startsWith('```json')) {
@@ -218,7 +220,7 @@ ${safeResumeText}`;
       
       // Try additional cleanup if the first attempt failed
       try {
-        let content = result.content.trim();
+        let content = typeof result.content === 'string' ? result.content.trim() : String(result.content);
         
         // More aggressive cleanup for common AI formatting issues
         content = content.replace(/```json\s*/, '');

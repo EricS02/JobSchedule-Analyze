@@ -35,6 +35,7 @@ export interface JobResponse {
   applied: boolean;
   resumeId?: string;
   Resume?: Resume;
+  detailedDescription?: string;
 }
 
 export interface JobTitle {
@@ -74,8 +75,8 @@ export interface JobLocation {
   id: string;
   label: string;
   value: string;
-  stateProv?: string;
-  country?: string;
+  stateProv: string | null;
+  country: string | null;
   createdBy: string;
   _count?: {
     jobsApplied: number;

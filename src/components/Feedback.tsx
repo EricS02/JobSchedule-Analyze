@@ -7,6 +7,12 @@ import { Button } from "@/components/ui/button";
 // Get board token from environment variable or use fallback
 const BoardToken = process.env.NEXT_PUBLIC_CANNY_BOARD_TOKEN || '6575155d-84fb-8b47-17e8-372da13b27eb';
 
+declare global {
+  interface Window {
+    Canny?: any;
+  }
+}
+
 const Feedback = () => {
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -35,7 +41,7 @@ const Feedback = () => {
 
     try {
       // Load Canny SDK if not already loaded
-      (function(w,d,i,s){function l(){if(!d.getElementById(i)){var f=d.getElementsByTagName(s)[0],e=d.createElement(s);e.type="text/javascript",e.async=!0,e.src="https://canny.io/sdk.js",f.parentNode.insertBefore(e,f)}}if("function"!=typeof w.Canny){var c=function(){c.q.push(arguments)};c.q=[],w.Canny=c,"complete"===d.readyState?l():w.attachEvent?w.attachEvent("onload",l):w.addEventListener("load",l,!1)}})(window,document,"canny-jssdk","script");
+      (function(w,d,i,s){function l(){if(!d.getElementById(i)){var f=d.getElementsByTagName(s)[0],e=d.createElement(s) as HTMLScriptElement;e.type="text/javascript",e.async=!0,e.src="https://canny.io/sdk.js";if(f.parentNode)f.parentNode.insertBefore(e,f)}}if("function"!=typeof w.Canny){var c = function(){(c as any).q.push(arguments)} as any;c.q=[],w.Canny=c,"complete"===d.readyState?l():(w as any).attachEvent?(w as any).attachEvent("onload",l):w.addEventListener("load",l,!1)}})(window,document,"canny-jssdk","script");
 
       // Wait for Canny to be available
       const initCanny = () => {
@@ -45,7 +51,7 @@ const Feedback = () => {
           console.log('Canny available, rendering with theme:', theme);
           
           try {
-            Canny('render', {
+            window.Canny('render', {
               boardToken: BoardToken,
               basePath: null,
               ssoToken: null,
@@ -67,8 +73,8 @@ const Feedback = () => {
                 console.log('Widget element dimensions:', {
                   width: widgetElement.clientWidth,
                   height: widgetElement.clientHeight,
-                  offsetWidth: widgetElement.offsetWidth,
-                  offsetHeight: widgetElement.offsetHeight
+                  offsetWidth: (widgetElement as HTMLElement).offsetWidth,
+                  offsetHeight: (widgetElement as HTMLElement).offsetHeight
                 });
                 
                 // Check for Canny content

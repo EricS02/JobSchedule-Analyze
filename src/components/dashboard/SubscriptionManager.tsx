@@ -120,6 +120,7 @@ export default function SubscriptionManager() {
   };
 
   const handleUpgrade = () => {
+    if (!subscription) return;
     // Track upgrade click
     analytics.trackSubscriptionEvent('upgrade_clicked', {
       currentPlan: subscription.plan,

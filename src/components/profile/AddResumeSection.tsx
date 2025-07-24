@@ -214,13 +214,13 @@ const AddResumeSection = forwardRef<AddResumeSectionRef, AddResumeSectionProps>(
           educationToEdit={educationToEdit!}
         />
         <AddTechnicalSkills
-          resumeId={resume?.id}
+          resumeId={resume?.id ?? ""}
           dialogOpen={technicalSkillsDialogOpen}
           setDialogOpen={setTechnicalSkillsDialogOpen}
           technicalSkillsToEdit={technicalSkillsToEdit}
         />
         <AddProjects
-          resumeId={resume?.id}
+          resumeId={resume?.id ?? ""}
           dialogOpen={projectsDialogOpen}
           setDialogOpen={setProjectsDialogOpen}
           projectsToEdit={projectsToEdit}

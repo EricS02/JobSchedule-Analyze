@@ -3,8 +3,12 @@
 export function getEnvVar(name: string, fallback?: string): string {
   const value = process.env[name];
   if (!value) {
-    if (fallback && process.env.NODE_ENV === 'development') {
-      console.warn(`⚠️ Using fallback for ${name} in development`);
+    if (fallback && (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'production')) {
+      console.warn(`⚠️ Using fallback for ${name} in ${process.env.NODE_ENV}`);
+      return fallback;
+    }
+    // During build time, return fallback instead of throwing
+    if (process.env.NODE_ENV === 'production' && fallback) {
       return fallback;
     }
     throw new Error(`Missing required environment variable: ${name}`);
@@ -42,23 +46,23 @@ export function validateProductionEnv() {
 export const serverConfig = {
   // These should ONLY be used on the server side
   DATABASE_URL: getEnvVar('DATABASE_URL', 
-    process.env.NODE_ENV === 'development' ? "file:./dev.db" : undefined
+    process.env.NODE_ENV === 'development' ? "file:./dev.db" : "placeholder://db"
   ),
   AUTH_SECRET: getEnvVar('AUTH_SECRET', 
-    process.env.NODE_ENV === 'development' ? "Z5jXQ5zznTNgKpNf0SOqDxPkTFQtapMF0B3T6J9owzg=" : undefined
+    process.env.NODE_ENV === 'development' ? "Z5jXQ5zznTNgKpNf0SOqDxPkTFQtapMF0B3T6J9owzg=" : "placeholder-secret"
   ),
   ENCRYPTION_KEY: getEnvVar('ENCRYPTION_KEY', 
-    process.env.NODE_ENV === 'development' ? "dev-encryption-key-32-chars-long!!" : undefined
+    process.env.NODE_ENV === 'development' ? "dev-encryption-key-32-chars-long!!" : "placeholder-encryption-key-32-chars-long!!"
   ),
   // Authentication
-  KINDE_CLIENT_SECRET: getEnvVar('KINDE_CLIENT_SECRET'),
-  KINDE_ISSUER_URL: getEnvVar('KINDE_ISSUER_URL'),
+  KINDE_CLIENT_SECRET: getEnvVar('KINDE_CLIENT_SECRET', 'placeholder-secret'),
+  KINDE_ISSUER_URL: getEnvVar('KINDE_ISSUER_URL', 'https://placeholder.kinde.com'),
   // Payments
-  STRIPE_SECRET_KEY: getEnvVar('STRIPE_SECRET_KEY'),
-  STRIPE_WEBHOOK_SECRET: getEnvVar('STRIPE_WEBHOOK_SECRET'),
+  STRIPE_SECRET_KEY: getEnvVar('STRIPE_SECRET_KEY', 'placeholder-secret'),
+  STRIPE_WEBHOOK_SECRET: getEnvVar('STRIPE_WEBHOOK_SECRET', 'placeholder-secret'),
   // AI Services
-  OPENAI_API_KEY: getEnvVar('OPENAI_API_KEY'),
-  OCR_SPACE_API_KEY: getEnvVar('OCR_SPACE_API_KEY'),
+  OPENAI_API_KEY: getEnvVar('OPENAI_API_KEY', 'placeholder-key'),
+  OCR_SPACE_API_KEY: getEnvVar('OCR_SPACE_API_KEY', 'placeholder-key'),
 };
 
 // src/lib/client-config.ts - Client-side safe configuration

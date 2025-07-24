@@ -1,6 +1,4 @@
 "use server";
-import { AuthError } from "next-auth";
-import { login } from "../auth";
 import { delay } from "@/utils/delay";
 
 export async function authenticate(
@@ -9,16 +7,13 @@ export async function authenticate(
 ) {
   try {
     delay(1000);
-    await login("credentials", formData);
+    // Kinde auth uses components for login, not server actions
+    // This function is kept for compatibility but should be replaced with Kinde components
+    throw new Error("Please use Kinde LoginLink component for authentication");
   } catch (error) {
-    if (error instanceof AuthError) {
-      switch (error.type) {
-        case "CredentialsSignin":
-          return "Invalid credentials.";
-        default:
-          return "Something went wrong.";
-      }
+    if (error instanceof Error) {
+      return error.message;
     }
-    throw error;
+    return "Something went wrong.";
   }
 }

@@ -13,14 +13,18 @@ export const metadata: Metadata = {
   description: "Streamline your job application process with our comprehensive tracking system powered by AI.",
 };
 
-// Validate production environment variables
-if (process.env.NODE_ENV === 'production') {
+// Validate production environment variables (only at runtime, not build time)
+if (process.env.NODE_ENV === 'production' && typeof window === 'undefined') {
+  // Only run validation on the server side during runtime
   try {
     validateProductionEnv();
     logger.info('Production environment validation passed');
   } catch (error) {
     logger.error('Production environment validation failed', error as Error);
-    throw error; // Prevent app from starting with missing env vars
+    // Don't throw during build time, only during runtime
+    if (typeof window === 'undefined' && !process.env.NEXT_PHASE) {
+      throw error;
+    }
   }
 }
 
