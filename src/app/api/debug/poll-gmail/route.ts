@@ -4,6 +4,9 @@ import { decrypt } from "@/lib/secure-crypto";
 import { google } from "googleapis";
 import { updateJobStatus } from "@/actions/job.actions";
 
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';
+
 // Dummy status mapping for demonstration
 const STATUS_KEYWORDS = [
   { keyword: "interview", status: "interview" },

@@ -1,5 +1,8 @@
 import SubscriptionManager from "@/components/dashboard/SubscriptionManager";
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic'
+
 export default function SubscriptionPage() {
   return (
     <div className="container mx-auto p-6">

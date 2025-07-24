@@ -4,7 +4,7 @@ import { PrismaClient } from '@prisma/client';
 const prismaClientSingleton = () => {
   // During build time, use a placeholder URL to avoid errors
   const dbUrl = process.env.DATABASE_URL || 
-    (process.env.NODE_ENV === 'development' ? "file:./dev.db" : "placeholder://db");
+    (process.env.NODE_ENV === 'development' ? "file:./dev.db" : "postgresql://placeholder:placeholder@localhost:5432/placeholder");
 
   return new PrismaClient({
     datasources: { db: { url: dbUrl } },

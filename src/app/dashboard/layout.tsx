@@ -3,6 +3,9 @@ import Sidebar from "@/components/Sidebar";
 import DashboardWrapper from "@/components/dashboard/DashboardWrapper";
 import { Toaster } from "@/components/ui/toaster";
 
+// Force dynamic rendering to prevent static generation issues with useSearchParams
+export const dynamic = 'force-dynamic'
+
 export default function DashboardLayout({
   children,
 }: {

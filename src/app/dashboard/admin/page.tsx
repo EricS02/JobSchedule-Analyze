@@ -1,5 +1,8 @@
 import AdminTabsContainer from "@/components/admin/AdminTabsContainer";
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic'
+
 async function AdminPage() {
   return (
     <div className="flex flex-col col-span-3">

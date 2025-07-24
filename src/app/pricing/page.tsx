@@ -1,5 +1,8 @@
 "use client";
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic'
+
 import { Button } from '@/components/ui/button'
 import { Check, ArrowLeft } from 'lucide-react'
 import { HeroHeader, SimpleHeader } from '@/components/Header'
