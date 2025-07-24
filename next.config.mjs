@@ -55,29 +55,53 @@ const nextConfig = {
     serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs'],
   },
   env: {
-    DATABASE_URL: process.env.DATABASE_URL || "file:./dev.db",
-    AUTH_SECRET: process.env.AUTH_SECRET || "Z5jXQ5zznTNgKpNf0SOqDxPkTFQtapMF0B3T6J9owzg=",
-    NEXTAUTH_URL: process.env.NEXTAUTH_URL || "http://localhost:3000",
-    // Kinde Auth (Server-side)
-    KINDE_CLIENT_SECRET: process.env.KINDE_CLIENT_SECRET || "placeholder",
-    KINDE_ISSUER_URL: process.env.KINDE_ISSUER_URL || "https://placeholder.kinde.com",
-    KINDE_CLIENT_ID: process.env.KINDE_CLIENT_ID || "placeholder",
-    KINDE_SITE_URL: process.env.KINDE_SITE_URL || "http://localhost:3000",
-    KINDE_POST_LOGOUT_REDIRECT_URL: process.env.KINDE_POST_LOGOUT_REDIRECT_URL || "http://localhost:3000",
-    KINDE_POST_LOGIN_REDIRECT_URL: process.env.KINDE_POST_LOGIN_REDIRECT_URL || "http://localhost:3000/dashboard",
-    // Kinde Auth (Client-side - NEXT_PUBLIC_)
-    NEXT_PUBLIC_KINDE_CLIENT_ID: process.env.NEXT_PUBLIC_KINDE_CLIENT_ID || process.env.KINDE_CLIENT_ID || "placeholder",
-    NEXT_PUBLIC_KINDE_DOMAIN: process.env.NEXT_PUBLIC_KINDE_DOMAIN || "placeholder.kinde.com",
-    NEXT_PUBLIC_KINDE_LOGOUT_REDIRECT_URI: process.env.NEXT_PUBLIC_KINDE_LOGOUT_REDIRECT_URI || "http://localhost:3000",
-    NEXT_PUBLIC_KINDE_REDIRECT_URI: process.env.NEXT_PUBLIC_KINDE_REDIRECT_URI || "http://localhost:3000/dashboard",
-    // Stripe
-    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || "placeholder",
-    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || "placeholder",
-    // AI Services
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY || "placeholder",
-    OCR_SPACE_API_KEY: process.env.OCR_SPACE_API_KEY || "placeholder",
-    // Encryption
-    ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || "placeholder-encryption-key-32-chars-long!!",
+    // Only use fallbacks in development
+    ...(process.env.NODE_ENV === 'development' ? {
+      DATABASE_URL: process.env.DATABASE_URL || "file:./dev.db",
+      AUTH_SECRET: process.env.AUTH_SECRET || "Z5jXQ5zznTNgKpNf0SOqDxPkTFQtapMF0B3T6J9owzg=",
+      NEXTAUTH_URL: process.env.NEXTAUTH_URL || "http://localhost:3000",
+      // Kinde Auth (Server-side) - only fallbacks in development
+      KINDE_CLIENT_SECRET: process.env.KINDE_CLIENT_SECRET || "placeholder",
+      KINDE_ISSUER_URL: process.env.KINDE_ISSUER_URL || "https://placeholder.kinde.com",
+      KINDE_CLIENT_ID: process.env.KINDE_CLIENT_ID || "placeholder",
+      KINDE_SITE_URL: process.env.KINDE_SITE_URL || "http://localhost:3000",
+      KINDE_POST_LOGOUT_REDIRECT_URL: process.env.KINDE_POST_LOGOUT_REDIRECT_URL || "http://localhost:3000",
+      KINDE_POST_LOGIN_REDIRECT_URL: process.env.KINDE_POST_LOGIN_REDIRECT_URL || "http://localhost:3000/dashboard",
+      // Kinde Auth (Client-side - NEXT_PUBLIC_) - only fallbacks in development
+      NEXT_PUBLIC_KINDE_CLIENT_ID: process.env.NEXT_PUBLIC_KINDE_CLIENT_ID || process.env.KINDE_CLIENT_ID || "placeholder",
+      NEXT_PUBLIC_KINDE_DOMAIN: process.env.NEXT_PUBLIC_KINDE_DOMAIN || "placeholder.kinde.com",
+      NEXT_PUBLIC_KINDE_LOGOUT_REDIRECT_URI: process.env.NEXT_PUBLIC_KINDE_LOGOUT_REDIRECT_URI || "http://localhost:3000",
+      NEXT_PUBLIC_KINDE_REDIRECT_URI: process.env.NEXT_PUBLIC_KINDE_REDIRECT_URI || "http://localhost:3000/dashboard",
+      // Stripe - only fallbacks in development
+      STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || "placeholder",
+      STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || "placeholder",
+      // AI Services - only fallbacks in development
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY || "placeholder",
+      OCR_SPACE_API_KEY: process.env.OCR_SPACE_API_KEY || "placeholder",
+      // Encryption - only fallbacks in development
+      ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || "placeholder-encryption-key-32-chars-long!!",
+    } : {
+      // In production, only pass through the actual environment variables
+      // This ensures Kinde gets the real values from Vercel
+      DATABASE_URL: process.env.DATABASE_URL,
+      AUTH_SECRET: process.env.AUTH_SECRET,
+      NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+      KINDE_CLIENT_SECRET: process.env.KINDE_CLIENT_SECRET,
+      KINDE_ISSUER_URL: process.env.KINDE_ISSUER_URL,
+      KINDE_CLIENT_ID: process.env.KINDE_CLIENT_ID,
+      KINDE_SITE_URL: process.env.KINDE_SITE_URL,
+      KINDE_POST_LOGOUT_REDIRECT_URL: process.env.KINDE_POST_LOGOUT_REDIRECT_URL,
+      KINDE_POST_LOGIN_REDIRECT_URL: process.env.KINDE_POST_LOGIN_REDIRECT_URL,
+      NEXT_PUBLIC_KINDE_CLIENT_ID: process.env.NEXT_PUBLIC_KINDE_CLIENT_ID,
+      NEXT_PUBLIC_KINDE_DOMAIN: process.env.NEXT_PUBLIC_KINDE_DOMAIN,
+      NEXT_PUBLIC_KINDE_LOGOUT_REDIRECT_URI: process.env.NEXT_PUBLIC_KINDE_LOGOUT_REDIRECT_URI,
+      NEXT_PUBLIC_KINDE_REDIRECT_URI: process.env.NEXT_PUBLIC_KINDE_REDIRECT_URI,
+      STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+      STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+      OCR_SPACE_API_KEY: process.env.OCR_SPACE_API_KEY,
+      ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
+    }),
   },
   webpack: (config, { isServer, dev }) => {
     // Server-side configuration
