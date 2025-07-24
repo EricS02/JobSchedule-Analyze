@@ -23,7 +23,7 @@ function getSecurityHeaders(nonce: string) {
     'Content-Security-Policy': [
       `default-src 'self'`,
       `script-src 'self' 'unsafe-inline' 'unsafe-eval' 'nonce-${nonce}' https://va.vercel-scripts.com https://cdn.kinde.com https://vercel.live https://*.vercel.com`,
-      `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+      `style-src 'self' 'unsafe-inline' 'unsafe-hashes' https://fonts.googleapis.com`,
       `img-src 'self' data: https: blob:`,
       `font-src 'self' https://fonts.gstatic.com data:`,
       `connect-src 'self' https://api.stripe.com https://api.openai.com https://*.kinde.com https://vercel.live wss:`,

@@ -1,5 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Disable Vercel Toolbar in production
+  devIndicators: {
+    buildActivity: false,
+  },
+  // Disable Vercel Toolbar
+  env: {
+    ...process.env,
+    NEXT_DISABLE_VERCEL_TOOLBAR: '1',
+  },
   images: {
     remotePatterns: [
       {

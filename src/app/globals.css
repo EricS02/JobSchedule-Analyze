@@ -80,6 +80,11 @@
 }
 
 @layer utilities {
+  /* Hide Vercel Toolbar */
+  .g_U3r8dd_7sgVHnNnVpT {
+    display: none !important;
+  }
+  
   .text-14 {
     @apply text-[14px] leading-[20px];
   }
