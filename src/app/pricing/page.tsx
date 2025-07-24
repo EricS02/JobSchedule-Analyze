@@ -9,14 +9,15 @@ import { HeroHeader, SimpleHeader } from '@/components/Header'
 import { RegisterLink, LoginLink } from '@kinde-oss/kinde-auth-nextjs/components'
 import { useKindeAuth } from '@kinde-oss/kinde-auth-nextjs'
 import { handleProPlanUpgrade } from '@/actions/pricing.actions'
-import { useState, useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 
-export default function Pricing() {
+// Component that uses useSearchParams - must be wrapped in Suspense
+function PricingContent() {
     const { isAuthenticated, user, isLoading: authLoading } = useKindeAuth();
     const [isLoading, setIsLoading] = useState(false);
     const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null);
+    const { useSearchParams } = require('next/navigation');
     const searchParams = useSearchParams();
 
     // Check subscription status
@@ -282,5 +283,25 @@ export default function Pricing() {
                 </div>
             </section>
         </>
+    );
+}
+
+// Main component that wraps the content in Suspense
+export default function Pricing() {
+    return (
+        <Suspense fallback={
+            <>
+                <SimpleHeader />
+                <section className="py-16 md:py-32">
+                    <div className="mx-auto max-w-5xl px-6">
+                        <div className="mx-auto max-w-2xl space-y-6 text-center">
+                            <h1 className="text-center text-4xl font-semibold lg:text-5xl">Loading...</h1>
+                        </div>
+                    </div>
+                </section>
+            </>
+        }>
+            <PricingContent />
+        </Suspense>
     );
 } 

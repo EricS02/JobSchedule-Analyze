@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { decrypt } from "@/lib/secure-crypto";
 import { google } from "googleapis";
-import { updateJobStatus } from "@/actions/job.actions";
 
 // Force dynamic rendering to prevent build-time execution
 export const dynamic = 'force-dynamic';
@@ -45,6 +44,7 @@ export async function GET(req: NextRequest) {
               // Expand this logic as needed (e.g., jobUrl, custom tags)
               return snippet.includes(title) || snippet.includes(company);
             });
+            const { updateJobStatus } = await import("@/actions/job.actions");
             for (const job of matchedJobs) {
               await updateJobStatus(job.id, { id: status, value: status, label: status });
             }

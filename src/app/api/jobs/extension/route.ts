@@ -3,7 +3,9 @@ import { verifyJwtToken } from "@/lib/auth/jwt";
 import prisma from "@/lib/db";
 import { revalidatePath } from 'next/cache';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
-import { checkJobTrackingEligibility } from "@/actions/stripe.actions";
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';
 
 // Helper function to add CORS headers
 function corsHeaders(response: NextResponse) {
@@ -80,6 +82,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check job tracking eligibility (daily limits for free users)
+    const { checkJobTrackingEligibility } = await import("@/actions/stripe.actions");
     const eligibility = await checkJobTrackingEligibility();
     console.log("API: Job tracking eligibility:", eligibility);
     

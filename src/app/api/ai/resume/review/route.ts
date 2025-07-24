@@ -1,14 +1,13 @@
 import "server-only";
 
 import { NextApiRequest, NextApiResponse } from "next";
-import {
-  getResumeReviewByOpenAi,
-  getResumeReviewWithSubscriptionCheck,
-} from "@/actions/ai.actions";
 import { NextRequest, NextResponse } from "next/server";
 import { Resume } from "@/models/profile.model";
 import { AiModel } from "@/models/ai.model";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';
 
 export const POST = async (req: NextRequest, res: NextApiResponse) => {
   const { getUser } = getKindeServerSession();
@@ -35,6 +34,7 @@ export const POST = async (req: NextRequest, res: NextApiResponse) => {
     console.log("AI Review - Calling subscription check for user:", user.email);
     
     // Use subscription-checked version
+    const { getResumeReviewWithSubscriptionCheck } = await import("@/actions/ai.actions");
     const result = await getResumeReviewWithSubscriptionCheck(resume, selectedModel.model);
     
     console.log("AI Review - Subscription check result:", {

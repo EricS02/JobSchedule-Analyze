@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NextApiRequest, NextApiResponse } from "next";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
-import {
-  createResumeProfile,
-  createResumeProfileWithParsing,
-  createResumeProfileWithClientExtraction,
-  deleteFile,
-  editResume,
-  uploadFile,
-} from "@/actions/profile.actions";
 import path from "path";
 import fs from "fs";
 import { getTimestampedFileName } from "@/lib/utils";
 import prisma from "@/lib/db";
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';
 
 export const POST = async (req: NextRequest, res: NextResponse) => {
   console.log('🚀 Resume API POST request received');
@@ -120,7 +115,8 @@ export const POST = async (req: NextRequest, res: NextResponse) => {
       console.log('- Final file path:', filePath);
       
       try {
-        await uploadFile(file, uploadDir, filePath);
+        const { uploadFile } = await import("@/actions/profile.actions");
+      await uploadFile(file, uploadDir, filePath);
         console.log('✅ File uploaded successfully');
       } catch (uploadError) {
         console.error('❌ File upload failed:', uploadError);
@@ -132,11 +128,13 @@ export const POST = async (req: NextRequest, res: NextResponse) => {
 
     if (resumeId && title) {
       if (fileId && file?.name) {
+        const { deleteFile } = await import("@/actions/profile.actions");
         await deleteFile(fileId);
         fileId = undefined;
       }
 
-      const res = await editResume(
+              const { editResume } = await import("@/actions/profile.actions");
+        const res = await editResume(
         resumeId,
         title,
         fileId,
@@ -157,7 +155,8 @@ export const POST = async (req: NextRequest, res: NextResponse) => {
       }
       
       // Use the new client extraction function
-      response = await createResumeProfileWithClientExtraction(
+              const { createResumeProfileWithClientExtraction } = await import("@/actions/profile.actions");
+        response = await createResumeProfileWithClientExtraction(
         title,
         file?.name ?? null,
         filePath,
@@ -166,7 +165,8 @@ export const POST = async (req: NextRequest, res: NextResponse) => {
       );
     } else {
       console.log('Creating resume without text extraction');
-      response = await createResumeProfile(
+              const { createResumeProfile } = await import("@/actions/profile.actions");
+        response = await createResumeProfile(
         title,
         file?.name ?? null,
         filePath

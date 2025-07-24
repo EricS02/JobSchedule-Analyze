@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import Papa from "papaparse";
 import { PassThrough } from "node:stream";
-import { getJobsIterator } from "@/actions/job.actions";
 import { format } from "date-fns";
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';
 
 const FIELDS: string[] = [
   "index",
@@ -63,6 +65,7 @@ export const POST = async () => {
 
   (async () => {
     try {
+      const { getJobsIterator } = await import("@/actions/job.actions");
       let recordIndex = 0;
       for await (const chunk of getJobsIterator()) {
         if (hasError) break;
