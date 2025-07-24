@@ -2,17 +2,28 @@
 
 export function getEnvVar(name: string, fallback?: string): string {
   const value = process.env[name];
-  if (!value) {
-    if (fallback && (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'production')) {
-      console.warn(`⚠️ Using fallback for ${name} in ${process.env.NODE_ENV}`);
+  
+  // Check if value is missing, empty, or using placeholder values
+  if (!value || 
+      value === 'placeholder-secret' || 
+      value === 'placeholder-key' || 
+      value === 'https://placeholder.kinde.com' ||
+      value === 'placeholder://db' ||
+      value === 'placeholder-encryption-key-32-chars-long!!') {
+    
+    console.error(`❌ Environment variable ${name} is not set or is using placeholder value: "${value}"`);
+    
+    // Only allow fallbacks in development
+    if (process.env.NODE_ENV === 'development' && fallback) {
+      console.warn(`⚠️ Using development fallback for ${name}`);
       return fallback;
     }
-    // During build time, return fallback instead of throwing
-    if (process.env.NODE_ENV === 'production' && fallback) {
-      return fallback;
-    }
-    throw new Error(`Missing required environment variable: ${name}`);
+    
+    // In production, always throw error for missing/placeholder values
+    throw new Error(`Missing or invalid environment variable: ${name}. Current value: "${value}"`);
   }
+  
+  console.log(`✅ Environment variable ${name} is properly set`);
   return value;
 }
 
