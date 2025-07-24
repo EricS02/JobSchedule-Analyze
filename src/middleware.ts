@@ -19,15 +19,15 @@ function getSecurityHeaders(nonce: string) {
   const isDev = process.env.NODE_ENV === 'development';
   
   return {
-    // Strict CSP
+    // Less restrictive CSP for better compatibility
     'Content-Security-Policy': [
       `default-src 'self'`,
-      `script-src 'self' 'nonce-${nonce}' https://va.vercel-scripts.com https://cdn.kinde.com ${isDev ? "'unsafe-eval'" : ''}`,
+      `script-src 'self' 'unsafe-inline' 'unsafe-eval' 'nonce-${nonce}' https://va.vercel-scripts.com https://cdn.kinde.com https://vercel.live https://*.vercel.com`,
       `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
       `img-src 'self' data: https: blob:`,
       `font-src 'self' https://fonts.gstatic.com data:`,
-      `connect-src 'self' https://api.stripe.com https://api.openai.com https://*.kinde.com wss:`,
-      `frame-src 'self' https://js.stripe.com https://*.kinde.com`,
+      `connect-src 'self' https://api.stripe.com https://api.openai.com https://*.kinde.com https://vercel.live wss:`,
+      `frame-src 'self' https://js.stripe.com https://*.kinde.com https://vercel.live`,
       `object-src 'none'`,
       `base-uri 'self'`,
       `form-action 'self'`,

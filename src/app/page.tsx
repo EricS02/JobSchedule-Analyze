@@ -23,8 +23,7 @@ import { AuthRedirect } from "@/components/AuthRedirect";
 export default function HomePage() {
   return (
     <div className="min-h-screen">
-      {/* Auth redirect for authenticated users */}
-      <AuthRedirect />
+      {/* Auth redirect for authenticated users - moved to bottom for better performance */}
       
       {/* Hero Section */}
       <HeroSection />
@@ -239,6 +238,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+      
+      {/* Auth redirect for authenticated users - placed at bottom for better performance */}
+      <AuthRedirect />
     </div>
   );
 } 
