@@ -20,8 +20,8 @@ export async function GET() {
     };
 
     // Check status of each variable
-    const status = {};
-    const missingVars = [];
+    const status: Record<string, string> = {};
+    const missingVars: string[] = [];
     
     Object.entries(envVars).forEach(([key, value]) => {
       const isSet = value && 
