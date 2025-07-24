@@ -9,7 +9,10 @@ export function getEnvVar(name: string, fallback?: string): string {
       value === 'placeholder-key' || 
       value === 'https://placeholder.kinde.com' ||
       value === 'placeholder://db' ||
-      value === 'placeholder-encryption-key-32-chars-long!!') {
+      value === 'placeholder-encryption-key-32-chars-long!!' ||
+      value === 'undefined' ||
+      value === 'null' ||
+      value.trim() === '') {
     
     console.error(`❌ Environment variable ${name} is not set or is using placeholder value: "${value}"`);
     
@@ -25,6 +28,77 @@ export function getEnvVar(name: string, fallback?: string): string {
   
   console.log(`✅ Environment variable ${name} is properly set`);
   return value;
+}
+
+// NEW: Force environment variables function - no fallbacks allowed
+export function forceEnvVar(name: string): string {
+  const value = process.env[name];
+  
+  // Check if value is missing, empty, or using placeholder values
+  if (!value || 
+      value === 'placeholder-secret' || 
+      value === 'placeholder-key' || 
+      value === 'https://placeholder.kinde.com' ||
+      value === 'placeholder://db' ||
+      value === 'placeholder-encryption-key-32-chars-long!!' ||
+      value === 'undefined' ||
+      value === 'null' ||
+      value.trim() === '' ||
+      value.includes('placeholder')) {
+    
+    console.error(`🚨 CRITICAL: Environment variable ${name} is not set or is using placeholder value: "${value}"`);
+    console.error(`🚨 This will cause authentication and database connection failures!`);
+    
+    // Always throw error - no fallbacks allowed
+    throw new Error(`CRITICAL: Missing or invalid environment variable: ${name}. Current value: "${value}". Please set this in Vercel environment variables.`);
+  }
+  
+  console.log(`✅ Environment variable ${name} is properly set: ${value.substring(0, 10)}...`);
+  return value;
+}
+
+// NEW: Validate all environment variables at startup
+export function validateAllEnvVars() {
+  console.log('🔍 Validating all environment variables...');
+  
+  const requiredVars = [
+    'DATABASE_URL',
+    'KINDE_CLIENT_SECRET', 
+    'KINDE_ISSUER_URL',
+    'AUTH_SECRET',
+    'ENCRYPTION_KEY',
+    'STRIPE_SECRET_KEY',
+    'OPENAI_API_KEY'
+  ];
+  
+  const missing: string[] = [];
+  const invalid: string[] = [];
+  
+  requiredVars.forEach(varName => {
+    try {
+      forceEnvVar(varName);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('CRITICAL')) {
+        invalid.push(varName);
+      } else {
+        missing.push(varName);
+      }
+    }
+  });
+  
+  if (missing.length > 0 || invalid.length > 0) {
+    console.error('🚨 Environment validation failed!');
+    if (missing.length > 0) {
+      console.error(`Missing variables: ${missing.join(', ')}`);
+    }
+    if (invalid.length > 0) {
+      console.error(`Invalid variables: ${invalid.join(', ')}`);
+    }
+    console.error('Please set all environment variables in Vercel dashboard for ALL environments (Production, Preview, Development)');
+    throw new Error(`Environment validation failed. Missing: ${missing.join(', ')}. Invalid: ${invalid.join(', ')}`);
+  }
+  
+  console.log('✅ All environment variables are properly set!');
 }
 
 // Add validation for critical variables
@@ -63,25 +137,19 @@ export function validateProductionEnv() {
 }
 
 export const serverConfig = {
-  // These should ONLY be used on the server side
-  DATABASE_URL: getEnvVar('DATABASE_URL', 
-    process.env.NODE_ENV === 'development' ? "file:./dev.db" : "placeholder://db"
-  ),
-  AUTH_SECRET: getEnvVar('AUTH_SECRET', 
-    process.env.NODE_ENV === 'development' ? "Z5jXQ5zznTNgKpNf0SOqDxPkTFQtapMF0B3T6J9owzg=" : "placeholder-secret"
-  ),
-  ENCRYPTION_KEY: getEnvVar('ENCRYPTION_KEY', 
-    process.env.NODE_ENV === 'development' ? "dev-encryption-key-32-chars-long!!" : "placeholder-encryption-key-32-chars-long!!"
-  ),
+  // Use forceEnvVar instead of getEnvVar for critical variables
+  DATABASE_URL: forceEnvVar('DATABASE_URL'),
+  AUTH_SECRET: forceEnvVar('AUTH_SECRET'),
+  ENCRYPTION_KEY: forceEnvVar('ENCRYPTION_KEY'),
   // Authentication
-  KINDE_CLIENT_SECRET: getEnvVar('KINDE_CLIENT_SECRET', 'placeholder-secret'),
-  KINDE_ISSUER_URL: getEnvVar('KINDE_ISSUER_URL', 'https://placeholder.kinde.com'),
+  KINDE_CLIENT_SECRET: forceEnvVar('KINDE_CLIENT_SECRET'),
+  KINDE_ISSUER_URL: forceEnvVar('KINDE_ISSUER_URL'),
   // Payments
-  STRIPE_SECRET_KEY: getEnvVar('STRIPE_SECRET_KEY', 'placeholder-secret'),
-  STRIPE_WEBHOOK_SECRET: getEnvVar('STRIPE_WEBHOOK_SECRET', 'placeholder-secret'),
+  STRIPE_SECRET_KEY: forceEnvVar('STRIPE_SECRET_KEY'),
+  STRIPE_WEBHOOK_SECRET: forceEnvVar('STRIPE_WEBHOOK_SECRET'),
   // AI Services
-  OPENAI_API_KEY: getEnvVar('OPENAI_API_KEY', 'placeholder-key'),
-  OCR_SPACE_API_KEY: getEnvVar('OCR_SPACE_API_KEY', 'placeholder-key'),
+  OPENAI_API_KEY: forceEnvVar('OPENAI_API_KEY'),
+  OCR_SPACE_API_KEY: forceEnvVar('OCR_SPACE_API_KEY'),
 };
 
 // src/lib/client-config.ts - Client-side safe configuration
