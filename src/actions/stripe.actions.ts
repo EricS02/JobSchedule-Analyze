@@ -2,7 +2,7 @@
 
 import { stripe, STRIPE_PRICE_IDS, PLAN_LIMITS, TRIAL_CONFIG } from "@/lib/stripe";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
-import { prisma } from "@/lib/prisma";
+import prisma from "@/lib/db";
 
 interface StripeSubscription {
   status: string;
