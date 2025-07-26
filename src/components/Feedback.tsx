@@ -247,16 +247,7 @@ const Feedback = () => {
         </div>
       )}
       
-      {/* Debug info */}
-      <div className="text-xs text-gray-500 mt-4 p-2 bg-gray-50 dark:bg-gray-900">
-        <p>Debug Info:</p>
-        <p>Board Token: {BoardToken.substring(0, 20)}...</p>
-        <p>Theme: {resolvedTheme}</p>
-        <p>Widget Loaded: {widgetLoaded ? 'Yes' : 'No'}</p>
-        <p>Content Visible: {widgetContentVisible ? 'Yes' : 'No'}</p>
-        <p>Loading: {isLoading ? 'Yes' : 'No'}</p>
-        <p>Error: {error || 'None'}</p>
-      </div>
+
     </div>
   );
 }

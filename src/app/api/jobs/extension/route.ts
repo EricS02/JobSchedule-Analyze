@@ -19,30 +19,39 @@ function corsHeaders(response: NextResponse) {
 export async function POST(req: NextRequest) {
   console.log("API: Received request to /api/jobs/extension");
   try {
-    // Get authenticated user from Kinde
-    const { getUser } = getKindeServerSession();
-    const kindeUser = await getUser();
-    
-    if (!kindeUser || !kindeUser.email) {
+    // Get JWT token from Authorization header
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return corsHeaders(NextResponse.json(
-        { success: false, message: "Not authenticated" },
+        { success: false, message: "Missing or invalid authorization header" },
         { status: 401 }
       ));
     }
+
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
     
-    // Find or create user in database
-    const user = await prisma.user.upsert({
-      where: { email: kindeUser.email },
-      update: {
-        // Update name if it has changed
-        name: (kindeUser.given_name + ' ' + kindeUser.family_name) || kindeUser.email,
-      },
-      create: {
-          email: kindeUser.email,
-          name: (kindeUser.given_name + ' ' + kindeUser.family_name) || kindeUser.email,
-          password: '', // No password needed for Kinde users
-        },
-      });
+    // Verify JWT token
+    const { verifyJwtToken } = await import("@/lib/auth/jwt");
+    const payload = await verifyJwtToken(token);
+    
+    if (!payload || !payload.userId) {
+      return corsHeaders(NextResponse.json(
+        { success: false, message: "Invalid token" },
+        { status: 401 }
+      ));
+    }
+
+    // Get user from database
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+    });
+
+    if (!user) {
+      return corsHeaders(NextResponse.json(
+        { success: false, message: "User not found" },
+        { status: 404 }
+      ));
+    }
     
     console.log(`API: Using authenticated user: ${user.email}`);
     
