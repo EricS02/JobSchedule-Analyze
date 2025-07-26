@@ -60,6 +60,7 @@ export async function GET() {
     console.log(`🔍 Issues found: ${issues.length}`);
     issues.forEach(issue => console.log(`🔍 - ${issue}`));
 
+    // Force deployment trigger - debug endpoint for auth flow
     return NextResponse.json({
       success: true,
       currentDomain,
