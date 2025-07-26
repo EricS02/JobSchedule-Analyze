@@ -5,41 +5,66 @@ import { KindeProvider } from "@kinde-oss/kinde-auth-nextjs";
 import React, { useEffect } from "react";
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  // Proactive state clearing on mount
+  // Aggressive state clearing on mount and before auth
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // Check for stale authentication state
-      const hasStaleState = () => {
-        const kindeKeys = ['kinde_token', 'kinde_refresh_token', 'kinde_user', 'kinde_state'];
-        return kindeKeys.some(key => localStorage.getItem(key) || sessionStorage.getItem(key));
-      };
-
-      // Check for URL parameters indicating auth issues
-      const urlParams = new URLSearchParams(window.location.search);
-      const hasAuthError = urlParams.get('error') === 'auth_failed';
-
-      // Clear state if we detect issues
-      if (hasAuthError || hasStaleState()) {
-        console.log('🔍 Proactive state clearing detected');
+      const clearAllAuthState = () => {
+        console.log('🔍 Aggressive state clearing initiated');
+        
+        // Clear all storage
         localStorage.clear();
         sessionStorage.clear();
         
-        // Clear cookies
+        // Clear all cookies
         document.cookie.split(";").forEach(cookie => {
           const eqPos = cookie.indexOf("=");
           const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+          
+          // Clear with multiple domain/path combinations
           document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${window.location.hostname}`;
+          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.${window.location.hostname}`;
+          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=jobschedule.io`;
+          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.jobschedule.io`;
         });
 
-        // Clean URL if there are error parameters
-        if (hasAuthError) {
-          const cleanUrl = new URL(window.location.href);
-          cleanUrl.searchParams.delete('error');
-          cleanUrl.searchParams.delete('reason');
-          cleanUrl.searchParams.delete('auto_reset');
-          window.history.replaceState({}, '', cleanUrl.toString());
+        // Clear browser cache
+        if ('caches' in window) {
+          caches.keys().then(names => {
+            names.forEach(name => {
+              caches.delete(name);
+            });
+          });
         }
-      }
+      };
+
+      // Clear state on every page load
+      clearAllAuthState();
+
+      // Clear state before any navigation
+      const originalPushState = history.pushState;
+      const originalReplaceState = history.replaceState;
+
+      history.pushState = function(...args) {
+        clearAllAuthState();
+        return originalPushState.apply(this, args);
+      };
+
+      history.replaceState = function(...args) {
+        clearAllAuthState();
+        return originalReplaceState.apply(this, args);
+      };
+
+      // Clear state on beforeunload
+      window.addEventListener('beforeunload', clearAllAuthState);
+
+      // Clear state periodically
+      const interval = setInterval(clearAllAuthState, 30000); // Every 30 seconds
+
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener('beforeunload', clearAllAuthState);
+      };
     }
   }, []);
 

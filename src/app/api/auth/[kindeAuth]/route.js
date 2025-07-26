@@ -57,5 +57,24 @@ export const GET = handleAuth({
     console.log('🔍 Other auth error, redirecting to home');
     const url = new URL('/?error=auth_failed&reason=unknown', req.url);
     return Response.redirect(url);
+  },
+  // Add pre-authentication state clearing
+  onBeforeAuth: (req) => {
+    console.log('🔍 Pre-authentication state clearing');
+    const response = new Response();
+    
+    // Clear any existing state before authentication
+    const cookiesToClear = [
+      'kinde_state',
+      'kinde_code_verifier',
+      'kinde_nonce'
+    ];
+    
+    const cookieHeaders = cookiesToClear.map(cookie => 
+      `${cookie}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Secure; SameSite=Lax`
+    );
+    
+    response.headers.set('Set-Cookie', cookieHeaders.join(', '));
+    return response;
   }
 });
