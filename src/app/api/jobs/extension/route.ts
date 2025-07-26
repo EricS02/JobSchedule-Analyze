@@ -34,16 +34,24 @@ export async function POST(req: NextRequest) {
     const { verifyJwtToken } = await import("@/lib/auth/jwt");
     const payload = await verifyJwtToken(token);
     
-    if (!payload || !payload.userId) {
+    if (!payload || typeof payload !== 'object' || !('userId' in payload)) {
       return corsHeaders(NextResponse.json(
         { success: false, message: "Invalid token" },
         { status: 401 }
       ));
     }
 
+    const userId = payload.userId as string;
+    if (!userId) {
+      return corsHeaders(NextResponse.json(
+        { success: false, message: "Invalid token - no user ID" },
+        { status: 401 }
+      ));
+    }
+
     // Get user from database
     const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
+      where: { id: userId },
     });
 
     if (!user) {
