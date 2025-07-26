@@ -2,8 +2,9 @@
 
 import { useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
-export function AuthStateReset() {
+function AuthStateResetInner() {
   const searchParams = useSearchParams();
   
   useEffect(() => {
@@ -33,4 +34,12 @@ export function AuthStateReset() {
   }, [searchParams]);
 
   return null; // This component doesn't render anything
+}
+
+export function AuthStateReset() {
+  return (
+    <Suspense fallback={null}>
+      <AuthStateResetInner />
+    </Suspense>
+  );
 } 
