@@ -29,7 +29,7 @@ export async function GET() {
         has_used_trial: true,
         subscription_status: true,
         stripe_customer_id: true,
-        created_at: true,
+        createdAt: true,
       },
     });
 
@@ -78,7 +78,7 @@ export async function GET() {
         email: dbUser.email,
         subscription_status: dbUser.subscription_status,
         stripe_customer_id: dbUser.stripe_customer_id,
-        created_at: dbUser.created_at,
+        createdAt: dbUser.createdAt,
       },
       trial: trialStatus,
       canCancelTrial: trialStatus.isCurrentlyInTrial && dbUser.subscription_status === 'trial',
