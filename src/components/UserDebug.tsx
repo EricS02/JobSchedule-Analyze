@@ -4,7 +4,7 @@ import { useKindeAuth } from '@kinde-oss/kinde-auth-nextjs';
 import { useEffect, useState } from 'react';
 
 export function UserDebug() {
-  const { user, isAuthenticated, isLoading, login, logout } = useKindeAuth();
+  const { user, isAuthenticated, isLoading } = useKindeAuth();
   const [authState, setAuthState] = useState<any>(null);
   const [localStorageState, setLocalStorageState] = useState<any>({});
 
@@ -99,22 +99,10 @@ export function UserDebug() {
         
         <div className="flex gap-2 mt-2">
           <button 
-            onClick={() => login()}
-            className="bg-blue-600 px-2 py-1 rounded text-xs hover:bg-blue-700"
-          >
-            Login
-          </button>
-          <button 
-            onClick={() => logout()}
-            className="bg-red-600 px-2 py-1 rounded text-xs hover:bg-red-700"
-          >
-            Logout
-          </button>
-          <button 
             onClick={clearAuthState}
             className="bg-orange-600 px-2 py-1 rounded text-xs hover:bg-orange-700"
           >
-            Clear All
+            Clear All Auth
           </button>
         </div>
       </div>
