@@ -13,7 +13,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       redirectUri={process.env.NEXT_PUBLIC_KINDE_REDIRECT_URI || "http://localhost:3000"}
       isDangerouslyUseLocalStorage={false}
       useRefreshTokens={true}
-      onRedirectCallback={(user, appState) => {
+      onRedirectCallback={(user: any, appState: any) => {
         console.log('🔍 Kinde redirect callback:', { user: user?.email, appState });
         // Clear any stale state on successful redirect
         if (typeof window !== 'undefined') {
