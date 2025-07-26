@@ -1,11 +1,9 @@
 'use client';
 
-import { useKindeAuth } from '@kinde-oss/kinde-auth-nextjs';
 import { useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 export function AuthStateReset() {
-  const { logout } = useKindeAuth();
   const searchParams = useSearchParams();
   
   useEffect(() => {
@@ -28,11 +26,11 @@ export function AuthStateReset() {
           document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
         });
         
-        // Force logout
-        logout();
+        // Redirect to home page to force a fresh authentication state
+        window.location.href = '/';
       }
     }
-  }, [searchParams, logout]);
+  }, [searchParams]);
 
   return null; // This component doesn't render anything
 } 
