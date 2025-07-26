@@ -13,6 +13,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
       redirectUri={process.env.NEXT_PUBLIC_KINDE_REDIRECT_URI || "http://localhost:3000"}
       isDangerouslyUseLocalStorage={false}
       useRefreshTokens={true}
+      onRedirectCallback={(user, appState) => {
+        console.log('🔍 Kinde redirect callback:', { user: user?.email, appState });
+        // Clear any stale state on successful redirect
+        if (typeof window !== 'undefined') {
+          // Clear any error parameters from URL
+          const url = new URL(window.location.href);
+          url.searchParams.delete('error');
+          url.searchParams.delete('reason');
+          window.history.replaceState({}, '', url.toString());
+        }
+      }}
     >
       <NextThemeProvider
         attribute="class"
