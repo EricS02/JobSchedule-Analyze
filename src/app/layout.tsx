@@ -5,6 +5,7 @@ import { Providers } from "@/components/providers";
 import { validateProductionEnv, debugEnvironmentVariables } from "@/lib/config";
 import logger from "@/lib/logger";
 import { Analytics } from '@vercel/analytics/react';
+import { AuthStateReset } from "@/components/AuthStateReset";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -54,6 +55,7 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <Providers>
+          <AuthStateReset />
           {children}
         </Providers>
         <Analytics />

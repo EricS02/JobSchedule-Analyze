@@ -11,6 +11,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
       domain={process.env.NEXT_PUBLIC_KINDE_DOMAIN}
       logoutUri={process.env.NEXT_PUBLIC_KINDE_LOGOUT_REDIRECT_URI || "http://localhost:3000"}
       redirectUri={process.env.NEXT_PUBLIC_KINDE_REDIRECT_URI || "http://localhost:3000"}
+      isDangerouslyUseLocalStorage={false}
+      useRefreshTokens={true}
     >
       <NextThemeProvider
         attribute="class"
