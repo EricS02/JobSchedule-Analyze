@@ -5,6 +5,10 @@ console.log("JobSchedule: Background script loaded");
 const API_BASE_URL = 'https://jobschedule.io/api';
 const USE_TEST_ENDPOINTS = false; // Set to false for production
 
+// Add connection timeout and retry logic
+const CONNECTION_TIMEOUT = 10000; // 10 seconds
+const MAX_RETRIES = 3;
+
 // Rate limiter for security
 const rateLimiter = {
   requests: new Map(),
@@ -291,21 +295,14 @@ async function trackJobApplication(jobData) {
     
     const { data: sanitizedJobData } = validation;
     
-    // Test connection in development mode
-    if (USE_TEST_ENDPOINTS) {
-      try {
-        const testResponse = await fetch(`${API_BASE_URL}/test-connection`);
-        if (!testResponse.ok) {
-          throw new Error(`Server connection test failed: ${testResponse.status}`);
-        }
-        console.log("JobSchedule: Server connection test successful");
-      } catch (testError) {
-        console.error("JobSchedule: Server connection test failed", testError);
-        // Continue anyway, don't throw an error
-      }
+    // Test connection before sending data
+    console.log("JobSchedule: Testing API connection before sending job data...");
+    const connectionTest = await testAPIConnection();
+    if (!connectionTest) {
+      console.warn("JobSchedule: API connection test failed, but continuing with job submission...");
     }
     
-    // Send data to backend
+    // Send data to backend with timeout and retry logic
     console.log("JobSchedule: Sending data to backend with token");
     console.log("JobSchedule: Request URL:", `${API_BASE_URL}/jobs/extension`);
     console.log("JobSchedule: Request headers:", {
@@ -314,14 +311,47 @@ async function trackJobApplication(jobData) {
     });
     console.log("JobSchedule: Request body:", sanitizedJobData);
     
-    const response = await fetch(`${API_BASE_URL}/jobs/extension`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${updatedToken}`
-      },
-      body: JSON.stringify(sanitizedJobData)
-    });
+    let response;
+    let lastError;
+    
+    // Retry logic for connection issues
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        console.log(`JobSchedule: Attempt ${attempt}/${MAX_RETRIES} to connect to API`);
+        
+        // Create AbortController for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
+        
+        response = await fetch(`${API_BASE_URL}/jobs/extension`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${updatedToken}`
+          },
+          body: JSON.stringify(sanitizedJobData),
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        console.log(`JobSchedule: Connection successful on attempt ${attempt}`);
+        break; // Success, exit retry loop
+        
+      } catch (fetchError) {
+        lastError = fetchError;
+        console.error(`JobSchedule: Connection attempt ${attempt} failed:`, fetchError.message);
+        
+        if (attempt === MAX_RETRIES) {
+          console.error("JobSchedule: All connection attempts failed");
+          throw new Error(`Connection failed after ${MAX_RETRIES} attempts: ${fetchError.message}`);
+        }
+        
+        // Wait before retrying (exponential backoff)
+        const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        console.log(`JobSchedule: Waiting ${waitTime}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+    }
     
     console.log("JobSchedule: Backend response status:", response.status);
     
@@ -404,7 +434,34 @@ function getUserFriendlyMessage(error) {
   if (error.message.includes('Too many requests')) {
     return 'Too many requests. Please wait a moment before trying again.';
   }
+  if (error.message.includes('Connection failed')) {
+    return 'Unable to connect to JobSync server. Please check your internet connection and try again.';
+  }
+  if (error.message.includes('fetch')) {
+    return 'Network error. Please check your internet connection and try again.';
+  }
   return 'An error occurred while tracking your job application. Please try again.';
+}
+
+// Function to test API connectivity
+async function testAPIConnection() {
+  try {
+    console.log("JobSchedule: Testing API connection...");
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    const response = await fetch(`${API_BASE_URL}/test-connection`, {
+      method: 'GET',
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    console.log("JobSchedule: API connection test successful:", response.status);
+    return true;
+  } catch (error) {
+    console.error("JobSchedule: API connection test failed:", error.message);
+    return false;
+  }
 }
 
 // Listen for extension token from web app
