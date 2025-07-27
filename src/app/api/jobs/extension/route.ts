@@ -86,25 +86,68 @@ export async function POST(req: NextRequest) {
       ));
     }
     
-    // Check for duplicate job applications (only if jobUrl is provided)
+    // Check for duplicate job applications with improved logic
+    let existingJob = null;
+    
+    // First check by jobUrl if provided
     if (jobData.jobUrl) {
-      const existingJob = await prisma.job.findFirst({
+      existingJob = await prisma.job.findFirst({
         where: {
           userId: user.id,
           jobUrl: jobData.jobUrl
         }
       });
+    }
+    
+    // If no match by URL, check by job title + company + location (within last 30 days)
+    if (!existingJob) {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
-      if (existingJob) {
-        return corsHeaders(NextResponse.json(
-          { 
-            success: false, 
-            message: "You've already tracked this job", 
-            job: existingJob 
+      existingJob = await prisma.job.findFirst({
+        where: {
+          userId: user.id,
+          jobTitle: {
+            label: jobData.jobTitle
           },
-          { status: 409 }
-        ));
-      }
+          company: {
+            label: jobData.company
+          },
+          location: jobData.location,
+          createdAt: {
+            gte: thirtyDaysAgo
+          }
+        },
+        include: {
+          jobTitle: true,
+          company: true
+        }
+      });
+    }
+    
+    if (existingJob) {
+      console.log("API: Duplicate job detected:", {
+        existingJobId: existingJob.id,
+        existingJobTitle: existingJob.jobTitle?.label,
+        existingCompany: existingJob.company?.label,
+        existingLocation: existingJob.location,
+        existingCreatedAt: existingJob.createdAt
+      });
+      
+      return corsHeaders(NextResponse.json(
+        { 
+          success: false, 
+          message: `You've already tracked this job: ${existingJob.jobTitle?.label} at ${existingJob.company?.label} (${existingJob.location})`, 
+          job: existingJob,
+          duplicateDetails: {
+            jobTitle: existingJob.jobTitle?.label,
+            company: existingJob.company?.label,
+            location: existingJob.location,
+            trackedAt: existingJob.createdAt
+          }
+        },
+        { status: 409 }
+      ));
     }
 
     // Check job tracking eligibility (daily limits for free users)

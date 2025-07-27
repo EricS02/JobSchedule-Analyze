@@ -380,6 +380,14 @@ async function trackJobApplication(jobData) {
     
     if (!response.ok) {
       console.error("JobSchedule: Error response from server:", data);
+      
+      // Handle specific error cases
+      if (response.status === 409 && data.message) {
+        // Duplicate job detected
+        console.log("JobSchedule: Duplicate job detected:", data.duplicateDetails);
+        throw new Error(data.message);
+      }
+      
       throw new Error(data.message || `HTTP error ${response.status}`);
     }
     
@@ -454,6 +462,9 @@ function getUserFriendlyMessage(error) {
   }
   if (error.message.includes('fetch')) {
     return 'Network error. Please check your internet connection and try again.';
+  }
+  if (error.message.includes('already tracked')) {
+    return error.message;
   }
   return 'An error occurred while tracking your job application. Please try again.';
 }
