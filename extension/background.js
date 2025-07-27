@@ -134,25 +134,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return;
     }
     
-    trackJobApplication(message.jobData)
-      .then(result => {
+    // Handle the job tracking asynchronously
+    (async () => {
+      try {
+        const result = await trackJobApplication(message.jobData);
         console.log("JobSchedule: Job tracked successfully", result);
         
         // Notify all tabs that a job was updated
         chrome.tabs.query({ url: ["http://localhost:3000/*", "https://jobschedule.io/*"] }, (tabs) => {
           if (tabs && Array.isArray(tabs)) {
             try {
-          tabs.forEach(tab => {
+              tabs.forEach(tab => {
                 try {
-            chrome.tabs.sendMessage(tab.id, { 
-              action: 'jobCreated', 
-              jobData: result.job 
+                  chrome.tabs.sendMessage(tab.id, { 
+                    action: 'jobCreated', 
+                    jobData: result.job 
                   });
                 } catch (e) {
-              // Tab might not be ready to receive messages, that's okay
+                  // Tab might not be ready to receive messages, that's okay
                   console.warn("JobSchedule: Could not send message to tab", tab.id, e);
                 }
-            });
+              });
             } catch (e) {
               console.warn("JobSchedule: Error iterating tabs for jobCreated message", e);
             }
@@ -162,18 +164,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
         
         sendResponse({ success: true, message: "Job tracked successfully" });
-      })
-      .catch(error => {
+      } catch (error) {
         // ✅ ENHANCED: Production-ready error reporting for job tracking
         logError(error, 'job tracking in message handler', {
           sender: sender?.tab?.url || 'unknown',
-          jobData: jobData ? Object.keys(jobData) : null
+          jobData: message.jobData ? Object.keys(message.jobData) : null
         });
         
         // User-friendly error message
         const userMessage = getUserFriendlyMessage(error);
         sendResponse({ success: false, message: userMessage });
-      });
+      }
+    })();
     
     // Return true to indicate we'll respond asynchronously
     return true;
@@ -231,14 +233,20 @@ async function trackJobApplication(jobData) {
       timestamp: new Date().toISOString()
     });
     
+    console.log("JobSchedule: API_BASE_URL:", API_BASE_URL);
+    
     // Get token from storage
     const { token } = await chrome.storage.local.get('token');
+    console.log("JobSchedule: Token from storage:", token ? "Found" : "Not found");
     
     if (!token && USE_TEST_ENDPOINTS) {
       // Try to get a test token in development mode
       try {
+        console.log("JobSchedule: Attempting to get test token from:", `${API_BASE_URL}/test-token`);
         const tokenResponse = await fetch(`${API_BASE_URL}/test-token`);
+        console.log("JobSchedule: Test token response status:", tokenResponse.status);
         const tokenData = await tokenResponse.json();
+        console.log("JobSchedule: Test token data:", tokenData);
         if (tokenData.token) {
           // Save the token
           await chrome.storage.local.set({ 
@@ -255,6 +263,7 @@ async function trackJobApplication(jobData) {
       }
     } else if (!token) {
       // In production, require login
+      console.log("JobSchedule: No token found, requiring login");
       throw new Error("Not authenticated. Please log in to JobSync first.");
     }
     
@@ -291,6 +300,13 @@ async function trackJobApplication(jobData) {
     
     // Send data to backend
     console.log("JobSchedule: Sending data to backend with token");
+    console.log("JobSchedule: Request URL:", `${API_BASE_URL}/jobs/extension`);
+    console.log("JobSchedule: Request headers:", {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${updatedToken.substring(0, 20)}...`
+    });
+    console.log("JobSchedule: Request body:", sanitizedJobData);
+    
     const response = await fetch(`${API_BASE_URL}/jobs/extension`, {
       method: 'POST',
       headers: {
