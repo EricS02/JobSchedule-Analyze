@@ -249,6 +249,8 @@ async function trackJobApplication(jobData) {
     // Get token from storage
     const { token } = await chrome.storage.local.get('token');
     console.log("JobSchedule: Token from storage:", token ? "Found" : "Not found");
+    console.log("JobSchedule: USE_TEST_ENDPOINTS:", USE_TEST_ENDPOINTS);
+    console.log("JobSchedule: API_BASE_URL:", API_BASE_URL);
     
     if (!token && USE_TEST_ENDPOINTS) {
       // Try to get a test token in development mode
@@ -275,7 +277,8 @@ async function trackJobApplication(jobData) {
     } else if (!token) {
       // In production, require login
       console.log("JobSchedule: No token found, requiring login");
-      throw new Error("Not authenticated. Please log in to JobSync first.");
+      console.log("JobSchedule: Please log in to JobSync at https://jobschedule.io to get started");
+      throw new Error("Not authenticated. Please log in to JobSync first at https://jobschedule.io");
     }
     
     // Get token again (in case we just set it)
@@ -415,6 +418,18 @@ async function trackJobApplication(jobData) {
       error: error.message
     });
     
+    // Enhanced error logging
+    console.error("JobSchedule: Detailed error in trackJobApplication:", {
+      error: error.message,
+      stack: error.stack,
+      jobData: jobData ? {
+        jobTitle: jobData.jobTitle?.substring(0, 50),
+        company: jobData.company?.substring(0, 50),
+        hasDescription: !!jobData.description,
+        hasUrl: !!jobData.jobUrl
+      } : null
+    });
+    
     // Re-throw the error for the caller to handle
     throw error;
   }
@@ -423,7 +438,7 @@ async function trackJobApplication(jobData) {
 // Helper function to get user-friendly error messages
 function getUserFriendlyMessage(error) {
   if (error.message.includes('Not authenticated')) {
-    return 'Please log in to JobSync to track job applications.';
+    return 'Please log in to JobSync at https://jobschedule.io to track job applications.';
   }
   if (error.message.includes('Server returned HTML')) {
     return 'Server is temporarily unavailable. Please try again later.';
