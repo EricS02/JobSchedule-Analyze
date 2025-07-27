@@ -104,25 +104,32 @@ export async function POST(req: NextRequest) {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
-      existingJob = await prisma.job.findFirst({
-        where: {
-          userId: user.id,
-          jobTitle: {
-            label: jobData.jobTitle
-          },
-          company: {
-            label: jobData.company
-          },
-          location: jobData.location,
-          createdAt: {
-            gte: thirtyDaysAgo
-          }
-        },
-        include: {
-          jobTitle: true,
-          company: true
-        }
+      // First find the job title and company
+      const jobTitle = await prisma.jobTitle.findFirst({
+        where: { label: jobData.jobTitle }
       });
+      
+      const company = await prisma.company.findFirst({
+        where: { label: jobData.company }
+      });
+      
+      if (jobTitle && company) {
+        existingJob = await prisma.job.findFirst({
+          where: {
+            userId: user.id,
+            jobTitleId: jobTitle.id,
+            companyId: company.id,
+            location: jobData.location,
+            createdAt: {
+              gte: thirtyDaysAgo
+            }
+          },
+          include: {
+            jobTitle: true,
+            company: true
+          }
+        });
+      }
     }
     
     if (existingJob) {
