@@ -1,10 +1,11 @@
 'use client';
 
+import { LoginLink, RegisterLink } from '@kinde-oss/kinde-auth-nextjs/components';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-nextjs';
 import { Button } from '@/components/ui/button';
 
 export function AuthButtons() {
-  const { login, register } = useKindeAuth();
+  const { isAuthenticated, isLoading } = useKindeAuth();
 
   const clearStateBeforeAuth = () => {
     console.log('🔍 Clearing state before authentication attempt');
@@ -36,23 +37,18 @@ export function AuthButtons() {
     }
   };
 
-  const handleLogin = () => {
-    clearStateBeforeAuth();
-    setTimeout(() => login(), 100); // Small delay to ensure state is cleared
-  };
-
-  const handleSignup = () => {
-    clearStateBeforeAuth();
-    setTimeout(() => register(), 100); // Small delay to ensure state is cleared
-  };
+  // Don't render if already authenticated or loading
+  if (isAuthenticated || isLoading) {
+    return null;
+  }
 
   return (
     <div className="flex gap-4">
-      <Button onClick={handleLogin} variant="outline">
-        Sign In
+      <Button asChild variant="outline" onClick={clearStateBeforeAuth}>
+        <LoginLink>Sign In</LoginLink>
       </Button>
-      <Button onClick={handleSignup}>
-        Sign Up
+      <Button asChild onClick={clearStateBeforeAuth}>
+        <RegisterLink>Sign Up</RegisterLink>
       </Button>
     </div>
   );
