@@ -213,7 +213,7 @@ function PricingContent() {
                                         asChild
                                         variant="outline"
                                         className="w-full">
-                                        <RegisterLink postLoginRedirectURL="/pricing?checkout=true">Get Started</RegisterLink>
+                                        <RegisterLink postLoginRedirectURL="/pricing?checkout=true">Free Trial</RegisterLink>
                                     </Button>
                                 )}
 
@@ -255,7 +255,7 @@ function PricingContent() {
                                             onClick={handleProPlanClick}
                                             disabled={isLoading}
                                             className="w-full">
-                                            {isLoading ? "Loading..." : "Start Free Trial"}
+                                            {isLoading ? "Loading..." : "Get Started"}
                                         </Button>
                                     ) : (
                                         <Button
@@ -263,7 +263,7 @@ function PricingContent() {
                                             disabled={isLoading}
                                             className="w-full">
                                             <LoginLink postLoginRedirectURL="/pricing?checkout=true">
-                                                {isLoading ? "Loading..." : "Start Free Trial"}
+                                                {isLoading ? "Loading..." : "Get Started"}
                                             </LoginLink>
                                         </Button>
                                     )}
