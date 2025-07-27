@@ -21,7 +21,17 @@ export async function GET(request: NextRequest) {
       key.includes('state') || key.includes('verifier') || key.includes('nonce')
     );
 
-    const response = {
+    const response: {
+      timestamp: string;
+      url: string;
+      method: string;
+      kindeCookies: Record<string, string>;
+      allCookies: string[];
+      stateCookies: string[];
+      hasStateMismatch: boolean;
+      headers: Record<string, string | undefined>;
+      recommendations: string[];
+    } = {
       timestamp: new Date().toISOString(),
       url: request.url,
       method: request.method,
