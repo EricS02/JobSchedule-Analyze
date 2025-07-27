@@ -5,7 +5,8 @@
   "description": "Track job applications from LinkedIn",
   "permissions": [
     "storage",
-    "notifications"
+    "notifications",
+    "scripting"
   ],
   "host_permissions": [
     "http://localhost:3000/*",
@@ -28,6 +29,13 @@
     {
       "matches": ["*://*.linkedin.com/*"],
       "js": ["content.js"]
+    },
+    {
+      "matches": [
+        "http://localhost:3000/*",
+        "https://jobschedule.io/*"
+      ],
+      "js": ["jobschedule-content.js"]
     }
   ],
   "icons": {

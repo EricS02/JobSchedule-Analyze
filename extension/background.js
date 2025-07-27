@@ -194,6 +194,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     return true;
   }
+  
+  if (message.type === 'EXTENSION_TOKEN_READY' && message.token) {
+    console.log('JobSchedule: Received extension token from content script');
+    chrome.storage.local.set({ 
+      token: message.token,
+      user: message.user || { email: 'user@example.com' }
+    });
+    sendResponse({ success: true });
+    return true;
+  }
 });
 
 // Listen for context invalidation
@@ -409,40 +419,14 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   }
 });
 
-// Listen for messages from content scripts on JobSchedule pages
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'complete' && 
-      (tab.url?.includes('jobschedule.io') || tab.url?.includes('localhost:3000'))) {
-    
-    // Inject a script to listen for extension token
-    chrome.scripting.executeScript({
-      target: { tabId: tabId },
-      func: () => {
-        // Listen for extension token in localStorage
-        const checkForToken = () => {
-          const token = localStorage.getItem('extension_token');
-          const user = localStorage.getItem('extension_user');
-          
-          if (token && user) {
-            // Send token to extension
-            chrome.runtime.sendMessage({
-              type: 'EXTENSION_TOKEN_READY',
-              token: token,
-              user: JSON.parse(user)
-            });
-            
-            // Clear the token from localStorage
-            localStorage.removeItem('extension_token');
-            localStorage.removeItem('extension_user');
-          }
-        };
-        
-        // Check immediately
-        checkForToken();
-        
-        // Check periodically
-        setInterval(checkForToken, 1000);
-      }
+// Listen for extension token from web app (via content script)
+chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+  if (message.type === 'EXTENSION_TOKEN_READY' && message.token) {
+    console.log('JobSchedule: Received extension token from web app');
+    chrome.storage.local.set({ 
+      token: message.token,
+      user: message.user || { email: 'user@example.com' }
     });
+    sendResponse({ success: true });
   }
 }); 
