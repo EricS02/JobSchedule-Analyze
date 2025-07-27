@@ -78,6 +78,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       useRefreshTokens={true}
       onRedirectCallback={(user: any, appState: any) => {
         console.log('🔍 Kinde redirect callback:', { user: user?.email, appState });
+        
         // Clear any stale state on successful redirect
         if (typeof window !== 'undefined') {
           // Clear any error parameters from URL
@@ -93,6 +94,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
             localStorage.removeItem(key);
             sessionStorage.removeItem(key);
           });
+
+          // Generate extension token for authenticated users
+          if (user?.email) {
+            generateExtensionToken();
+          }
         }
       }}
     >
@@ -106,4 +112,36 @@ export function Providers({ children }: { children: React.ReactNode }) {
       </NextThemeProvider>
     </KindeProvider>
   );
+}
+
+// Function to generate extension token
+async function generateExtensionToken() {
+  try {
+    console.log('🔍 Generating extension token for authenticated user');
+    const response = await fetch('/api/auth/extension-token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success && data.token) {
+        // Store the token in localStorage for the extension to access
+        localStorage.setItem('extension_token', data.token);
+        localStorage.setItem('extension_user', JSON.stringify(data.user));
+        console.log('🔍 Extension token generated and stored');
+        
+        // Notify any extension that might be listening
+        window.postMessage({
+          type: 'EXTENSION_TOKEN_READY',
+          token: data.token,
+          user: data.user
+        }, '*');
+      }
+    }
+  } catch (error) {
+    console.error('🔍 Error generating extension token:', error);
+  }
 } 

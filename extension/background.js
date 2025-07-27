@@ -1,40 +1,114 @@
 // Background script for JobSchedule extension
 console.log("JobSchedule: Background script loaded");
 
-// Import configuration and security utilities
-import { API_BASE_URL, USE_TEST_ENDPOINTS } from './config.js';
-import { validateJobData, logSecurityEvent, RateLimiter } from './security.js';
-import { logError, getUserFriendlyMessage, showErrorNotification, logApiError, logPerformance, logLifecycleEvent } from './error-logger.js';
+// Configuration
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://jobschedule.io/api' 
+  : 'http://localhost:3000/api';
 
-// Initialize rate limiter (10 requests per minute per user)
-const rateLimiter = new RateLimiter(10, 60000);
+const USE_TEST_ENDPOINTS = process.env.NODE_ENV !== 'production';
 
-// Add this to your background.js
-chrome.runtime.onInstalled.addListener(() => {
-  logLifecycleEvent('Extension installed/updated');
-});
-
-// ✅ ENHANCED: Message schema validation with security
-function isValidMessage(message) {
-  if (!message || typeof message !== 'object') return false;
-  if (typeof message.action !== 'string') return false;
-  
-  // Validate action whitelist
-  const allowedActions = ['trackJobApplication', 'checkAuth'];
-  if (!allowedActions.includes(message.action)) return false;
-  
-  // Validate data structure per action
-  switch (message.action) {
-    case 'trackJobApplication':
-      return message.jobData && 
-             typeof message.jobData === 'object' &&
-             typeof message.jobData.jobTitle === 'string' &&
-             typeof message.jobData.company === 'string';
-    case 'checkAuth':
-      return true;
-    default:
+// Rate limiter for security
+const rateLimiter = {
+  requests: new Map(),
+  isAllowed: function(userKey) {
+    const now = Date.now();
+    const userRequests = this.requests.get(userKey) || [];
+    
+    // Remove requests older than 1 minute
+    const recentRequests = userRequests.filter(time => now - time < 60000);
+    
+    // Allow max 10 requests per minute
+    if (recentRequests.length >= 10) {
       return false;
+    }
+    
+    recentRequests.push(now);
+    this.requests.set(userKey, recentRequests);
+    return true;
   }
+};
+
+// Security logging
+function logSecurityEvent(event, data = {}) {
+  console.warn(`JobSchedule: Security Event - ${event}`, {
+    timestamp: new Date().toISOString(),
+    extensionVersion: chrome.runtime.getManifest().version,
+    ...data
+  });
+}
+
+// Error logging with context
+function logError(error, context, additionalData = {}) {
+  console.error(`JobSchedule: Error in ${context}`, {
+    error: error.message,
+    stack: error.stack,
+    timestamp: new Date().toISOString(),
+    extensionVersion: chrome.runtime.getManifest().version,
+    ...additionalData
+  });
+}
+
+// Performance logging
+function logPerformance(operation, startTime, additionalData = {}) {
+  const duration = Date.now() - startTime;
+  console.log(`JobSchedule: Performance - ${operation} took ${duration}ms`, {
+    duration,
+    timestamp: new Date().toISOString(),
+    ...additionalData
+  });
+}
+
+// Message validation
+function isValidMessage(message) {
+  return message && 
+         typeof message === 'object' && 
+         message.action && 
+         typeof message.action === 'string';
+}
+
+// Job data validation
+function validateJobData(jobData) {
+  const errors = [];
+  const sanitized = {};
+  
+  // Required fields
+  if (!jobData.jobTitle || typeof jobData.jobTitle !== 'string') {
+    errors.push('jobTitle is required and must be a string');
+  } else {
+    sanitized.jobTitle = jobData.jobTitle.trim().substring(0, 200);
+  }
+  
+  if (!jobData.company || typeof jobData.company !== 'string') {
+    errors.push('company is required and must be a string');
+  } else {
+    sanitized.company = jobData.company.trim().substring(0, 200);
+  }
+  
+  if (!jobData.location || typeof jobData.location !== 'string') {
+    errors.push('location is required and must be a string');
+  } else {
+    sanitized.location = jobData.location.trim().substring(0, 200);
+  }
+  
+  // Optional fields with sanitization
+  if (jobData.description) {
+    sanitized.description = jobData.description.trim().substring(0, 2000);
+  }
+  
+  if (jobData.jobUrl && typeof jobData.jobUrl === 'string') {
+    sanitized.jobUrl = jobData.jobUrl.trim().substring(0, 500);
+  }
+  
+  if (jobData.logoUrl && typeof jobData.logoUrl === 'string') {
+    sanitized.logoUrl = jobData.logoUrl.trim().substring(0, 500);
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors,
+    data: sanitized
+  };
 }
 
 // Listen for messages from content script
@@ -282,30 +356,80 @@ async function trackJobApplication(jobData) {
     
     return data;
   } catch (error) {
-    // ✅ ENHANCED: Production-ready error reporting using centralized logger
-    logError(error, 'trackJobApplication', {
-      jobData: jobData ? Object.keys(jobData) : null,
-      apiUrl: API_BASE_URL,
-      isDevMode: USE_TEST_ENDPOINTS
-    });
-    
-    // Log additional error context if available
-    if (error.response) {
-      logApiError(error.response, 'trackJobApplication', {
-        jobData: jobData ? Object.keys(jobData) : null
-      });
-    }
-    
-    // Log performance metrics
+    // Log performance metrics for failed operation
     logPerformance('trackJobApplication', startTime, {
       success: false,
       error: error.message
     });
     
-    // Show user-friendly error notification
-    const userMessage = getUserFriendlyMessage(error);
-    showErrorNotification('JobSchedule Error', userMessage);
-    
+    // Re-throw the error for the caller to handle
     throw error;
   }
-} 
+}
+
+// Helper function to get user-friendly error messages
+function getUserFriendlyMessage(error) {
+  if (error.message.includes('Not authenticated')) {
+    return 'Please log in to JobSync to track job applications.';
+  }
+  if (error.message.includes('Server returned HTML')) {
+    return 'Server is temporarily unavailable. Please try again later.';
+  }
+  if (error.message.includes('Invalid job data')) {
+    return 'Invalid job information. Please try again.';
+  }
+  if (error.message.includes('Too many requests')) {
+    return 'Too many requests. Please wait a moment before trying again.';
+  }
+  return 'An error occurred while tracking your job application. Please try again.';
+}
+
+// Listen for extension token from web app
+chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+  if (message.type === 'EXTENSION_TOKEN_READY' && message.token) {
+    console.log('JobSchedule: Received extension token from web app');
+    chrome.storage.local.set({ 
+      token: message.token,
+      user: message.user || { email: 'user@example.com' }
+    });
+    sendResponse({ success: true });
+  }
+});
+
+// Listen for messages from content scripts on JobSchedule pages
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' && 
+      (tab.url?.includes('jobschedule.io') || tab.url?.includes('localhost:3000'))) {
+    
+    // Inject a script to listen for extension token
+    chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      func: () => {
+        // Listen for extension token in localStorage
+        const checkForToken = () => {
+          const token = localStorage.getItem('extension_token');
+          const user = localStorage.getItem('extension_user');
+          
+          if (token && user) {
+            // Send token to extension
+            chrome.runtime.sendMessage({
+              type: 'EXTENSION_TOKEN_READY',
+              token: token,
+              user: JSON.parse(user)
+            });
+            
+            // Clear the token from localStorage
+            localStorage.removeItem('extension_token');
+            localStorage.removeItem('extension_user');
+          }
+        };
+        
+        // Check immediately
+        checkForToken();
+        
+        // Check periodically
+        setInterval(checkForToken, 1000);
+      }
+    });
+  }
+}); 

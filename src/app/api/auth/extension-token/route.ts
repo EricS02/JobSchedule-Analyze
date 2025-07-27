@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { SignJWT } from "jose";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 
 export async function POST(req: NextRequest) {
@@ -36,13 +35,12 @@ export async function POST(req: NextRequest) {
       },
     });
     
-    // Create JWT token for extension
-    const secret = new TextEncoder().encode(process.env.AUTH_SECRET);
-    const token = await new SignJWT({ userId: user.id })
-      .setProtectedHeader({ alg: "HS256" })
-      .setIssuedAt()
-      .setExpirationTime("30d") // Token valid for 30 days
-      .sign(secret);
+    // Create JWT token for extension using the correct secret
+    const { signJwtToken } = await import("@/lib/auth/jwt");
+    const token = await signJwtToken({ 
+      userId: user.id,
+      email: user.email 
+    });
     
     return NextResponse.json({ 
       success: true, 
