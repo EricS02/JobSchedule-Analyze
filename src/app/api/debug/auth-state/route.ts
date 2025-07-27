@@ -1,83 +1,67 @@
-import { NextResponse } from "next/server";
-import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 === AUTH STATE DEBUG ===');
+    const cookies = request.cookies;
+    const headers = Object.fromEntries(request.headers.entries());
     
-    const { getUser, isAuthenticated } = getKindeServerSession();
+    // Extract Kinde-related cookies
+    const kindeCookies: Record<string, string> = {};
+    const allCookies: Record<string, string> = {};
     
-    // Check authentication status
-    const authStatus = await isAuthenticated();
-    console.log('🔍 Authentication status:', authStatus);
-    
-    let user = null;
-    if (authStatus) {
-      try {
-        user = await getUser();
-        console.log('🔍 User data retrieved:', user ? 'Yes' : 'No');
-      } catch (userError) {
-        console.error('🔍 Error getting user:', userError);
-      }
-    }
-
-    // Check environment variables
-    const envCheck = {
-      KINDE_CLIENT_ID: !!process.env.KINDE_CLIENT_ID,
-      KINDE_CLIENT_SECRET: !!process.env.KINDE_CLIENT_SECRET,
-      KINDE_ISSUER_URL: !!process.env.KINDE_ISSUER_URL,
-      KINDE_SITE_URL: !!process.env.KINDE_SITE_URL,
-      NEXT_PUBLIC_KINDE_CLIENT_ID: !!process.env.NEXT_PUBLIC_KINDE_CLIENT_ID,
-      NEXT_PUBLIC_KINDE_DOMAIN: !!process.env.NEXT_PUBLIC_KINDE_DOMAIN,
-      AUTH_SECRET: !!process.env.AUTH_SECRET,
-      NEXTAUTH_URL: !!process.env.NEXTAUTH_URL,
-    };
-
-    console.log('🔍 Environment check:', envCheck);
-
-    // Get current domain info
-    const currentDomain = process.env.VERCEL_URL || 'localhost:3000';
-    const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-    const fullDomain = `${protocol}://${currentDomain}`;
-
-    console.log('🔍 Current domain:', fullDomain);
-
-    return NextResponse.json({
-      success: true,
-      auth: {
-        isAuthenticated: authStatus,
-        user: user ? {
-          id: user.id,
-          email: user.email,
-          given_name: user.given_name,
-          family_name: user.family_name,
-          picture: !!user.picture
-        } : null,
-        userError: user ? null : 'Failed to get user data'
-      },
-      environment: {
-        ...envCheck,
-        currentDomain: fullDomain,
-        nodeEnv: process.env.NODE_ENV,
-        vercelEnv: process.env.VERCEL_ENV
-      },
-      debug: {
-        timestamp: new Date().toISOString(),
-        requestHeaders: {
-          // Note: We can't access request headers in this context
-          // but this shows what we would check
-          userAgent: 'Server-side check',
-          origin: fullDomain
-        }
+    cookies.getAll().forEach(cookie => {
+      allCookies[cookie.name] = cookie.value;
+      if (cookie.name.startsWith('kinde_')) {
+        kindeCookies[cookie.name] = cookie.value;
       }
     });
 
+    // Check for state-related cookies
+    const stateCookies = Object.keys(kindeCookies).filter(key => 
+      key.includes('state') || key.includes('verifier') || key.includes('nonce')
+    );
+
+    const response = {
+      timestamp: new Date().toISOString(),
+      url: request.url,
+      method: request.method,
+      kindeCookies,
+      allCookies: Object.keys(allCookies),
+      stateCookies,
+      hasStateMismatch: stateCookies.length > 1,
+      headers: {
+        'user-agent': headers['user-agent'],
+        'referer': headers['referer'],
+        'origin': headers['origin'],
+        'host': headers['host']
+      },
+      recommendations: []
+    };
+
+    // Add recommendations based on findings
+    if (stateCookies.length > 1) {
+      response.recommendations.push('Multiple state cookies detected - this may cause state mismatch');
+    }
+    
+    if (Object.keys(kindeCookies).length === 0) {
+      response.recommendations.push('No Kinde cookies found - user may not be authenticated');
+    }
+
+    if (stateCookies.length === 0) {
+      response.recommendations.push('No state cookies found - authentication flow may not be active');
+    }
+
+    return NextResponse.json(response, { status: 200 });
+
   } catch (error) {
-    console.error('🔍 Error in auth state debug:', error);
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    }, { status: 500 });
+    console.error('🔍 Auth state debug error:', error);
+    return NextResponse.json(
+      { 
+        error: 'Failed to check auth state', 
+        details: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      }, 
+      { status: 500 }
+    );
   }
 } 
