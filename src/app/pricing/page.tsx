@@ -213,7 +213,7 @@ function PricingContent() {
                                         asChild
                                         variant="outline"
                                         className="w-full">
-                                        <RegisterLink postLoginRedirectURL="/pricing?checkout=true">Free Trial</RegisterLink>
+                                        <RegisterLink postLoginRedirectURL="/dashboard">Free Trial</RegisterLink>
                                     </Button>
                                 )}
 
