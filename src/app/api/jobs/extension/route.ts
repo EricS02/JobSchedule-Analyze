@@ -65,7 +65,14 @@ export async function POST(req: NextRequest) {
     
     // Get job data from request
     const jobData = await req.json();
-    console.log("API: Received job data:", jobData);
+    console.log("API: Received job data:", {
+      jobTitle: jobData.jobTitle,
+      company: jobData.company,
+      location: jobData.location,
+      jobUrl: jobData.jobUrl,
+      hasDescription: !!jobData.description,
+      hasLogoUrl: !!jobData.logoUrl
+    });
     
     // Validate job data
     if (!jobData.jobTitle || !jobData.company || !jobData.location) {
@@ -79,23 +86,25 @@ export async function POST(req: NextRequest) {
       ));
     }
     
-    // Check for duplicate job applications
-    const existingJob = await prisma.job.findFirst({
-      where: {
-        userId: user.id,
-        jobUrl: jobData.jobUrl
+    // Check for duplicate job applications (only if jobUrl is provided)
+    if (jobData.jobUrl) {
+      const existingJob = await prisma.job.findFirst({
+        where: {
+          userId: user.id,
+          jobUrl: jobData.jobUrl
+        }
+      });
+      
+      if (existingJob) {
+        return corsHeaders(NextResponse.json(
+          { 
+            success: false, 
+            message: "You've already tracked this job", 
+            job: existingJob 
+          },
+          { status: 409 }
+        ));
       }
-    });
-    
-    if (existingJob) {
-      return corsHeaders(NextResponse.json(
-        { 
-          success: false, 
-          message: "You've already tracked this job", 
-          job: existingJob 
-        },
-        { status: 409 }
-      ));
     }
 
     // Check job tracking eligibility (daily limits for free users)

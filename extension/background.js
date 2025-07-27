@@ -2,11 +2,8 @@
 console.log("JobSchedule: Background script loaded");
 
 // Configuration
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://jobschedule.io/api' 
-  : 'http://localhost:3000/api';
-
-const USE_TEST_ENDPOINTS = process.env.NODE_ENV !== 'production';
+const API_BASE_URL = 'https://jobschedule.io/api';
+const USE_TEST_ENDPOINTS = false; // Set to false for production
 
 // Rate limiter for security
 const rateLimiter = {
