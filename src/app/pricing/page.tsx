@@ -55,17 +55,45 @@ function PricingContent() {
             
             if (result.success && result.checkoutUrl) {
                 console.log("Redirecting to checkout:", result.checkoutUrl);
-                window.location.href = result.checkoutUrl;
+                
+                // Validate the checkout URL before redirecting
+                try {
+                    new URL(result.checkoutUrl);
+                    window.location.href = result.checkoutUrl;
+                } catch (urlError) {
+                    console.error("Invalid checkout URL:", result.checkoutUrl, urlError);
+                    alert("Error: Invalid checkout URL. Please try again or contact support.");
+                }
             } else if (result.redirectTo) {
                 console.log("Redirecting to:", result.redirectTo);
-                window.location.href = result.redirectTo;
+                
+                // Validate the redirect URL before redirecting
+                try {
+                    new URL(result.redirectTo);
+                    window.location.href = result.redirectTo;
+                } catch (urlError) {
+                    console.error("Invalid redirect URL:", result.redirectTo, urlError);
+                    alert("Error: Invalid redirect URL. Please try again or contact support.");
+                }
             } else {
                 console.error("Server action failed:", result.message);
                 alert(result.message || "Failed to start checkout. Please try again.");
             }
         } catch (error) {
             console.error("Error in handleProPlanClick:", error);
-            alert("Failed to start checkout. Please try again.");
+            
+            // Provide more specific error messages
+            if (error instanceof Error) {
+                if (error.message.includes('Invalid URL')) {
+                    alert("Configuration error: Please contact support to fix the checkout URL configuration.");
+                } else if (error.message.includes('fetch')) {
+                    alert("Network error: Please check your internet connection and try again.");
+                } else {
+                    alert(`Error: ${error.message}`);
+                }
+            } else {
+                alert("Failed to start checkout. Please try again.");
+            }
         } finally {
             setIsLoading(false);
         }

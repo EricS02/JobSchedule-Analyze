@@ -165,9 +165,31 @@ export async function createCheckoutLink(customer: string) {
       }
     }
 
+    // Construct base URL with proper validation
+    const getBaseUrl = () => {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL;
+      
+      if (!appUrl) {
+        // Fallback for development
+        return 'http://localhost:3000';
+      }
+      
+      // Ensure URL has protocol
+      if (!appUrl.startsWith('http://') && !appUrl.startsWith('https://')) {
+        // In production, default to https
+        const protocol = process.env.NODE_ENV === 'production' ? 'https://' : 'http://';
+        return `${protocol}${appUrl}`;
+      }
+      
+      return appUrl;
+    };
+
+    const baseUrl = getBaseUrl();
+    console.log("Using base URL for checkout:", baseUrl);
+
     const checkout = await stripe.checkout.sessions.create({
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?success=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing?canceled=true`,
+      success_url: `${baseUrl}/dashboard?success=true`,
+      cancel_url: `${baseUrl}/pricing?canceled=true`,
       customer: customer,
       line_items: [
         {
@@ -195,9 +217,31 @@ export async function createCheckoutLink(customer: string) {
 
 export async function generateCustomerPortalLink(customerId: string) {
   try {
+    // Construct base URL with proper validation
+    const getBaseUrl = () => {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL;
+      
+      if (!appUrl) {
+        // Fallback for development
+        return 'http://localhost:3000';
+      }
+      
+      // Ensure URL has protocol
+      if (!appUrl.startsWith('http://') && !appUrl.startsWith('https://')) {
+        // In production, default to https
+        const protocol = process.env.NODE_ENV === 'production' ? 'https://' : 'http://';
+        return `${protocol}${appUrl}`;
+      }
+      
+      return appUrl;
+    };
+
+    const baseUrl = getBaseUrl();
+    console.log("Using base URL for portal:", baseUrl);
+
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customerId,
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
+      return_url: `${baseUrl}/dashboard`,
     });
 
     return portalSession.url;

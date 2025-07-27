@@ -28,6 +28,25 @@ export default function Header() {
     }
   }, [isLoading, isAuthenticated, user]);
 
+  // Construct base URL with proper validation
+  const getBaseUrl = () => {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL;
+    
+    if (!appUrl) {
+      // Fallback for development
+      return 'http://localhost:3000';
+    }
+    
+    // Ensure URL has protocol
+    if (!appUrl.startsWith('http://') && !appUrl.startsWith('https://')) {
+      // In production, default to https
+      const protocol = process.env.NODE_ENV === 'production' ? 'https://' : 'http://';
+      return `${protocol}${appUrl}`;
+    }
+    
+    return appUrl;
+  };
+
   // Don't render anything while loading
   if (isLoading) {
     return (
@@ -98,7 +117,7 @@ export default function Header() {
               <DropdownMenuItem asChild>
                 <LogoutLink 
                   className="flex w-full cursor-pointer items-center"
-                  postLogoutRedirectURL={process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}
+                  postLogoutRedirectURL={getBaseUrl()}
                 >
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
