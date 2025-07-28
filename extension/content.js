@@ -754,3 +754,88 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 }); 
+
+// Function to get extension token from website
+async function getExtensionToken() {
+  try {
+    console.log("JobSync: Attempting to get extension token from website...");
+    
+    const response = await fetch('/api/auth/extension-token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const data = await response.json();
+    
+    if (data.success && data.token) {
+      console.log("JobSync: Successfully got extension token");
+      
+      // Save token to extension storage
+      await chrome.storage.local.set({
+        token: data.token,
+        user: data.user
+      });
+      
+      console.log("JobSync: Token saved to extension storage");
+      return true;
+    } else {
+      console.error("JobSync: Failed to get extension token:", data.message);
+      return false;
+    }
+  } catch (error) {
+    console.error("JobSync: Error getting extension token:", error);
+    return false;
+  }
+}
+
+// Check if we're on the JobSync website and try to get token
+if (window.location.hostname === 'jobschedule.io' || window.location.hostname === 'localhost') {
+  console.log("JobSync: On JobSync website, checking for authentication...");
+  
+  // Try to get extension token after a short delay
+  setTimeout(async () => {
+    const success = await getExtensionToken();
+    if (success) {
+      console.log("JobSync: Successfully authenticated extension");
+      // Notify background script
+      chrome.runtime.sendMessage({
+        action: 'extensionAuthenticated',
+        user: await chrome.storage.local.get('user')
+      });
+    } else {
+      console.log("JobSync: Not authenticated on website or failed to get token");
+    }
+  }, 1000);
+} 
+
+// Add a manual authentication function for debugging
+window.authenticateJobSyncExtension = async function() {
+  console.log("JobSync: Manual authentication requested...");
+  
+  if (window.location.hostname === 'jobschedule.io' || window.location.hostname === 'localhost') {
+    const success = await getExtensionToken();
+    if (success) {
+      console.log("JobSync: Manual authentication successful!");
+      return { success: true, message: "Extension authenticated successfully" };
+    } else {
+      console.log("JobSync: Manual authentication failed - not logged in to website");
+      return { success: false, message: "Please log in to JobSync website first" };
+    }
+  } else {
+    console.log("JobSync: Manual authentication failed - not on JobSync website");
+    return { success: false, message: "Please go to jobschedule.io to authenticate" };
+  }
+};
+
+// Add a function to check authentication status
+window.checkJobSyncAuth = function() {
+  chrome.storage.local.get(['token', 'user'], function(result) {
+    console.log("JobSync: Authentication status:", {
+      hasToken: !!result.token,
+      user: result.user,
+      tokenPreview: result.token ? result.token.substring(0, 20) + '...' : null
+    });
+  });
+}; 
