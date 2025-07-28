@@ -371,24 +371,40 @@ async function trackJobApplication(jobData) {
     let data;
     try {
       data = await response.json();
+      console.log("JobSchedule: Successfully parsed JSON response:", {
+        success: data?.success,
+        message: data?.message,
+        hasJob: !!data?.job
+      });
     } catch (jsonError) {
       // If we can't parse as JSON, get the text for debugging
       const textResponse = await response.text();
-      console.error("JobSchedule: Invalid JSON response:", textResponse.substring(0, 200));
+      console.error("JobSchedule: Invalid JSON response:", {
+        error: jsonError.message,
+        responseText: textResponse.substring(0, 500),
+        status: response.status,
+        contentType: response.headers.get('content-type')
+      });
       throw new Error("Invalid response from server: " + jsonError.message);
     }
     
     if (!response.ok) {
-      console.error("JobSchedule: Error response from server:", data);
+      console.error("JobSchedule: Error response from server:", {
+        status: response.status,
+        statusText: response.statusText,
+        data: data,
+        message: data?.message || 'Unknown error',
+        duplicateDetails: data?.duplicateDetails || null
+      });
       
       // Handle specific error cases
-      if (response.status === 409 && data.message) {
+      if (response.status === 409 && data?.message) {
         // Duplicate job detected
         console.log("JobSchedule: Duplicate job detected:", data.duplicateDetails);
         throw new Error(data.message);
       }
       
-      throw new Error(data.message || `HTTP error ${response.status}`);
+      throw new Error(data?.message || `HTTP error ${response.status}`);
     }
     
     if (!data.success) {
@@ -435,7 +451,10 @@ async function trackJobApplication(jobData) {
         company: jobData.company?.substring(0, 50),
         hasDescription: !!jobData.description,
         hasUrl: !!jobData.jobUrl
-      } : null
+      } : null,
+      timestamp: new Date().toISOString(),
+      apiUrl: `${API_BASE_URL}/jobs/extension`,
+      hasToken: !!updatedToken
     });
     
     // Re-throw the error for the caller to handle
