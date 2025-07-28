@@ -1,8 +1,63 @@
 // JobSchedule Content Script - Simplified and Robust Version
 console.log("JobSchedule: Content script starting...");
 
-// Flag to prevent duplicate job tracking
+// Global tracking state
 let isTrackingJob = false;
+let trackingStartTime = null;
+
+// Expose debug functions globally immediately
+window.resetJobSyncTracking = function() {
+  console.log("JobSync: Manual reset called from window");
+  stopTracking();
+  console.log("JobSync: Tracking state reset to:", isTrackingJob);
+};
+
+window.debugJobSyncState = function() {
+  console.log("JobSync: Debug state:", {
+    isTrackingJob: isTrackingJob,
+    trackingStartTime: trackingStartTime,
+    elapsedTime: trackingStartTime ? Date.now() - trackingStartTime : null,
+    currentUrl: window.location.href,
+    isLinkedInJobPage: isLinkedInJobPage(),
+    extensionLoaded: true
+  });
+};
+
+window.testJobSyncExtension = function() {
+  console.log("JobSync: Testing extension functionality...");
+  console.log("JobSync: Extension loaded:", window.jobSyncExtensionLoaded);
+  console.log("JobSync: Tracking state:", isTrackingJob);
+  console.log("JobSync: Tracking start time:", trackingStartTime);
+  console.log("JobSync: Current URL:", window.location.href);
+  console.log("JobSync: Is LinkedIn job page:", isLinkedInJobPage());
+  
+  // Test if we can extract job details
+  const jobData = extractJobDetails();
+  console.log("JobSync: Can extract job details:", !!jobData);
+  if (jobData) {
+    console.log("JobSync: Job title:", jobData.jobTitle);
+    console.log("JobSync: Company:", jobData.company);
+  }
+  
+  return {
+    extensionLoaded: window.jobSyncExtensionLoaded,
+    isTrackingJob: isTrackingJob,
+    trackingStartTime: trackingStartTime,
+    isLinkedInJobPage: isLinkedInJobPage(),
+    canExtractJobDetails: !!jobData,
+    jobData: jobData
+  };
+};
+
+window.forceResetJobSync = function() {
+  console.log("JobSync: Force reset called");
+  stopTracking();
+  console.log("JobSync: Force reset complete - tracking state:", isTrackingJob);
+  return { success: true, trackingState: isTrackingJob };
+};
+
+// Add a global indicator that the extension is loaded
+window.jobSyncExtensionLoaded = true;
 
 // Simple function to check if we're on a LinkedIn job page
 function isLinkedInJobPage() {
@@ -495,61 +550,8 @@ function setupApplyButtonListener() {
 function initialize() {
   console.log("JobSync: Initializing on URL:", window.location.href);
   
-  // Expose debug functions immediately
-  window.resetJobSyncTracking = function() {
-    console.log("JobSync: Manual reset called from window");
-    stopTracking();
-    console.log("JobSync: Tracking state reset to:", isTrackingJob);
-  };
-  
-  window.debugJobSyncState = function() {
-    console.log("JobSync: Debug state:", {
-      isTrackingJob: isTrackingJob,
-      trackingStartTime: trackingStartTime,
-      elapsedTime: trackingStartTime ? Date.now() - trackingStartTime : null,
-      currentUrl: window.location.href,
-      isLinkedInJobPage: isLinkedInJobPage(),
-      extensionLoaded: true
-    });
-  };
-  
   // Add a test function
-  window.testJobSyncExtension = function() {
-    console.log("JobSync: Testing extension functionality...");
-    console.log("JobSync: Extension loaded:", window.jobSyncExtensionLoaded);
-    console.log("JobSync: Tracking state:", isTrackingJob);
-    console.log("JobSync: Tracking start time:", trackingStartTime);
-    console.log("JobSync: Current URL:", window.location.href);
-    console.log("JobSync: Is LinkedIn job page:", isLinkedInJobPage());
-    
-    // Test if we can extract job details
-    const jobData = extractJobDetails();
-    console.log("JobSync: Can extract job details:", !!jobData);
-    if (jobData) {
-      console.log("JobSync: Job title:", jobData.jobTitle);
-      console.log("JobSync: Company:", jobData.company);
-    }
-    
-    return {
-      extensionLoaded: window.jobSyncExtensionLoaded,
-      isTrackingJob: isTrackingJob,
-      trackingStartTime: trackingStartTime,
-      isLinkedInJobPage: isLinkedInJobPage(),
-      canExtractJobDetails: !!jobData,
-      jobData: jobData
-    };
-  };
-  
   // Add a force reset function for emergencies
-  window.forceResetJobSync = function() {
-    console.log("JobSync: Force reset called");
-    stopTracking();
-    console.log("JobSync: Force reset complete - tracking state:", isTrackingJob);
-    return { success: true, trackingState: isTrackingJob };
-  };
-  
-  // Add a global indicator that the extension is loaded
-  window.jobSyncExtensionLoaded = true;
   
   if (isLinkedInJobPage()) {
     console.log("JobSync: LinkedIn job page detected, setting up...");
@@ -625,7 +627,6 @@ setInterval(() => {
 }, 30000); // Check every 30 seconds
 
 // Add a more aggressive reset mechanism
-let trackingStartTime = null;
 
 function startTracking() {
   isTrackingJob = true;
