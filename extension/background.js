@@ -144,7 +144,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return;
   }
   
-  if (message.action === 'trackJobApplication') {
+  if (message.action === 'executeScript') {
+    // Handle script execution in main page context
+    try {
+      console.log("JobSchedule: Executing script in main page context");
+      
+      chrome.scripting.executeScript({
+        target: { tabId: sender.tab.id },
+        func: (code) => {
+          // Execute the code in the main page context
+          eval(code);
+        },
+        args: [message.code]
+      }).then(() => {
+        console.log("JobSchedule: Script executed successfully");
+        sendResponse({ success: true });
+      }).catch((error) => {
+        console.error("JobSchedule: Error executing script:", error);
+        sendResponse({ success: false, error: error.message });
+      });
+      
+      return true; // Keep message channel open for async response
+    } catch (error) {
+      console.error("JobSchedule: Error in executeScript handler:", error);
+      sendResponse({ success: false, error: error.message });
+    }
+  } else if (message.action === 'trackJobApplication') {
     // ✅ ENHANCED: Rate limiting check
     const userKey = sender?.tab?.url || 'unknown';
     if (!rateLimiter.isAllowed(userKey)) {
