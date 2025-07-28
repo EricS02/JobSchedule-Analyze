@@ -1,6 +1,13 @@
 // JobSchedule Content Script - Simplified and Robust Version
 console.log("JobSchedule: Content script starting...");
 
+// Check if we're in the right context
+if (typeof chrome === 'undefined' || typeof chrome.runtime === 'undefined') {
+  console.error("JobSchedule: Not running in extension context - chrome.runtime is not available");
+  console.log("JobSchedule: This script should only run when injected by the Chrome extension");
+  return; // Exit early if not in extension context
+}
+
 // Global tracking state
 let isTrackingJob = false;
 let trackingStartTime = null;
@@ -13,6 +20,7 @@ window.testJobSyncBasic = function() {
   console.log("JobSync: Basic test - content script is loaded");
   return {
     scriptLoaded: true,
+    chromeRuntimeAvailable: typeof chrome !== 'undefined' && typeof chrome.runtime !== 'undefined',
     timestamp: new Date().toISOString(),
     url: window.location.href
   };
@@ -646,13 +654,17 @@ window.authenticateJobSyncExtension = async function() {
 };
 
 window.checkJobSyncAuth = function() {
-  chrome.storage.local.get(['token', 'user'], function(result) {
-    console.log("JobSync: Authentication status:", {
-      hasToken: !!result.token,
-      user: result.user,
-      tokenPreview: result.token ? result.token.substring(0, 20) + '...' : null
+  if (chrome.storage && chrome.storage.local) {
+    chrome.storage.local.get(['token', 'user'], function(result) {
+      console.log("JobSync: Authentication status:", {
+        hasToken: !!result.token,
+        user: result.user,
+        tokenPreview: result.token ? result.token.substring(0, 20) + '...' : null
+      });
     });
-  });
+  } else {
+    console.warn("JobSync: chrome.storage.local not available");
+  }
 };
 
 window.testJobSyncConnection = function() {
@@ -660,20 +672,31 @@ window.testJobSyncConnection = function() {
   
   try {
     // Test if chrome.runtime is available
+    if (!chrome.runtime) {
+      console.error("JobSync: chrome.runtime is not available");
+      return { error: "chrome.runtime is not available" };
+    }
+    
     const url = chrome.runtime.getURL('');
     console.log("JobSync: Extension runtime available:", !!url);
     
     // Test if we can send a message
-    chrome.runtime.sendMessage({ action: 'ping' }, response => {
-      if (chrome.runtime.lastError) {
-        console.error("JobSync: Extension communication failed:", chrome.runtime.lastError);
-      } else {
-        console.log("JobSync: Extension communication successful:", response);
-      }
-    });
+    if (chrome.runtime.sendMessage) {
+      chrome.runtime.sendMessage({ action: 'ping' }, response => {
+        if (chrome.runtime.lastError) {
+          console.error("JobSync: Extension communication failed:", chrome.runtime.lastError);
+        } else {
+          console.log("JobSync: Extension communication successful:", response);
+        }
+      });
+    } else {
+      console.error("JobSync: chrome.runtime.sendMessage is not available");
+    }
     
     return {
       runtimeAvailable: !!url,
+      chromeRuntimeAvailable: !!chrome.runtime,
+      sendMessageAvailable: !!chrome.runtime.sendMessage,
       functionsAvailable: {
         resetJobSyncTracking: typeof window.resetJobSyncTracking,
         debugJobSyncState: typeof window.debugJobSyncState,
@@ -727,6 +750,14 @@ setInterval(() => {
 function sendJobData(jobData) {
       console.log("JobSchedule: Sending job data to background script...");
   try {
+    // Check if chrome.runtime is available
+    if (!chrome.runtime || !chrome.runtime.sendMessage) {
+      console.error("JobSync: chrome.runtime.sendMessage is not available");
+      stopTracking();
+      showNotification('Error: Extension not properly loaded. Please reload the page.', true);
+      return;
+    }
+    
     // Set a timeout to reset the tracking flag if no response
     const timeoutId = setTimeout(() => {
       console.warn("JobSync: Timeout waiting for background script response, resetting tracking flag");
@@ -794,38 +825,40 @@ function isValidMessage(message) {
 }
 
 // Listen for messages from background script
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // Validate message schema
-  if (!isValidMessage(message)) {
-    sendResponse && sendResponse({ success: false, error: 'Invalid message schema' });
-    return;
-  }
-      console.log("JobSchedule: Received message:", message);
-  
-  if (message.action === 'manualTrack') {
-    // Prevent duplicate tracking
-    if (isTrackingJob) {
-      sendResponse({ success: false, error: 'Already tracking a job' });
+if (chrome.runtime && chrome.runtime.onMessage) {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // Validate message schema
+    if (!isValidMessage(message)) {
+      sendResponse && sendResponse({ success: false, error: 'Invalid message schema' });
+      return;
+    }
+        console.log("JobSchedule: Received message:", message);
+    
+    if (message.action === 'manualTrack') {
+      // Prevent duplicate tracking
+      if (isTrackingJob) {
+        sendResponse({ success: false, error: 'Already tracking a job' });
+        return true;
+      }
+      
+      startTracking(); // Use the new startTracking function
+      const jobData = extractJobDetails();
+      if (jobData) {
+        sendJobData(jobData);
+        sendResponse({ success: true });
+      } else {
+        stopTracking(); // Use the new stopTracking function
+        sendResponse({ success: false, error: 'Could not extract job details' });
+      }
       return true;
     }
     
-    startTracking(); // Use the new startTracking function
-    const jobData = extractJobDetails();
-    if (jobData) {
-      sendJobData(jobData);
+    if (message.action === 'ping') {
       sendResponse({ success: true });
-    } else {
-      stopTracking(); // Use the new stopTracking function
-      sendResponse({ success: false, error: 'Could not extract job details' });
+      return true;
     }
-    return true;
-  }
-  
-  if (message.action === 'ping') {
-    sendResponse({ success: true });
-    return true;
-  }
-}); 
+  });
+} 
 
 // Function to get extension token from website
 async function getExtensionToken() {
@@ -845,12 +878,17 @@ async function getExtensionToken() {
       console.log("JobSync: Successfully got extension token");
       
       // Save token to extension storage
-      await chrome.storage.local.set({
-        token: data.token,
-        user: data.user
-      });
+      if (chrome.storage && chrome.storage.local) {
+        await chrome.storage.local.set({
+          token: data.token,
+          user: data.user
+        });
+        
+        console.log("JobSync: Token saved to extension storage");
+      } else {
+        console.warn("JobSync: chrome.storage.local not available");
+      }
       
-      console.log("JobSync: Token saved to extension storage");
       return true;
     } else {
       console.error("JobSync: Failed to get extension token:", data.message);
@@ -893,7 +931,11 @@ function retryInitialization() {
     console.log(`JobSync: Retrying initialization (attempt ${retryCount}/${MAX_RETRIES})`);
     setTimeout(() => {
       try {
-        initialize();
+        if (typeof chrome !== 'undefined' && chrome.runtime) {
+          initialize();
+        } else {
+          console.warn("JobSync: chrome.runtime still not available, skipping retry");
+        }
       } catch (e) {
         console.warn("JobSync: Retry initialization failed:", e);
         if (retryCount < MAX_RETRIES) {
@@ -907,15 +949,19 @@ function retryInitialization() {
 }
 
 // Listen for extension context invalidation
-chrome.runtime.onSuspend.addListener(() => {
-  console.warn("JobSync: Extension context being suspended");
-  stopTracking();
-});
+if (chrome.runtime && chrome.runtime.onSuspend) {
+  chrome.runtime.onSuspend.addListener(() => {
+    console.warn("JobSync: Extension context being suspended");
+    stopTracking();
+  });
+}
 
 // Check if extension is still valid periodically
 setInterval(() => {
   try {
-    chrome.runtime.getURL('');
+    if (chrome.runtime && chrome.runtime.getURL) {
+      chrome.runtime.getURL('');
+    }
   } catch (e) {
     console.warn("JobSync: Extension context may be invalid, attempting to reinitialize");
     retryInitialization();
