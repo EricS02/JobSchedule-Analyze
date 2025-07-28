@@ -28,6 +28,56 @@ console.log("JobSchedule: Content script starting...");
     };
   };
 
+// Add comprehensive diagnostic function
+window.diagnoseJobSync = function() {
+  console.log("JobSync: Running comprehensive diagnostics...");
+  
+  const diagnostics = {
+    // Basic extension info
+    extensionLoaded: window.jobSyncExtensionLoaded || false,
+    chromeAvailable: typeof chrome !== 'undefined',
+    chromeRuntimeAvailable: typeof chrome !== 'undefined' && typeof chrome.runtime !== 'undefined',
+    chromeStorageAvailable: typeof chrome !== 'undefined' && typeof chrome.storage !== 'undefined',
+    
+    // Current page info
+    currentUrl: window.location.href,
+    isLinkedInJobPage: isLinkedInJobPage(),
+    isJobSyncWebsite: window.location.hostname === 'jobschedule.io' || window.location.hostname === 'localhost',
+    
+    // Function availability
+    functionsAvailable: {
+      testJobSyncBasic: typeof window.testJobSyncBasic,
+      resetJobSyncTracking: typeof window.resetJobSyncTracking,
+      debugJobSyncState: typeof window.debugJobSyncState,
+      testJobSyncExtension: typeof window.testJobSyncExtension,
+      checkJobSyncAuth: typeof window.checkJobSyncAuth,
+      testJobSyncConnection: typeof window.testJobSyncConnection,
+      authenticateJobSyncExtension: typeof window.authenticateJobSyncExtension
+    },
+    
+    // Extension state
+    isTrackingJob: isTrackingJob,
+    trackingStartTime: trackingStartTime
+  };
+  
+  console.log("JobSync: Diagnostics result:", diagnostics);
+  
+  // Check authentication status if chrome.storage is available
+  if (chrome.storage && chrome.storage.local) {
+    chrome.storage.local.get(['token', 'user'], function(result) {
+      console.log("JobSync: Authentication status:", {
+        hasToken: !!result.token,
+        user: result.user,
+        tokenPreview: result.token ? result.token.substring(0, 20) + '...' : null
+      });
+    });
+  } else {
+    console.warn("JobSync: chrome.storage.local not available for auth check");
+  }
+  
+  return diagnostics;
+};
+
 // Simple function to check if we're on a LinkedIn job page
 function isLinkedInJobPage() {
   return window.location.href.includes('linkedin.com/jobs/') || 
@@ -655,6 +705,7 @@ window.authenticateJobSyncExtension = async function() {
   }
 };
 
+// Add a simple authentication status checker
 window.checkJobSyncAuth = function() {
   if (chrome.storage && chrome.storage.local) {
     chrome.storage.local.get(['token', 'user'], function(result) {
@@ -666,6 +717,29 @@ window.checkJobSyncAuth = function() {
     });
   } else {
     console.warn("JobSync: chrome.storage.local not available");
+  }
+};
+
+// Add a simple authentication trigger
+window.triggerJobSyncAuth = function() {
+  console.log("JobSync: Triggering authentication...");
+  
+  // If we're on the JobSync website, try to get token
+  if (window.location.hostname === 'jobschedule.io' || window.location.hostname === 'localhost') {
+    console.log("JobSync: On JobSync website, attempting to get token...");
+    getExtensionToken().then(success => {
+      if (success) {
+        console.log("JobSync: Authentication successful!");
+        alert("JobSync extension authenticated successfully!");
+      } else {
+        console.log("JobSync: Authentication failed - please log in to the website first");
+        alert("Please log in to JobSync website first, then try again.");
+      }
+    });
+  } else {
+    console.log("JobSync: Not on JobSync website, redirecting...");
+    alert("Please go to jobschedule.io to authenticate the extension.");
+    window.open('https://jobschedule.io', '_blank');
   }
 };
 
