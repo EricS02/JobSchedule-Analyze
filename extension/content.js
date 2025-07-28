@@ -1,5 +1,7 @@
 // JobSchedule Content Script - Simplified and Robust Version
 console.log("JobSchedule: Content script starting...");
+console.log("JobSchedule: Script loaded at:", new Date().toISOString());
+console.log("JobSchedule: Current URL:", window.location.href);
 
 // Wrap everything in an IIFE to allow early exit
 (function() {
