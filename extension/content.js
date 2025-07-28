@@ -3,6 +3,11 @@ console.log("JobSchedule: Content script starting...");
 console.log("JobSchedule: Script loaded at:", new Date().toISOString());
 console.log("JobSchedule: Current URL:", window.location.href);
 
+// Test function - very simple
+window.testJobSyncSimple = function() {
+  return "JobSchedule extension is working!";
+};
+
 // Global tracking state
 let isTrackingJob = false;
 let trackingStartTime = null;
@@ -229,6 +234,12 @@ window.testJobSyncConnection = function() {
 
 console.log("JobSchedule: All functions exposed to window object");
 
+// Test that functions are actually exposed
+console.log("JobSchedule: Testing function exposure:");
+console.log("JobSchedule: testJobSyncBasic available:", typeof window.testJobSyncBasic);
+console.log("JobSchedule: diagnoseJobSync available:", typeof window.diagnoseJobSync);
+console.log("JobSchedule: resetJobSyncTracking available:", typeof window.resetJobSyncTracking);
+
 // Simple function to check if we're on a LinkedIn job page
 function isLinkedInJobPage() {
   return window.location.href.includes('linkedin.com/jobs/') || 
@@ -294,4 +305,12 @@ async function getExtensionToken() {
   }
 }
 
-console.log("JobSchedule: Content script loaded successfully!"); 
+console.log("JobSchedule: Content script loaded successfully!");
+
+// Test the basic function immediately
+try {
+  const result = window.testJobSyncBasic();
+  console.log("JobSchedule: Basic function test result:", result);
+} catch (e) {
+  console.error("JobSchedule: Error testing basic function:", e);
+} 
