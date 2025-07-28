@@ -6,8 +6,8 @@ console.log("JobSchedule: Current URL:", window.location.href);
 // Wrap everything in an IIFE to allow early exit
 (function() {
   // Check if we're in the right context
-  if (typeof chrome === 'undefined' || typeof chrome.runtime === 'undefined') {
-    console.error("JobSchedule: Not running in extension context - chrome.runtime is not available");
+  if (typeof chrome === 'undefined') {
+    console.error("JobSchedule: Not running in extension context - chrome is not available");
     console.log("JobSchedule: This script should only run when injected by the Chrome extension");
     return; // Exit early if not in extension context
   }
@@ -21,70 +21,241 @@ console.log("JobSchedule: Current URL:", window.location.href);
 
   // Immediately expose a basic test function
   window.testJobSyncBasic = function() {
-    console.log("JobSync: Basic test - content script is loaded");
+    console.log("JobSchedule: Basic test - content script is loaded");
     return {
       scriptLoaded: true,
+      chromeAvailable: typeof chrome !== 'undefined',
       chromeRuntimeAvailable: typeof chrome !== 'undefined' && typeof chrome.runtime !== 'undefined',
       timestamp: new Date().toISOString(),
       url: window.location.href
     };
   };
 
-// Add comprehensive diagnostic function
-window.diagnoseJobSync = function() {
-  console.log("JobSync: Running comprehensive diagnostics...");
-  
-  const diagnostics = {
-    // Basic extension info
-    extensionLoaded: window.jobSyncExtensionLoaded || false,
-    chromeAvailable: typeof chrome !== 'undefined',
-    chromeRuntimeAvailable: typeof chrome !== 'undefined' && typeof chrome.runtime !== 'undefined',
-    chromeStorageAvailable: typeof chrome !== 'undefined' && typeof chrome.storage !== 'undefined',
+  // Add comprehensive diagnostic function
+  window.diagnoseJobSync = function() {
+    console.log("JobSchedule: Running comprehensive diagnostics...");
     
-    // Current page info
-    currentUrl: window.location.href,
-    isLinkedInJobPage: isLinkedInJobPage(),
-    isJobSyncWebsite: window.location.hostname === 'jobschedule.io' || window.location.hostname === 'localhost',
+    const diagnostics = {
+      // Basic extension info
+      extensionLoaded: window.jobSyncExtensionLoaded || false,
+      chromeAvailable: typeof chrome !== 'undefined',
+      chromeRuntimeAvailable: typeof chrome !== 'undefined' && typeof chrome.runtime !== 'undefined',
+      chromeStorageAvailable: typeof chrome !== 'undefined' && typeof chrome.storage !== 'undefined',
+      
+      // Current page info
+      currentUrl: window.location.href,
+      isLinkedInJobPage: isLinkedInJobPage(),
+      isJobSyncWebsite: window.location.hostname === 'jobschedule.io' || window.location.hostname === 'localhost',
+      
+      // Function availability
+      functionsAvailable: {
+        testJobSyncBasic: typeof window.testJobSyncBasic,
+        diagnoseJobSync: typeof window.diagnoseJobSync,
+        resetJobSyncTracking: typeof window.resetJobSyncTracking,
+        debugJobSyncState: typeof window.debugJobSyncState,
+        testJobSyncExtension: typeof window.testJobSyncExtension,
+        checkJobSyncAuth: typeof window.checkJobSyncAuth,
+        testJobSyncConnection: typeof window.testJobSyncConnection,
+        triggerJobSyncAuth: typeof window.triggerJobSyncAuth
+      },
+      
+      // Extension state
+      isTrackingJob: isTrackingJob,
+      trackingStartTime: trackingStartTime
+    };
     
-    // Function availability
-    functionsAvailable: {
-      testJobSyncBasic: typeof window.testJobSyncBasic,
-      resetJobSyncTracking: typeof window.resetJobSyncTracking,
-      debugJobSyncState: typeof window.debugJobSyncState,
-      testJobSyncExtension: typeof window.testJobSyncExtension,
-      checkJobSyncAuth: typeof window.checkJobSyncAuth,
-      testJobSyncConnection: typeof window.testJobSyncConnection,
-      authenticateJobSyncExtension: typeof window.authenticateJobSyncExtension
-    },
+    console.log("JobSchedule: Diagnostics result:", diagnostics);
     
-    // Extension state
-    isTrackingJob: isTrackingJob,
-    trackingStartTime: trackingStartTime
-  };
-  
-  console.log("JobSync: Diagnostics result:", diagnostics);
-  
-  // Check authentication status if chrome.storage is available
-  if (chrome.storage && chrome.storage.local) {
-    chrome.storage.local.get(['token', 'user'], function(result) {
-      console.log("JobSync: Authentication status:", {
-        hasToken: !!result.token,
-        user: result.user,
-        tokenPreview: result.token ? result.token.substring(0, 20) + '...' : null
+    // Check authentication status if chrome.storage is available
+    if (chrome.storage && chrome.storage.local) {
+      chrome.storage.local.get(['token', 'user'], function(result) {
+        console.log("JobSchedule: Authentication status:", {
+          hasToken: !!result.token,
+          user: result.user,
+          tokenPreview: result.token ? result.token.substring(0, 20) + '...' : null
+        });
       });
-    });
-  } else {
-    console.warn("JobSync: chrome.storage.local not available for auth check");
-  }
-  
-  return diagnostics;
-};
+    } else {
+      console.warn("JobSchedule: chrome.storage.local not available for auth check");
+    }
+    
+    return diagnostics;
+  };
 
-// Simple function to check if we're on a LinkedIn job page
-function isLinkedInJobPage() {
-  return window.location.href.includes('linkedin.com/jobs/') || 
-         window.location.href.includes('linkedin.com/job/');
-}
+  // Wait for chrome.runtime to be available
+  let runtimeCheckCount = 0;
+  const maxRuntimeChecks = 10;
+  
+  function waitForRuntime() {
+    if (typeof chrome.runtime !== 'undefined') {
+      console.log("JobSchedule: Chrome runtime is now available");
+      initializeFullExtension();
+    } else if (runtimeCheckCount < maxRuntimeChecks) {
+      runtimeCheckCount++;
+      console.log(`JobSchedule: Waiting for chrome.runtime (attempt ${runtimeCheckCount}/${maxRuntimeChecks})`);
+      setTimeout(waitForRuntime, 500);
+    } else {
+      console.error("JobSchedule: Chrome runtime not available after maximum attempts");
+      console.log("JobSchedule: Extension will work with limited functionality");
+    }
+  }
+
+  function initializeFullExtension() {
+    console.log("JobSchedule: Initializing full extension functionality");
+    
+    // Expose all the debug functions
+    window.resetJobSyncTracking = function() {
+      console.log("JobSchedule: Manual reset called from window");
+      stopTracking();
+      console.log("JobSchedule: Tracking state reset to:", isTrackingJob);
+    };
+
+    window.debugJobSyncState = function() {
+      console.log("JobSchedule: Debug state:", {
+        isTrackingJob: isTrackingJob,
+        trackingStartTime: trackingStartTime,
+        elapsedTime: trackingStartTime ? Date.now() - trackingStartTime : null,
+        currentUrl: window.location.href,
+        isLinkedInJobPage: isLinkedInJobPage(),
+        extensionLoaded: true
+      });
+    };
+
+    window.testJobSyncExtension = function() {
+      console.log("JobSchedule: Testing extension functionality...");
+      console.log("JobSchedule: Extension loaded:", window.jobSyncExtensionLoaded);
+      console.log("JobSchedule: Tracking state:", isTrackingJob);
+      console.log("JobSchedule: Tracking start time:", trackingStartTime);
+      console.log("JobSchedule: Current URL:", window.location.href);
+      console.log("JobSchedule: Is LinkedIn job page:", isLinkedInJobPage());
+      
+      // Test if we can extract job details
+      const jobData = extractJobDetails();
+      console.log("JobSchedule: Can extract job details:", !!jobData);
+      if (jobData) {
+        console.log("JobSchedule: Job title:", jobData.jobTitle);
+        console.log("JobSchedule: Company:", jobData.company);
+      }
+      
+      return {
+        extensionLoaded: window.jobSyncExtensionLoaded,
+        isTrackingJob: isTrackingJob,
+        trackingStartTime: trackingStartTime,
+        isLinkedInJobPage: isLinkedInJobPage(),
+        canExtractJobDetails: !!jobData,
+        jobData: jobData
+      };
+    };
+
+    window.forceResetJobSync = function() {
+      console.log("JobSchedule: Force reset called");
+      stopTracking();
+      console.log("JobSchedule: Force reset complete - tracking state:", isTrackingJob);
+      return { success: true, trackingState: isTrackingJob };
+    };
+
+    window.authenticateJobSyncExtension = async function() {
+      console.log("JobSchedule: Manual authentication requested...");
+      
+      if (window.location.hostname === 'jobschedule.io' || window.location.hostname === 'localhost') {
+        const success = await getExtensionToken();
+        if (success) {
+          console.log("JobSchedule: Manual authentication successful!");
+          return { success: true, message: "Extension authenticated successfully" };
+        } else {
+          console.log("JobSchedule: Manual authentication failed - not logged in to website");
+          return { success: false, message: "Please log in to JobSchedule website first" };
+        }
+      } else {
+        console.log("JobSchedule: Manual authentication failed - not on JobSchedule website");
+        return { success: false, message: "Please go to jobschedule.io to authenticate" };
+      }
+    };
+
+    window.checkJobSyncAuth = function() {
+      if (chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get(['token', 'user'], function(result) {
+          console.log("JobSchedule: Authentication status:", {
+            hasToken: !!result.token,
+            user: result.user,
+            tokenPreview: result.token ? result.token.substring(0, 20) + '...' : null
+          });
+        });
+      } else {
+        console.warn("JobSchedule: chrome.storage.local not available");
+      }
+    };
+
+    window.triggerJobSyncAuth = function() {
+      console.log("JobSchedule: Triggering authentication...");
+      
+      // If we're on the JobSchedule website, try to get token
+      if (window.location.hostname === 'jobschedule.io' || window.location.hostname === 'localhost') {
+        console.log("JobSchedule: On JobSchedule website, attempting to get token...");
+        getExtensionToken().then(success => {
+          if (success) {
+            console.log("JobSchedule: Authentication successful!");
+            alert("JobSchedule extension authenticated successfully!");
+          } else {
+            console.log("JobSchedule: Authentication failed - please log in to the website first");
+            alert("Please log in to JobSchedule website first, then try again.");
+          }
+        });
+      } else {
+        console.log("JobSchedule: Not on JobSchedule website, redirecting...");
+        alert("Please go to jobschedule.io to authenticate the extension.");
+        window.open('https://jobschedule.io', '_blank');
+      }
+    };
+
+    window.testJobSyncConnection = function() {
+      console.log("JobSchedule: Testing extension connection...");
+      
+      try {
+        // Test if chrome.runtime is available
+        if (!chrome.runtime) {
+          console.error("JobSchedule: chrome.runtime is not available");
+          return { error: "chrome.runtime is not available" };
+        }
+        
+        const url = chrome.runtime.getURL('');
+        console.log("JobSchedule: Extension runtime available:", !!url);
+        
+        // Test if we can send a message
+        if (chrome.runtime.sendMessage) {
+          chrome.runtime.sendMessage({ action: 'ping' }, response => {
+            if (chrome.runtime.lastError) {
+              console.error("JobSchedule: Extension communication failed:", chrome.runtime.lastError);
+            } else {
+              console.log("JobSchedule: Extension communication successful:", response);
+            }
+          });
+        } else {
+          console.error("JobSchedule: chrome.runtime.sendMessage is not available");
+        }
+        
+        return {
+          runtimeAvailable: !!url,
+          chromeRuntimeAvailable: !!chrome.runtime,
+          sendMessageAvailable: !!chrome.runtime.sendMessage,
+          functionsAvailable: {
+            resetJobSyncTracking: typeof window.resetJobSyncTracking,
+            debugJobSyncState: typeof window.debugJobSyncState,
+            testJobSyncExtension: typeof window.testJobSyncExtension,
+            checkJobSyncAuth: typeof window.checkJobSyncAuth
+          }
+        };
+      } catch (e) {
+        console.error("JobSchedule: Extension test failed:", e);
+        return { error: e.message };
+      }
+    };
+
+    console.log("JobSchedule: Full extension functions exposed");
+  }
+
+  // Start waiting for chrome.runtime
+  waitForRuntime();
 
 // Enhanced job details extraction
   function extractJobDetails() {
