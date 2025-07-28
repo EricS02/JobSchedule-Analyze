@@ -2,6 +2,7 @@ import { verifyJwtToken } from "@/lib/auth/jwt";
 import prisma from "@/lib/db";
 import { revalidatePath } from 'next/cache';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { NextRequest, NextResponse } from 'next/server';
 
 // Force dynamic rendering to prevent build-time execution
 export const dynamic = 'force-dynamic';
