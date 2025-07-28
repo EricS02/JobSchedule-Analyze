@@ -218,7 +218,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           errorType: typeof errorObj,
           timestamp: new Date().toISOString()
         });
-        sendResponse({ success: false, message: userMessage });
+        
+        // Send the actual error message if it's a known type, otherwise send the user-friendly message
+        const responseMessage = errorObj.message.includes('already tracked') || 
+                              errorObj.message.includes('Not authenticated') ||
+                              errorObj.message.includes('Too many requests') ||
+                              errorObj.message.includes('daily limit') ||
+                              errorObj.message.includes('subscription')
+                              ? errorObj.message 
+                              : userMessage;
+        
+        sendResponse({ success: false, message: responseMessage });
       }
     })();
     
