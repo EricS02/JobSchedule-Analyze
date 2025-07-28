@@ -212,6 +212,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         
         // User-friendly error message
         const userMessage = getUserFriendlyMessage(errorObj);
+        console.error("JobSchedule: Final error details for user:", {
+          originalError: errorObj.message,
+          userMessage: userMessage,
+          errorType: typeof errorObj,
+          timestamp: new Date().toISOString()
+        });
         sendResponse({ success: false, message: userMessage });
       }
     })();
@@ -392,6 +398,15 @@ async function trackJobApplication(jobData) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
         
+        console.log("JobSchedule: About to make fetch request with details:", {
+          url: `${API_BASE_URL}/jobs/extension`,
+          method: 'POST',
+          hasToken: !!updatedToken,
+          tokenLength: updatedToken?.length || 0,
+          bodySize: JSON.stringify(sanitizedJobData).length,
+          timeout: CONNECTION_TIMEOUT
+        });
+        
         response = await fetch(`${API_BASE_URL}/jobs/extension`, {
           method: 'POST',
           headers: {
@@ -530,6 +545,12 @@ async function trackJobApplication(jobData) {
 
 // Helper function to get user-friendly error messages
 function getUserFriendlyMessage(error) {
+  console.log("JobSchedule: Processing error for user message:", {
+    errorMessage: error.message,
+    errorType: typeof error,
+    errorKeys: error ? Object.keys(error) : 'no keys'
+  });
+
   if (error.message.includes('Not authenticated')) {
     return 'Please log in to JobSync at https://jobschedule.io to track job applications.';
   }
@@ -551,6 +572,23 @@ function getUserFriendlyMessage(error) {
   if (error.message.includes('already tracked')) {
     return error.message;
   }
+  if (error.message.includes('HTTP error')) {
+    return `Server error (${error.message}). Please try again later.`;
+  }
+  if (error.message.includes('timeout') || error.message.includes('abort')) {
+    return 'Request timed out. Please check your internet connection and try again.';
+  }
+  if (error.message.includes('Failed to track job application')) {
+    return 'Failed to save job application. Please try again.';
+  }
+  
+  // Log the unhandled error for debugging
+  console.error("JobSchedule: Unhandled error type:", {
+    message: error.message,
+    type: typeof error,
+    constructor: error?.constructor?.name
+  });
+  
   return 'An error occurred while tracking your job application. Please try again.';
 }
 
