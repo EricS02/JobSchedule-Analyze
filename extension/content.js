@@ -1,96 +1,113 @@
-// JobSchedule Content Script - Ultra Simple Version
+// JobSchedule Content Script - CSP-Safe Version
 console.log("🚀 JobSchedule: Content script starting...");
 console.log("🚀 JobSchedule: Script loaded at:", new Date().toISOString());
 console.log("🚀 JobSchedule: Current URL:", window.location.href);
 
-// Method 1: Try script injection
+// Method 1: Direct window property assignment (CSP-safe)
 try {
-  console.log("🚀 JobSchedule: Attempting script injection...");
+  console.log("🚀 JobSchedule: Attempting direct window assignment...");
   
-  const script = document.createElement('script');
-  script.textContent = `
-    console.log("🎯 JobSchedule: Injected script starting...");
+  // Create a simple object with functions
+  const jobScheduleFunctions = {
+    test: function() {
+      console.log("🎯 JobSchedule: Test function called!");
+      return "JobSchedule extension is working!";
+    },
     
-    // Create JobSchedule object in the main page context
-    window.JobSchedule = {
-      test: function() {
-        console.log("🎯 JobSchedule: Test function called!");
-        return "JobSchedule extension is working!";
-      },
-      
-      diagnose: function() {
-        console.log("🎯 JobSchedule: Diagnose function called!");
-        return {
-          chromeAvailable: typeof chrome !== 'undefined',
-          chromeRuntimeAvailable: typeof chrome !== 'undefined' && typeof chrome.runtime !== 'undefined',
-          url: window.location.href,
-          timestamp: new Date().toISOString()
-        };
-      },
-      
-      reset: function() {
-        console.log("🎯 JobSchedule: Reset function called!");
-        return { success: true };
-      }
-    };
-
-    // Also expose individual functions
-    window.testJobSync = function() {
-      console.log("🎯 JobSchedule: testJobSync function called!");
-      return "JobSchedule test function working!";
-    };
-
-    window.diagnoseJobSync = function() {
-      console.log("🎯 JobSchedule: diagnoseJobSync function called!");
+    diagnose: function() {
+      console.log("🎯 JobSchedule: Diagnose function called!");
       return {
         chromeAvailable: typeof chrome !== 'undefined',
         chromeRuntimeAvailable: typeof chrome !== 'undefined' && typeof chrome.runtime !== 'undefined',
-        url: window.location.href
+        url: window.location.href,
+        timestamp: new Date().toISOString()
       };
-    };
-
-    console.log("🎯 JobSchedule: Functions injected into main page window object");
-    console.log("🎯 JobSchedule: window.JobSchedule available:", typeof window.JobSchedule);
-    console.log("🎯 JobSchedule: window.testJobSync available:", typeof window.testJobSync);
+    },
     
-    // Test that the object was created
-    console.log("🎯 JobSchedule: window.JobSchedule =", window.JobSchedule);
-  `;
+    reset: function() {
+      console.log("🎯 JobSchedule: Reset function called!");
+      return { success: true };
+    }
+  };
 
-  // Inject the script into the page
-  document.head.appendChild(script);
-  console.log("🚀 JobSchedule: Script element appended to document.head");
+  // Try to assign to window object directly
+  Object.assign(window, {
+    JobSchedule: jobScheduleFunctions,
+    testJobSync: jobScheduleFunctions.test,
+    diagnoseJobSync: jobScheduleFunctions.diagnose
+  });
+
+  console.log("🚀 JobSchedule: Direct window assignment completed");
+  console.log("🚀 JobSchedule: window.JobSchedule available:", typeof window.JobSchedule);
+  console.log("🚀 JobSchedule: window.testJobSync available:", typeof window.testJobSync);
   
 } catch (error) {
-  console.error("🚀 JobSchedule: Error during script injection:", error);
+  console.error("🚀 JobSchedule: Error during direct window assignment:", error);
 }
 
-// Method 2: Try using chrome.scripting.executeScript
+// Method 2: Use postMessage to communicate with main page
 try {
-  console.log("🚀 JobSchedule: Trying chrome.scripting.executeScript...");
+  console.log("🚀 JobSchedule: Setting up postMessage communication...");
   
-  // Send message to background script to execute script
-  chrome.runtime.sendMessage({
-    action: 'executeScript',
-    code: `
-      console.log("🎯 JobSchedule: executeScript starting...");
+  // Listen for messages from the main page
+  window.addEventListener('message', function(event) {
+    // Only accept messages from the same origin
+    if (event.source !== window) return;
+    
+    if (event.data && event.data.type === 'JobSchedule') {
+      console.log("🚀 JobSchedule: Received message from main page:", event.data);
       
-      window.JobScheduleExecute = {
-        test: function() {
-          console.log("🎯 JobSchedule: ExecuteScript test function called!");
-          return "JobSchedule executeScript working!";
-        }
-      };
-      
-      console.log("🎯 JobSchedule: ExecuteScript object created:", window.JobScheduleExecute);
-    `
-  }, (response) => {
-    console.log("🚀 JobSchedule: executeScript response:", response);
+      // Handle different message types
+      if (event.data.action === 'test') {
+        const result = jobScheduleFunctions.test();
+        window.postMessage({
+          type: 'JobSchedule',
+          action: 'testResponse',
+          result: result
+        }, '*');
+      }
+    }
   });
+
+  // Send a message to the main page to announce our presence
+  window.postMessage({
+    type: 'JobSchedule',
+    action: 'extensionLoaded',
+    functions: Object.keys(jobScheduleFunctions)
+  }, '*');
+  
+  console.log("🚀 JobSchedule: postMessage setup completed");
   
 } catch (error) {
-  console.error("🚀 JobSchedule: Error with executeScript:", error);
+  console.error("🚀 JobSchedule: Error setting up postMessage:", error);
+}
+
+// Method 3: Create a global function that can be called from main page
+try {
+  console.log("🚀 JobSchedule: Creating global function...");
+  
+  // Create a global function that can be called from the main page
+  window.jobScheduleTest = function() {
+    console.log("🎯 JobSchedule: Global function called!");
+    return "JobSchedule global function working!";
+  };
+  
+  window.jobScheduleDiagnose = function() {
+    console.log("🎯 JobSchedule: Global diagnose function called!");
+    return {
+      chromeAvailable: typeof chrome !== 'undefined',
+      chromeRuntimeAvailable: typeof chrome !== 'undefined' && typeof chrome.runtime !== 'undefined',
+      url: window.location.href,
+      timestamp: new Date().toISOString()
+    };
+  };
+  
+  console.log("🚀 JobSchedule: Global functions created");
+  console.log("🚀 JobSchedule: window.jobScheduleTest available:", typeof window.jobScheduleTest);
+  
+} catch (error) {
+  console.error("🚀 JobSchedule: Error creating global functions:", error);
 }
 
 console.log("🚀 JobSchedule: Content script loaded successfully!");
-console.log("🚀 JobSchedule: Functions should now be available in main page context"); 
+console.log("🚀 JobSchedule: All methods attempted - check console for results"); 
