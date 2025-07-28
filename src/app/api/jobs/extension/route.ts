@@ -1,4 +1,3 @@
-import { NextRequest, NextResponse } from "next/server";
 import { verifyJwtToken } from "@/lib/auth/jwt";
 import prisma from "@/lib/db";
 import { revalidatePath } from 'next/cache';

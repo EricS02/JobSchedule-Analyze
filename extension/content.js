@@ -1,30 +1,32 @@
 // JobSchedule Content Script - Simplified and Robust Version
 console.log("JobSchedule: Content script starting...");
 
-// Check if we're in the right context
-if (typeof chrome === 'undefined' || typeof chrome.runtime === 'undefined') {
-  console.error("JobSchedule: Not running in extension context - chrome.runtime is not available");
-  console.log("JobSchedule: This script should only run when injected by the Chrome extension");
-  return; // Exit early if not in extension context
-}
+// Wrap everything in an IIFE to allow early exit
+(function() {
+  // Check if we're in the right context
+  if (typeof chrome === 'undefined' || typeof chrome.runtime === 'undefined') {
+    console.error("JobSchedule: Not running in extension context - chrome.runtime is not available");
+    console.log("JobSchedule: This script should only run when injected by the Chrome extension");
+    return; // Exit early if not in extension context
+  }
 
-// Global tracking state
-let isTrackingJob = false;
-let trackingStartTime = null;
+  // Global tracking state
+  let isTrackingJob = false;
+  let trackingStartTime = null;
 
-// Add a global indicator that the extension is loaded
-window.jobSyncExtensionLoaded = true;
+  // Add a global indicator that the extension is loaded
+  window.jobSyncExtensionLoaded = true;
 
-// Immediately expose a basic test function
-window.testJobSyncBasic = function() {
-  console.log("JobSync: Basic test - content script is loaded");
-  return {
-    scriptLoaded: true,
-    chromeRuntimeAvailable: typeof chrome !== 'undefined' && typeof chrome.runtime !== 'undefined',
-    timestamp: new Date().toISOString(),
-    url: window.location.href
+  // Immediately expose a basic test function
+  window.testJobSyncBasic = function() {
+    console.log("JobSync: Basic test - content script is loaded");
+    return {
+      scriptLoaded: true,
+      chromeRuntimeAvailable: typeof chrome !== 'undefined' && typeof chrome.runtime !== 'undefined',
+      timestamp: new Date().toISOString(),
+      url: window.location.href
+    };
   };
-};
 
 // Simple function to check if we're on a LinkedIn job page
 function isLinkedInJobPage() {
@@ -967,3 +969,4 @@ setInterval(() => {
     retryInitialization();
   }
 }, 30000); // Check every 30 seconds 
+})(); // Close the IIFE 
