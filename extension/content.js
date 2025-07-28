@@ -5,94 +5,18 @@ console.log("JobSchedule: Content script starting...");
 let isTrackingJob = false;
 let trackingStartTime = null;
 
-// Immediately expose debug functions globally
-(function() {
-  // Expose debug functions globally immediately
-  window.resetJobSyncTracking = function() {
-    console.log("JobSync: Manual reset called from window");
-    stopTracking();
-    console.log("JobSync: Tracking state reset to:", isTrackingJob);
-  };
+// Add a global indicator that the extension is loaded
+window.jobSyncExtensionLoaded = true;
 
-  window.debugJobSyncState = function() {
-    console.log("JobSync: Debug state:", {
-      isTrackingJob: isTrackingJob,
-      trackingStartTime: trackingStartTime,
-      elapsedTime: trackingStartTime ? Date.now() - trackingStartTime : null,
-      currentUrl: window.location.href,
-      isLinkedInJobPage: isLinkedInJobPage(),
-      extensionLoaded: true
-    });
+// Immediately expose a basic test function
+window.testJobSyncBasic = function() {
+  console.log("JobSync: Basic test - content script is loaded");
+  return {
+    scriptLoaded: true,
+    timestamp: new Date().toISOString(),
+    url: window.location.href
   };
-
-  window.testJobSyncExtension = function() {
-    console.log("JobSync: Testing extension functionality...");
-    console.log("JobSync: Extension loaded:", window.jobSyncExtensionLoaded);
-    console.log("JobSync: Tracking state:", isTrackingJob);
-    console.log("JobSync: Tracking start time:", trackingStartTime);
-    console.log("JobSync: Current URL:", window.location.href);
-    console.log("JobSync: Is LinkedIn job page:", isLinkedInJobPage());
-    
-    // Test if we can extract job details
-    const jobData = extractJobDetails();
-    console.log("JobSync: Can extract job details:", !!jobData);
-    if (jobData) {
-      console.log("JobSync: Job title:", jobData.jobTitle);
-      console.log("JobSync: Company:", jobData.company);
-    }
-    
-    return {
-      extensionLoaded: window.jobSyncExtensionLoaded,
-      isTrackingJob: isTrackingJob,
-      trackingStartTime: trackingStartTime,
-      isLinkedInJobPage: isLinkedInJobPage(),
-      canExtractJobDetails: !!jobData,
-      jobData: jobData
-    };
-  };
-
-  window.forceResetJobSync = function() {
-    console.log("JobSync: Force reset called");
-    stopTracking();
-    console.log("JobSync: Force reset complete - tracking state:", isTrackingJob);
-    return { success: true, trackingState: isTrackingJob };
-  };
-
-  // Add a manual authentication function for debugging
-  window.authenticateJobSyncExtension = async function() {
-    console.log("JobSync: Manual authentication requested...");
-    
-    if (window.location.hostname === 'jobschedule.io' || window.location.hostname === 'localhost') {
-      const success = await getExtensionToken();
-      if (success) {
-        console.log("JobSync: Manual authentication successful!");
-        return { success: true, message: "Extension authenticated successfully" };
-      } else {
-        console.log("JobSync: Manual authentication failed - not logged in to website");
-        return { success: false, message: "Please log in to JobSync website first" };
-      }
-    } else {
-      console.log("JobSync: Manual authentication failed - not on JobSync website");
-      return { success: false, message: "Please go to jobschedule.io to authenticate" };
-    }
-  };
-
-  // Add a function to check authentication status
-  window.checkJobSyncAuth = function() {
-    chrome.storage.local.get(['token', 'user'], function(result) {
-      console.log("JobSync: Authentication status:", {
-        hasToken: !!result.token,
-        user: result.user,
-        tokenPreview: result.token ? result.token.substring(0, 20) + '...' : null
-      });
-    });
-  };
-
-  // Add a global indicator that the extension is loaded
-  window.jobSyncExtensionLoaded = true;
-  
-  console.log("JobSync: Debug functions exposed to window object");
-})();
+};
 
 // Simple function to check if we're on a LinkedIn job page
 function isLinkedInJobPage() {
@@ -650,7 +574,120 @@ function resetTrackingState() {
   isTrackingJob = false;
 }
 
-console.log("JobSchedule: Content script loaded successfully!"); 
+console.log("JobSync: Content script loaded successfully!"); 
+
+// Expose debug functions globally after all dependencies are defined
+window.resetJobSyncTracking = function() {
+  console.log("JobSync: Manual reset called from window");
+  stopTracking();
+  console.log("JobSync: Tracking state reset to:", isTrackingJob);
+};
+
+window.debugJobSyncState = function() {
+  console.log("JobSync: Debug state:", {
+    isTrackingJob: isTrackingJob,
+    trackingStartTime: trackingStartTime,
+    elapsedTime: trackingStartTime ? Date.now() - trackingStartTime : null,
+    currentUrl: window.location.href,
+    isLinkedInJobPage: isLinkedInJobPage(),
+    extensionLoaded: true
+  });
+};
+
+window.testJobSyncExtension = function() {
+  console.log("JobSync: Testing extension functionality...");
+  console.log("JobSync: Extension loaded:", window.jobSyncExtensionLoaded);
+  console.log("JobSync: Tracking state:", isTrackingJob);
+  console.log("JobSync: Tracking start time:", trackingStartTime);
+  console.log("JobSync: Current URL:", window.location.href);
+  console.log("JobSync: Is LinkedIn job page:", isLinkedInJobPage());
+  
+  // Test if we can extract job details
+  const jobData = extractJobDetails();
+  console.log("JobSync: Can extract job details:", !!jobData);
+  if (jobData) {
+    console.log("JobSync: Job title:", jobData.jobTitle);
+    console.log("JobSync: Company:", jobData.company);
+  }
+  
+  return {
+    extensionLoaded: window.jobSyncExtensionLoaded,
+    isTrackingJob: isTrackingJob,
+    trackingStartTime: trackingStartTime,
+    isLinkedInJobPage: isLinkedInJobPage(),
+    canExtractJobDetails: !!jobData,
+    jobData: jobData
+  };
+};
+
+window.forceResetJobSync = function() {
+  console.log("JobSync: Force reset called");
+  stopTracking();
+  console.log("JobSync: Force reset complete - tracking state:", isTrackingJob);
+  return { success: true, trackingState: isTrackingJob };
+};
+
+window.authenticateJobSyncExtension = async function() {
+  console.log("JobSync: Manual authentication requested...");
+  
+  if (window.location.hostname === 'jobschedule.io' || window.location.hostname === 'localhost') {
+    const success = await getExtensionToken();
+    if (success) {
+      console.log("JobSync: Manual authentication successful!");
+      return { success: true, message: "Extension authenticated successfully" };
+    } else {
+      console.log("JobSync: Manual authentication failed - not logged in to website");
+      return { success: false, message: "Please log in to JobSync website first" };
+    }
+  } else {
+    console.log("JobSync: Manual authentication failed - not on JobSync website");
+    return { success: false, message: "Please go to jobschedule.io to authenticate" };
+  }
+};
+
+window.checkJobSyncAuth = function() {
+  chrome.storage.local.get(['token', 'user'], function(result) {
+    console.log("JobSync: Authentication status:", {
+      hasToken: !!result.token,
+      user: result.user,
+      tokenPreview: result.token ? result.token.substring(0, 20) + '...' : null
+    });
+  });
+};
+
+window.testJobSyncConnection = function() {
+  console.log("JobSync: Testing extension connection...");
+  
+  try {
+    // Test if chrome.runtime is available
+    const url = chrome.runtime.getURL('');
+    console.log("JobSync: Extension runtime available:", !!url);
+    
+    // Test if we can send a message
+    chrome.runtime.sendMessage({ action: 'ping' }, response => {
+      if (chrome.runtime.lastError) {
+        console.error("JobSync: Extension communication failed:", chrome.runtime.lastError);
+      } else {
+        console.log("JobSync: Extension communication successful:", response);
+      }
+    });
+    
+    return {
+      runtimeAvailable: !!url,
+      functionsAvailable: {
+        resetJobSyncTracking: typeof window.resetJobSyncTracking,
+        debugJobSyncState: typeof window.debugJobSyncState,
+        testJobSyncExtension: typeof window.testJobSyncExtension,
+        checkJobSyncAuth: typeof window.checkJobSyncAuth
+      }
+    };
+  } catch (e) {
+    console.error("JobSync: Extension test failed:", e);
+    return { error: e.message };
+  }
+};
+
+console.log("JobSync: Debug functions exposed to window object");
 
 // Periodic check to ensure tracking flag doesn't get stuck
 setInterval(() => {
@@ -884,36 +921,3 @@ setInterval(() => {
     retryInitialization();
   }
 }, 30000); // Check every 30 seconds 
-
-  // Add a simple test function
-  window.testJobSyncConnection = function() {
-    console.log("JobSync: Testing extension connection...");
-    
-    try {
-      // Test if chrome.runtime is available
-      const url = chrome.runtime.getURL('');
-      console.log("JobSync: Extension runtime available:", !!url);
-      
-      // Test if we can send a message
-      chrome.runtime.sendMessage({ action: 'ping' }, response => {
-        if (chrome.runtime.lastError) {
-          console.error("JobSync: Extension communication failed:", chrome.runtime.lastError);
-        } else {
-          console.log("JobSync: Extension communication successful:", response);
-        }
-      });
-      
-      return {
-        runtimeAvailable: !!url,
-        functionsAvailable: {
-          resetJobSyncTracking: typeof window.resetJobSyncTracking,
-          debugJobSyncState: typeof window.debugJobSyncState,
-          testJobSyncExtension: typeof window.testJobSyncExtension,
-          checkJobSyncAuth: typeof window.checkJobSyncAuth
-        }
-      };
-    } catch (e) {
-      console.error("JobSync: Extension test failed:", e);
-      return { error: e.message };
-    }
-  }; 
