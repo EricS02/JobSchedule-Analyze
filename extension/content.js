@@ -1,5 +1,10 @@
 // JobSchedule Content Script - Ultra Simple Version
-console.log("JobSchedule: Content script starting...");
+console.log("🚀 JobSchedule: Content script starting...");
+console.log("🚀 JobSchedule: Script loaded at:", new Date().toISOString());
+console.log("🚀 JobSchedule: Current URL:", window.location.href);
+
+// Add a very obvious alert to confirm script is loading
+alert("JobSchedule extension is loading!");
 
 // Immediately create a simple global object
 window.JobSchedule = {
@@ -35,6 +40,11 @@ window.diagnoseJobSync = function() {
   };
 };
 
-console.log("JobSchedule: Functions exposed to window object");
-console.log("JobSchedule: window.JobSchedule available:", typeof window.JobSchedule);
-console.log("JobSchedule: window.testJobSync available:", typeof window.testJobSync); 
+console.log("🚀 JobSchedule: Functions exposed to window object");
+console.log("🚀 JobSchedule: window.JobSchedule available:", typeof window.JobSchedule);
+console.log("🚀 JobSchedule: window.testJobSync available:", typeof window.testJobSync);
+
+// Test that the object was created
+console.log("🚀 JobSchedule: Testing object creation...");
+console.log("🚀 JobSchedule: window.JobSchedule =", window.JobSchedule);
+console.log("🚀 JobSchedule: window.JobSchedule.test =", typeof window.JobSchedule?.test); 
