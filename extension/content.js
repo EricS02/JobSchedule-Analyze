@@ -429,13 +429,13 @@ function addTrackButton(retryCount = 0) {
         return;
       }
       
-      isTrackingJob = true;
+      startTracking(); // Use the new startTracking function
       const jobData = extractJobDetails();
       if (jobData) {
         sendJobData(jobData);
       } else {
         showNotification('Error: Could not extract job details', true);
-        isTrackingJob = false;
+        stopTracking(); // Use the new stopTracking function
       }
     });
 
@@ -476,13 +476,13 @@ function setupApplyButtonListener() {
             return;
           }
           
+          startTracking(); // Use the new startTracking function
           setTimeout(() => {
-            isTrackingJob = true;
             const jobData = extractJobDetails();
             if (jobData) {
               sendJobData(jobData);
             } else {
-              isTrackingJob = false;
+              stopTracking(); // Use the new stopTracking function
             }
           }, 500);
         });
@@ -498,27 +498,27 @@ function initialize() {
   // Expose debug functions immediately
   window.resetJobSyncTracking = function() {
     console.log("JobSync: Manual reset called from window");
-    isTrackingJob = false;
+    stopTracking();
     console.log("JobSync: Tracking state reset to:", isTrackingJob);
   };
   
   window.debugJobSyncState = function() {
     console.log("JobSync: Debug state:", {
       isTrackingJob: isTrackingJob,
+      trackingStartTime: trackingStartTime,
+      elapsedTime: trackingStartTime ? Date.now() - trackingStartTime : null,
       currentUrl: window.location.href,
       isLinkedInJobPage: isLinkedInJobPage(),
       extensionLoaded: true
     });
   };
   
-  // Add a global indicator that the extension is loaded
-  window.jobSyncExtensionLoaded = true;
-  
   // Add a test function
   window.testJobSyncExtension = function() {
     console.log("JobSync: Testing extension functionality...");
     console.log("JobSync: Extension loaded:", window.jobSyncExtensionLoaded);
     console.log("JobSync: Tracking state:", isTrackingJob);
+    console.log("JobSync: Tracking start time:", trackingStartTime);
     console.log("JobSync: Current URL:", window.location.href);
     console.log("JobSync: Is LinkedIn job page:", isLinkedInJobPage());
     
@@ -533,11 +533,23 @@ function initialize() {
     return {
       extensionLoaded: window.jobSyncExtensionLoaded,
       isTrackingJob: isTrackingJob,
+      trackingStartTime: trackingStartTime,
       isLinkedInJobPage: isLinkedInJobPage(),
       canExtractJobDetails: !!jobData,
       jobData: jobData
     };
   };
+  
+  // Add a force reset function for emergencies
+  window.forceResetJobSync = function() {
+    console.log("JobSync: Force reset called");
+    stopTracking();
+    console.log("JobSync: Force reset complete - tracking state:", isTrackingJob);
+    return { success: true, trackingState: isTrackingJob };
+  };
+  
+  // Add a global indicator that the extension is loaded
+  window.jobSyncExtensionLoaded = true;
   
   if (isLinkedInJobPage()) {
     console.log("JobSync: LinkedIn job page detected, setting up...");
@@ -584,7 +596,7 @@ observer.observe(document, { subtree: true, childList: true });
 // Clean up listeners/UI (to be called before re-initializing)
 function cleanupJobSync() {
   // Reset tracking flag
-  isTrackingJob = false;
+  stopTracking();
   
   // Remove track button if present
   const existingButton = document.getElementById('track-job-button');
@@ -612,6 +624,32 @@ setInterval(() => {
   }
 }, 30000); // Check every 30 seconds
 
+// Add a more aggressive reset mechanism
+let trackingStartTime = null;
+
+function startTracking() {
+  isTrackingJob = true;
+  trackingStartTime = Date.now();
+  console.log("JobSync: Started tracking job at:", trackingStartTime);
+}
+
+function stopTracking() {
+  isTrackingJob = false;
+  trackingStartTime = null;
+  console.log("JobSync: Stopped tracking job");
+}
+
+// Check every 5 seconds if tracking has been active for too long
+setInterval(() => {
+  if (isTrackingJob && trackingStartTime) {
+    const elapsed = Date.now() - trackingStartTime;
+    if (elapsed > 15000) { // 15 seconds
+      console.warn("JobSync: Tracking has been active for", elapsed, "ms, forcing reset");
+      stopTracking();
+    }
+  }
+}, 5000);
+
 // Robust message passing with error handling
 function sendJobData(jobData) {
       console.log("JobSchedule: Sending job data to background script...");
@@ -619,7 +657,7 @@ function sendJobData(jobData) {
     // Set a timeout to reset the tracking flag if no response
     const timeoutId = setTimeout(() => {
       console.warn("JobSync: Timeout waiting for background script response, resetting tracking flag");
-      isTrackingJob = false;
+      stopTracking();
     }, 10000); // 10 second timeout
     
     chrome.runtime.sendMessage({
@@ -630,7 +668,7 @@ function sendJobData(jobData) {
       clearTimeout(timeoutId);
       
       // Reset tracking flag
-      isTrackingJob = false;
+      stopTracking();
       
       if (chrome.runtime.lastError) {
         if (
@@ -657,7 +695,7 @@ function sendJobData(jobData) {
     });
   } catch (e) {
     // Reset tracking flag on error
-    isTrackingJob = false;
+    stopTracking();
     
     if (e.message && e.message.includes("Extension context invalidated")) {
       // Silently ignore or show a user-friendly message
@@ -698,13 +736,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
     }
     
-    isTrackingJob = true;
+    startTracking(); // Use the new startTracking function
     const jobData = extractJobDetails();
     if (jobData) {
       sendJobData(jobData);
       sendResponse({ success: true });
     } else {
-      isTrackingJob = false;
+      stopTracking(); // Use the new stopTracking function
       sendResponse({ success: false, error: 'Could not extract job details' });
     }
     return true;

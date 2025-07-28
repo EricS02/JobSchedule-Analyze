@@ -224,9 +224,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                               errorObj.message.includes('Not authenticated') ||
                               errorObj.message.includes('Too many requests') ||
                               errorObj.message.includes('daily limit') ||
-                              errorObj.message.includes('subscription')
+                              errorObj.message.includes('subscription') ||
+                              errorObj.message.includes('You\'ve already tracked this job')
                               ? errorObj.message 
                               : userMessage;
+        
+        console.error("JobSchedule: Sending response to content script:", {
+          success: false,
+          message: responseMessage,
+          originalError: errorObj.message
+        });
         
         sendResponse({ success: false, message: responseMessage });
       }
