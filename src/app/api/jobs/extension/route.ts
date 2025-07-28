@@ -126,36 +126,36 @@ export async function POST(req: NextRequest) {
           },
           include: {
             jobTitle: true,
-            company: true
+            jobsAppliedCompany: true
           }
         });
       }
     }
     
-    if (existingJob) {
-      console.log("API: Duplicate job detected:", {
-        existingJobId: existingJob.id,
-        existingJobTitle: existingJob.jobTitle?.label,
-        existingCompany: existingJob.company?.label,
-        existingLocation: existingJob.location,
-        existingCreatedAt: existingJob.createdAt
-      });
-      
-      return corsHeaders(NextResponse.json(
-        { 
-          success: false, 
-          message: `You've already tracked this job: ${existingJob.jobTitle?.label} at ${existingJob.company?.label} (${existingJob.location})`, 
-          job: existingJob,
-          duplicateDetails: {
-            jobTitle: existingJob.jobTitle?.label,
-            company: existingJob.company?.label,
-            location: existingJob.location,
-            trackedAt: existingJob.createdAt
-          }
-        },
-        { status: 409 }
-      ));
-    }
+         if (existingJob) {
+       console.log("API: Duplicate job detected:", {
+         existingJobId: existingJob.id,
+         existingJobTitle: existingJob.jobTitle?.label,
+         existingCompany: existingJob.jobsAppliedCompany?.label,
+         existingLocation: existingJob.location,
+         existingCreatedAt: existingJob.createdAt
+       });
+       
+       return corsHeaders(NextResponse.json(
+         { 
+           success: false, 
+           message: `You've already tracked this job: ${existingJob.jobTitle?.label} at ${existingJob.jobsAppliedCompany?.label} (${existingJob.location})`, 
+           job: existingJob,
+           duplicateDetails: {
+             jobTitle: existingJob.jobTitle?.label,
+             company: existingJob.jobsAppliedCompany?.label,
+             location: existingJob.location,
+             trackedAt: existingJob.createdAt
+           }
+         },
+         { status: 409 }
+       ));
+     }
 
     // Check job tracking eligibility (daily limits for free users)
     const { checkJobTrackingEligibility } = await import("@/actions/stripe.actions");
