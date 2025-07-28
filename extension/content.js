@@ -3,6 +3,43 @@ console.log("JobSchedule: Content script starting...");
 console.log("JobSchedule: Script loaded at:", new Date().toISOString());
 console.log("JobSchedule: Current URL:", window.location.href);
 
+// Create a global JobSchedule object to ensure functions persist
+window.JobSchedule = {
+  test: function() {
+    console.log("JobSchedule: Test function called");
+    return {
+      scriptLoaded: true,
+      chromeAvailable: typeof chrome !== 'undefined',
+      chromeRuntimeAvailable: typeof chrome !== 'undefined' && typeof chrome.runtime !== 'undefined',
+      timestamp: new Date().toISOString(),
+      url: window.location.href
+    };
+  },
+  
+  diagnose: function() {
+    console.log("JobSchedule: Running diagnostics...");
+    return {
+      extensionLoaded: true,
+      chromeAvailable: typeof chrome !== 'undefined',
+      chromeRuntimeAvailable: typeof chrome !== 'undefined' && typeof chrome.runtime !== 'undefined',
+      currentUrl: window.location.href,
+      functionsAvailable: {
+        test: typeof window.JobSchedule?.test,
+        diagnose: typeof window.JobSchedule?.diagnose
+      }
+    };
+  },
+  
+  reset: function() {
+    console.log("JobSchedule: Reset called");
+    isTrackingJob = false;
+    trackingStartTime = null;
+    return { success: true, message: "Tracking reset" };
+  }
+};
+
+console.log("JobSchedule: Global JobSchedule object created");
+
 // Test function - very simple
 window.testJobSyncSimple = function() {
   return "JobSchedule extension is working!";
@@ -313,4 +350,42 @@ try {
   console.log("JobSchedule: Basic function test result:", result);
 } catch (e) {
   console.error("JobSchedule: Error testing basic function:", e);
-} 
+}
+
+// Ensure functions are available in global scope after a short delay
+setTimeout(() => {
+  console.log("JobSchedule: Ensuring functions are globally available...");
+  
+  // Re-expose functions to ensure they're available
+  if (typeof window.testJobSyncBasic !== 'function') {
+    window.testJobSyncBasic = function() {
+      console.log("JobSchedule: Basic test - content script is loaded");
+      return {
+        scriptLoaded: true,
+        chromeAvailable: typeof chrome !== 'undefined',
+        chromeRuntimeAvailable: typeof chrome !== 'undefined' && typeof chrome.runtime !== 'undefined',
+        timestamp: new Date().toISOString(),
+        url: window.location.href
+      };
+    };
+    console.log("JobSchedule: Re-exposed testJobSyncBasic");
+  }
+  
+  if (typeof window.diagnoseJobSync !== 'function') {
+    window.diagnoseJobSync = function() {
+      console.log("JobSchedule: Running comprehensive diagnostics...");
+      return {
+        extensionLoaded: window.jobSyncExtensionLoaded || false,
+        chromeAvailable: typeof chrome !== 'undefined',
+        chromeRuntimeAvailable: typeof chrome !== 'undefined' && typeof chrome.runtime !== 'undefined',
+        currentUrl: window.location.href
+      };
+    };
+    console.log("JobSchedule: Re-exposed diagnoseJobSync");
+  }
+  
+  console.log("JobSchedule: Final function availability check:");
+  console.log("JobSchedule: testJobSyncBasic:", typeof window.testJobSyncBasic);
+  console.log("JobSchedule: diagnoseJobSync:", typeof window.diagnoseJobSync);
+  console.log("JobSchedule: testJobSyncSimple:", typeof window.testJobSyncSimple);
+}, 1000); 
