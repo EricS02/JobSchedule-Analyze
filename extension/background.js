@@ -41,9 +41,27 @@ function logSecurityEvent(event, data = {}) {
 
 // Error logging with context
 function logError(error, context, additionalData = {}) {
+  // Handle different types of error objects
+  let errorMessage = 'Unknown error';
+  let errorStack = 'No stack trace';
+  
+  if (error) {
+    if (typeof error === 'string') {
+      errorMessage = error;
+    } else if (error instanceof Error) {
+      errorMessage = error.message || 'Error without message';
+      errorStack = error.stack || 'No stack trace';
+    } else if (typeof error === 'object') {
+      errorMessage = error.message || error.toString() || 'Object error';
+      errorStack = error.stack || 'No stack trace';
+    } else {
+      errorMessage = String(error);
+    }
+  }
+  
   console.error(`JobSchedule: Error in ${context}`, {
-    error: error?.message || String(error),
-    stack: error?.stack || 'No stack trace',
+    error: errorMessage,
+    stack: errorStack,
     timestamp: new Date().toISOString(),
     extensionVersion: chrome.runtime.getManifest().version,
     ...additionalData
@@ -167,10 +185,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: true, message: "Job tracked successfully" });
       } catch (error) {
         // ✅ ENHANCED: Production-ready error reporting for job tracking
-        console.error("JobSchedule: Raw error caught in message handler:", error);
+        console.error("JobSchedule: Raw error caught in message handler:", {
+          error: error,
+          errorType: typeof error,
+          errorConstructor: error?.constructor?.name,
+          errorKeys: error ? Object.keys(error) : 'no keys',
+          errorString: String(error),
+          errorMessage: error?.message,
+          errorStack: error?.stack
+        });
         
         // Ensure we have a proper error object
         const errorObj = error instanceof Error ? error : new Error(String(error));
+        
+        console.error("JobSchedule: Processed error object:", {
+          errorObj: errorObj,
+          errorObjType: typeof errorObj,
+          errorObjMessage: errorObj.message,
+          errorObjStack: errorObj.stack
+        });
         
         logError(errorObj, 'job tracking in message handler', {
           sender: sender?.tab?.url || 'unknown',
@@ -194,10 +227,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       })
       .catch(error => {
         // ✅ ENHANCED: Production-ready error reporting for auth check
-        console.error("JobSchedule: Raw error in auth check:", error);
+        console.error("JobSchedule: Raw error in auth check:", {
+          error: error,
+          errorType: typeof error,
+          errorConstructor: error?.constructor?.name,
+          errorKeys: error ? Object.keys(error) : 'no keys',
+          errorString: String(error),
+          errorMessage: error?.message,
+          errorStack: error?.stack
+        });
         
         // Ensure we have a proper error object
         const errorObj = error instanceof Error ? error : new Error(String(error));
+        
+        console.error("JobSchedule: Processed auth error object:", {
+          errorObj: errorObj,
+          errorObjType: typeof errorObj,
+          errorObjMessage: errorObj.message,
+          errorObjStack: errorObj.stack
+        });
         
         logError(errorObj, 'auth check in message handler', {
           sender: sender?.tab?.url || 'unknown'
