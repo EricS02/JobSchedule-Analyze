@@ -89,24 +89,45 @@ export async function POST(req: NextRequest) {
     // Check for duplicate job applications with improved logic
     let existingJob = null;
     
-         // First check by jobUrl if provided
-     if (jobData.jobUrl) {
-       existingJob = await prisma.job.findFirst({
-         where: {
-           userId: user.id,
-           jobUrl: jobData.jobUrl
-         },
-         include: {
-           jobTitle: true,
-           jobsAppliedCompany: true
-         }
-       });
-     }
+    console.log("API: Checking for duplicates with data:", {
+      jobTitle: jobData.jobTitle,
+      company: jobData.company,
+      location: jobData.location,
+      hasJobUrl: !!jobData.jobUrl,
+      jobUrlLength: jobData.jobUrl?.length || 0
+    });
     
-    // If no match by URL, check by job title + company + location (within last 30 days)
+    // First check by jobUrl if provided (most reliable)
+    if (jobData.jobUrl) {
+      existingJob = await prisma.job.findFirst({
+        where: {
+          userId: user.id,
+          jobUrl: jobData.jobUrl
+        },
+        include: {
+          jobTitle: true,
+          jobsAppliedCompany: true
+        }
+      });
+      
+      if (existingJob) {
+        console.log("API: Duplicate job detected by URL:", {
+          existingJobId: existingJob.id,
+          jobUrl: jobData.jobUrl,
+          existingJobTitle: existingJob.jobTitle?.label,
+          existingCompany: existingJob.jobsAppliedCompany?.label
+        });
+      } else {
+        console.log("API: No duplicate found by URL");
+      }
+    }
+    
+    // If no match by URL, check by job title + company + location (within last 7 days instead of 30)
     if (!existingJob) {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      
+      console.log("API: Checking for duplicates by title+company+location within last 7 days");
       
       // First find the job title and company
       const jobTitle = await prisma.jobTitle.findFirst({
@@ -117,6 +138,13 @@ export async function POST(req: NextRequest) {
         where: { label: jobData.company }
       });
       
+      console.log("API: Found job title and company:", {
+        jobTitleFound: !!jobTitle,
+        companyFound: !!company,
+        jobTitleLabel: jobTitle?.label,
+        companyLabel: company?.label
+      });
+      
       if (jobTitle && company) {
         existingJob = await prisma.job.findFirst({
           where: {
@@ -125,7 +153,7 @@ export async function POST(req: NextRequest) {
             companyId: company.id,
             location: jobData.location,
             createdAt: {
-              gte: thirtyDaysAgo
+              gte: sevenDaysAgo
             }
           },
           include: {
@@ -133,33 +161,52 @@ export async function POST(req: NextRequest) {
             jobsAppliedCompany: true
           }
         });
+        
+        if (existingJob) {
+          console.log("API: Duplicate job detected by title+company+location:", {
+            existingJobId: existingJob.id,
+            existingJobTitle: existingJob.jobTitle?.label,
+            existingCompany: existingJob.jobsAppliedCompany?.label,
+            existingLocation: existingJob.location,
+            existingCreatedAt: existingJob.createdAt,
+            newJobTitle: jobData.jobTitle,
+            newCompany: jobData.company,
+            newLocation: jobData.location
+          });
+        } else {
+          console.log("API: No duplicate found by title+company+location");
+        }
+      } else {
+        console.log("API: Could not find job title or company, skipping duplicate check");
       }
     }
     
-         if (existingJob) {
-       console.log("API: Duplicate job detected:", {
-         existingJobId: existingJob.id,
-         existingJobTitle: existingJob.jobTitle?.label,
-         existingCompany: existingJob.jobsAppliedCompany?.label,
-         existingLocation: existingJob.location,
-         existingCreatedAt: existingJob.createdAt
-       });
-       
-       return corsHeaders(NextResponse.json(
-         { 
-           success: false, 
-           message: `You've already tracked this job: ${existingJob.jobTitle?.label} at ${existingJob.jobsAppliedCompany?.label} (${existingJob.location})`, 
-           job: existingJob,
-           duplicateDetails: {
-             jobTitle: existingJob.jobTitle?.label,
-             company: existingJob.jobsAppliedCompany?.label,
-             location: existingJob.location,
-             trackedAt: existingJob.createdAt
-           }
-         },
-         { status: 409 }
-       ));
-     }
+    if (existingJob) {
+      console.log("API: Duplicate job detected:", {
+        existingJobId: existingJob.id,
+        existingJobTitle: existingJob.jobTitle?.label,
+        existingCompany: existingJob.jobsAppliedCompany?.label,
+        existingLocation: existingJob.location,
+        existingCreatedAt: existingJob.createdAt
+      });
+      
+      return corsHeaders(NextResponse.json(
+        { 
+          success: false, 
+          message: `You've already tracked this job: ${existingJob.jobTitle?.label} at ${existingJob.jobsAppliedCompany?.label} (${existingJob.location})`, 
+          job: existingJob,
+          duplicateDetails: {
+            jobTitle: existingJob.jobTitle?.label,
+            company: existingJob.jobsAppliedCompany?.label,
+            location: existingJob.location,
+            trackedAt: existingJob.createdAt
+          }
+        },
+        { status: 409 }
+      ));
+    }
+    
+    console.log("API: No duplicates found, proceeding with job creation");
 
     // Check job tracking eligibility (daily limits for free users)
     const { checkJobTrackingEligibility } = await import("@/actions/stripe.actions");

@@ -539,6 +539,9 @@ observer.observe(document, { subtree: true, childList: true });
 
 // Clean up listeners/UI (to be called before re-initializing)
 function cleanupJobSync() {
+  // Reset tracking flag
+  isTrackingJob = false;
+  
   // Remove track button if present
   const existingButton = document.getElementById('track-job-button');
   if (existingButton) existingButton.remove();
@@ -548,14 +551,50 @@ function cleanupJobSync() {
   // (If you use delegated events, this may not be needed)
 }
 
+// Function to manually reset tracking state
+function resetTrackingState() {
+  console.log("JobSync: Resetting tracking state");
+  isTrackingJob = false;
+}
+
+// Expose reset function globally for debugging
+window.resetJobSyncTracking = resetTrackingState;
+
+// Debug function to check tracking state
+window.debugJobSyncState = function() {
+  console.log("JobSync: Debug state:", {
+    isTrackingJob: isTrackingJob,
+    currentUrl: window.location.href,
+    isLinkedInJobPage: isLinkedInJobPage()
+  });
+};
+
+// Periodic check to ensure tracking flag doesn't get stuck
+setInterval(() => {
+  if (isTrackingJob) {
+    console.log("JobSync: Tracking flag is still set, checking if it should be reset...");
+    // If tracking has been active for more than 30 seconds, reset it
+    // This is a safety mechanism
+  }
+}, 30000); // Check every 30 seconds
+
 // Robust message passing with error handling
 function sendJobData(jobData) {
       console.log("JobSchedule: Sending job data to background script...");
   try {
+    // Set a timeout to reset the tracking flag if no response
+    const timeoutId = setTimeout(() => {
+      console.warn("JobSync: Timeout waiting for background script response, resetting tracking flag");
+      isTrackingJob = false;
+    }, 10000); // 10 second timeout
+    
     chrome.runtime.sendMessage({
       action: 'trackJobApplication',
       jobData: jobData
     }, response => {
+      // Clear the timeout since we got a response
+      clearTimeout(timeoutId);
+      
       // Reset tracking flag
       isTrackingJob = false;
       
@@ -576,7 +615,10 @@ function sendJobData(jobData) {
       if (response && response.success) {
         showNotification('Job tracked successfully!');
       } else {
-        showNotification('Error: ' + (response?.message || 'Failed to track job'), true);
+        // Handle error response from background script
+        const errorMessage = response?.message || 'Failed to track job';
+        console.warn("JobSync: Background script returned error:", errorMessage);
+        showNotification('Error: ' + errorMessage, true);
       }
     });
   } catch (e) {
