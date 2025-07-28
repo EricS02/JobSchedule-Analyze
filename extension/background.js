@@ -42,8 +42,8 @@ function logSecurityEvent(event, data = {}) {
 // Error logging with context
 function logError(error, context, additionalData = {}) {
   console.error(`JobSchedule: Error in ${context}`, {
-    error: error.message,
-    stack: error.stack,
+    error: error?.message || String(error),
+    stack: error?.stack || 'No stack trace',
     timestamp: new Date().toISOString(),
     extensionVersion: chrome.runtime.getManifest().version,
     ...additionalData
@@ -167,13 +167,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: true, message: "Job tracked successfully" });
       } catch (error) {
         // ✅ ENHANCED: Production-ready error reporting for job tracking
-        logError(error, 'job tracking in message handler', {
+        console.error("JobSchedule: Raw error caught in message handler:", error);
+        
+        // Ensure we have a proper error object
+        const errorObj = error instanceof Error ? error : new Error(String(error));
+        
+        logError(errorObj, 'job tracking in message handler', {
           sender: sender?.tab?.url || 'unknown',
           jobData: message.jobData ? Object.keys(message.jobData) : null
         });
         
         // User-friendly error message
-        const userMessage = getUserFriendlyMessage(error);
+        const userMessage = getUserFriendlyMessage(errorObj);
         sendResponse({ success: false, message: userMessage });
       }
     })();
@@ -189,7 +194,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       })
       .catch(error => {
         // ✅ ENHANCED: Production-ready error reporting for auth check
-        logError(error, 'auth check in message handler', {
+        console.error("JobSchedule: Raw error in auth check:", error);
+        
+        // Ensure we have a proper error object
+        const errorObj = error instanceof Error ? error : new Error(String(error));
+        
+        logError(errorObj, 'auth check in message handler', {
           sender: sender?.tab?.url || 'unknown'
         });
         
@@ -209,6 +219,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 });
+
+// Lifecycle event logging
+function logLifecycleEvent(event) {
+  console.log(`JobSchedule: Lifecycle Event - ${event}`, {
+    timestamp: new Date().toISOString(),
+    extensionVersion: chrome.runtime.getManifest().version
+  });
+}
 
 // Listen for context invalidation
 chrome.runtime.onSuspend.addListener(() => {
@@ -392,9 +410,9 @@ async function trackJobApplication(jobData) {
       console.error("JobSchedule: Error response from server:", {
         status: response.status,
         statusText: response.statusText,
-        data: data,
+        data: data ? JSON.stringify(data) : 'No data',
         message: data?.message || 'Unknown error',
-        duplicateDetails: data?.duplicateDetails || null
+        duplicateDetails: data?.duplicateDetails ? JSON.stringify(data.duplicateDetails) : null
       });
       
       // Handle specific error cases
