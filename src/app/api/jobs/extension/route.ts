@@ -89,15 +89,19 @@ export async function POST(req: NextRequest) {
     // Check for duplicate job applications with improved logic
     let existingJob = null;
     
-    // First check by jobUrl if provided
-    if (jobData.jobUrl) {
-      existingJob = await prisma.job.findFirst({
-        where: {
-          userId: user.id,
-          jobUrl: jobData.jobUrl
-        }
-      });
-    }
+         // First check by jobUrl if provided
+     if (jobData.jobUrl) {
+       existingJob = await prisma.job.findFirst({
+         where: {
+           userId: user.id,
+           jobUrl: jobData.jobUrl
+         },
+         include: {
+           jobTitle: true,
+           jobsAppliedCompany: true
+         }
+       });
+     }
     
     // If no match by URL, check by job title + company + location (within last 30 days)
     if (!existingJob) {
