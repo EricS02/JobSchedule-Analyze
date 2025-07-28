@@ -557,17 +557,45 @@ function resetTrackingState() {
   isTrackingJob = false;
 }
 
-// Expose reset function globally for debugging
-window.resetJobSyncTracking = resetTrackingState;
+console.log("JobSchedule: Content script loaded successfully!"); 
 
-// Debug function to check tracking state
+// Expose debugging functions to window object
+// This ensures they're available for manual debugging
+window.resetJobSyncTracking = function() {
+  console.log("JobSync: Manual reset called from window");
+  isTrackingJob = false;
+  console.log("JobSync: Tracking state reset to:", isTrackingJob);
+};
+
 window.debugJobSyncState = function() {
   console.log("JobSync: Debug state:", {
     isTrackingJob: isTrackingJob,
     currentUrl: window.location.href,
-    isLinkedInJobPage: isLinkedInJobPage()
+    isLinkedInJobPage: isLinkedInJobPage(),
+    extensionLoaded: true
   });
 };
+
+// Also expose the original function for compatibility
+window.resetTrackingState = resetTrackingState;
+
+// Add a global indicator that the extension is loaded
+window.jobSyncExtensionLoaded = true;
+
+// Verify functions are exposed
+setTimeout(() => {
+  if (typeof window.resetJobSyncTracking === 'function') {
+    console.log("JobSync: Debug functions successfully exposed to window");
+  } else {
+    console.warn("JobSync: Failed to expose debug functions to window");
+    // Fallback: try to expose again
+    window.resetJobSyncTracking = function() {
+      console.log("JobSync: Manual reset called from window (fallback)");
+      isTrackingJob = false;
+      console.log("JobSync: Tracking state reset to:", isTrackingJob);
+    };
+  }
+}, 1000);
 
 // Periodic check to ensure tracking flag doesn't get stuck
 setInterval(() => {
@@ -680,6 +708,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ success: true });
     return true;
   }
-});
-
-console.log("JobSchedule: Content script loaded successfully!"); 
+}); 
