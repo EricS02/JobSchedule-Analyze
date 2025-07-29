@@ -42,13 +42,52 @@ function extractJobData() {
     // Extract additional data
     const jobUrl = window.location.href;
     
-    // Get full job description
+    // Get full job description with better structure
     const descriptionElement = document.querySelector('.jobs-description__content');
-    const description = descriptionElement?.textContent?.trim() || '';
+    let description = descriptionElement?.textContent?.trim() || '';
     
-    // Get detailed job sections
+    // Get detailed job sections with better formatting
     const jobDetails = document.querySelector('.jobs-description__content');
-    const detailedDescription = jobDetails?.textContent?.trim() || '';
+    let detailedDescription = jobDetails?.textContent?.trim() || '';
+    
+    // Try to get structured job description sections
+    const jobDescriptionSections = {
+      about: '',
+      responsibilities: '',
+      requirements: '',
+      benefits: '',
+      qualifications: ''
+    };
+    
+    // Look for structured sections
+    const sections = document.querySelectorAll('.jobs-description__content h3, .jobs-description__content h4, .jobs-description__content strong');
+    sections.forEach(section => {
+      const sectionText = section.textContent?.toLowerCase() || '';
+      const nextElement = section.nextElementSibling;
+      const content = nextElement?.textContent?.trim() || '';
+      
+      if (sectionText.includes('about') || sectionText.includes('description')) {
+        jobDescriptionSections.about = content;
+      } else if (sectionText.includes('responsibility') || sectionText.includes('duties')) {
+        jobDescriptionSections.responsibilities = content;
+      } else if (sectionText.includes('requirement') || sectionText.includes('skill')) {
+        jobDescriptionSections.requirements = content;
+      } else if (sectionText.includes('benefit') || sectionText.includes('perk')) {
+        jobDescriptionSections.benefits = content;
+      } else if (sectionText.includes('qualification') || sectionText.includes('education')) {
+        jobDescriptionSections.qualifications = content;
+      }
+    });
+    
+    // Create structured description
+    const structuredDescription = Object.entries(jobDescriptionSections)
+      .filter(([_, content]) => content.length > 0)
+      .map(([section, content]) => `**${section.charAt(0).toUpperCase() + section.slice(1)}:**\n${content}`)
+      .join('\n\n');
+    
+    if (structuredDescription) {
+      detailedDescription = structuredDescription;
+    }
     
     // Job requirements and responsibilities - use proper CSS selectors
     const requirementsElement = document.querySelector('[data-section="job-requirements"]');
@@ -81,7 +120,19 @@ function extractJobData() {
       'img[alt*="Logo"]',
       'img[alt*="company"]',
       'img[alt*="Company"]',
-      '.jobs-unified-top-card__company-logo-image img'
+      '.jobs-unified-top-card__company-logo-image img',
+      // Additional selectors for better coverage
+      '.jobs-unified-top-card__company-logo-image img[src*="logo"]',
+      '.jobs-unified-top-card__company-logo img[src*="logo"]',
+      'img[src*="logo"]',
+      'img[src*="Logo"]',
+      'img[src*="company"]',
+      'img[src*="Company"]',
+      // LinkedIn specific selectors
+      '[data-test-id="company-logo"] img',
+      '[data-test-id="company-logo"]',
+      '.jobs-unified-top-card__company-logo-image img[src]',
+      '.jobs-unified-top-card__company-logo img[src]'
     ];
     
     for (const selector of logoSelectors) {
@@ -178,7 +229,7 @@ function createTrackButton() {
       color: white;
       border: none;
       padding: 8px 16px;
-      border-radius: 4px;
+      border-radius: 20px;
       cursor: pointer;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       font-size: 14px;
@@ -214,7 +265,7 @@ function createFixedTrackButton() {
     color: white;
     border: none;
     padding: 10px 15px;
-    border-radius: 5px;
+    border-radius: 20px;
     cursor: pointer;
     font-family: Arial, sans-serif;
     font-size: 14px;

@@ -25,10 +25,54 @@ import { Select } from "../ui/select";
 function formatJobDescription(text: string) {
   // Simple heuristics to split into sections and bullet points
   if (!text) return null;
+  
   // If it looks like HTML, render as HTML
   if (/<[a-z][\s\S]*>/i.test(text)) {
     return <div dangerouslySetInnerHTML={{ __html: text }} />;
   }
+  
+  // Check if it's already structured (from our extension)
+  if (text.includes('**About:**') || text.includes('**Responsibilities:**') || text.includes('**Requirements:**')) {
+    const sections = text.split(/\*\*([^*]+)\*\*:/);
+    let content: React.ReactNode[] = [];
+    
+    for (let i = 1; i < sections.length; i += 2) {
+      const sectionTitle = sections[i];
+      const sectionContent = sections[i + 1]?.trim() || '';
+      
+      if (sectionContent) {
+        content.push(
+          <div key={sectionTitle} className="mb-6">
+            <h4 className="font-bold mb-3 text-lg text-blue-600">{sectionTitle}</h4>
+            <div className="pl-4 space-y-2">
+              {sectionContent.split('\n').map((line, idx) => {
+                const trimmed = line.trim();
+                if (!trimmed) return null;
+                
+                if (/^[-*•]/.test(trimmed)) {
+                  // Bullet point
+                  return (
+                    <li key={idx} className="list-disc ml-4 text-gray-700">
+                      {trimmed.replace(/^[-*•]\s*/, '')}
+                    </li>
+                  );
+                } else {
+                  return (
+                    <p key={idx} className="text-gray-700 leading-relaxed">
+                      {trimmed}
+                    </p>
+                  );
+                }
+              })}
+            </div>
+          </div>
+        );
+      }
+    }
+    
+    return <div className="prose prose-sm max-w-none bg-white p-6 rounded-lg border shadow-sm">{content}</div>;
+  }
+  
   // Otherwise, format as structured JSX
   // Define section titles to look for
   const sections = [
@@ -44,20 +88,27 @@ function formatJobDescription(text: string) {
     "Additional Information",
     "Job Details",
     "Compensation and Benefits",
+    "About",
+    "Responsibilities",
+    "Requirements",
+    "Benefits",
+    "Qualifications"
   ];
+  
   // Split text into lines
   const lines = text.split(/\n|(?=\b[A-Z][^\n:]{2,40}:)/g);
   let content: React.ReactNode[] = [];
   let currentSection: string | null = null;
   let sectionContent: React.ReactNode[] = [];
+  
   const pushSection = () => {
     if (currentSection) {
       content.push(
-        <div key={currentSection} className="mb-4">
-          <h4 className="font-bold mb-2 text-lg">{currentSection}</h4>
-          <div className="pl-2">
+        <div key={currentSection} className="mb-6">
+          <h4 className="font-bold mb-3 text-lg text-blue-600">{currentSection}</h4>
+          <div className="pl-4 space-y-2">
             {sectionContent.map((item, idx) => (
-              <p key={idx} className="mb-1">{item}</p>
+              <div key={idx} className="text-gray-700 leading-relaxed">{item}</div>
             ))}
           </div>
         </div>
@@ -65,26 +116,34 @@ function formatJobDescription(text: string) {
     }
     sectionContent = [];
   };
+  
   lines.forEach((line) => {
     const trimmed = line.trim();
     if (!trimmed) return;
+    
     // Check if this line is a section title
     const matchedSection = sections.find((s) =>
       trimmed.toLowerCase().startsWith(s.toLowerCase())
     );
+    
     if (matchedSection) {
       pushSection();
       currentSection = matchedSection;
       sectionContent = [trimmed.replace(new RegExp(`^${matchedSection}:?`,'i'), '').trim()];
     } else if (/^[-*•]/.test(trimmed)) {
       // Bullet point
-      sectionContent.push(<li key={sectionContent.length}>{trimmed.replace(/^[-*•]\s*/, '')}</li>);
+      sectionContent.push(
+        <li key={sectionContent.length} className="list-disc ml-4 text-gray-700">
+          {trimmed.replace(/^[-*•]\s*/, '')}
+        </li>
+      );
     } else {
       sectionContent.push(trimmed);
     }
   });
+  
   pushSection();
-  return <div className="prose prose-sm max-w-none bg-muted p-2 rounded border">{content}</div>;
+  return <div className="prose prose-sm max-w-none bg-white p-6 rounded-lg border shadow-sm">{content}</div>;
 }
 
 function JobDetails({ job }: { job: JobResponse }) {

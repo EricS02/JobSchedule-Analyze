@@ -97,6 +97,10 @@ function JobsCardView({
                         const target = e.target as HTMLImageElement;
                         target.src = "/images/jobsync-logo.svg";
                       }}
+                      onLoad={(e) => {
+                        // Log successful logo loads for debugging
+                        console.log(`Logo loaded for ${job.Company?.label}:`, job.Company?.logoUrl);
+                      }}
                     />
                   </div>
                   <div className="flex-1 min-w-0">

@@ -287,26 +287,32 @@ export async function POST(req: NextRequest) {
     
     let company;
     if (existingCompany) {
-      // Always update the logo to ensure we have the latest one
-      console.log(`API: Updating company "${jobData.company}" logo from "${existingCompany.logoUrl}" to "${cleanLogoUrl}"`);
-      company = await prisma.company.update({
-        where: { id: existingCompany.id },
-        data: {
-          logoUrl: cleanLogoUrl || null,
-        label: jobData.company
-        }
-      });
+      // Only update the logo if we have a new one and it's different
+      if (cleanLogoUrl && cleanLogoUrl !== existingCompany.logoUrl) {
+        console.log(`API: Updating company "${jobData.company}" logo from "${existingCompany.logoUrl}" to "${cleanLogoUrl}"`);
+        company = await prisma.company.update({
+          where: { id: existingCompany.id },
+          data: {
+            logoUrl: cleanLogoUrl,
+            label: jobData.company
+          }
+        });
+      } else {
+        // Keep existing company data
+        company = existingCompany;
+        console.log(`API: Using existing company "${jobData.company}" with logo: "${existingCompany.logoUrl}"`);
+      }
     } else {
       // Create new company
       console.log(`API: Creating new company "${jobData.company}" with logo: "${cleanLogoUrl}"`);
       company = await prisma.company.create({
         data: {
-        label: jobData.company,
-        value: jobData.company.toLowerCase().replace(/\s+/g, '-'),
-        createdBy: user.id,
+          label: jobData.company,
+          value: jobData.company.toLowerCase().replace(/\s+/g, '-'),
+          createdBy: user.id,
           logoUrl: cleanLogoUrl || null
-      }
-    });
+        }
+      });
     }
     
     console.log(`API: Company processed - ID: ${company.id}, Logo: ${company.logoUrl || 'NO LOGO'}`);
