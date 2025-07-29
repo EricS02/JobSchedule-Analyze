@@ -3,6 +3,89 @@ console.log("🚀 JobSchedule: Content script starting...");
 console.log("🚀 JobSchedule: Script loaded at:", new Date().toISOString());
 console.log("🚀 JobSchedule: Current URL:", window.location.href);
 
+// LinkedIn Job Tracking
+function trackLinkedInJob() {
+  try {
+    // Check if we're on a LinkedIn job page
+    if (window.location.href.includes('linkedin.com/jobs/')) {
+      console.log("🚀 JobSchedule: LinkedIn job page detected");
+      
+      // Extract job information
+      const jobTitle = document.querySelector('.job-details-jobs-unified-top-card__job-title')?.textContent?.trim();
+      const company = document.querySelector('.job-details-jobs-unified-top-card__company-name')?.textContent?.trim();
+      const location = document.querySelector('.job-details-jobs-unified-top-card__bullet')?.textContent?.trim();
+      const jobUrl = window.location.href;
+      
+      if (jobTitle && company) {
+        console.log("🚀 JobSchedule: Job data extracted:", { jobTitle, company, location, jobUrl });
+        
+        // Send job data to background script
+        chrome.runtime.sendMessage({
+          action: 'trackJobApplication',
+          jobData: {
+            jobTitle,
+            company,
+            location: location || 'Remote',
+            jobUrl,
+            source: 'linkedin'
+          }
+        }, function(response) {
+          if (response && response.success) {
+            console.log("🚀 JobSchedule: Job tracked successfully");
+            showTrackingNotification(jobTitle, company);
+          } else {
+            console.error("🚀 JobSchedule: Failed to track job:", response);
+          }
+        });
+      }
+    }
+  } catch (error) {
+    console.error("🚀 JobSchedule: Error tracking LinkedIn job:", error);
+  }
+}
+
+// Show notification when job is tracked
+function showTrackingNotification(jobTitle, company) {
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #0077b5;
+    color: white;
+    padding: 15px;
+    border-radius: 5px;
+    z-index: 10000;
+    font-family: Arial, sans-serif;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  `;
+  notification.innerHTML = `
+    <strong>JobSchedule</strong><br>
+    Job tracked: ${jobTitle} at ${company}
+  `;
+  document.body.appendChild(notification);
+  
+  setTimeout(() => {
+    notification.remove();
+  }, 3000);
+}
+
+// Monitor for job page changes (LinkedIn uses SPA)
+let currentUrl = window.location.href;
+setInterval(() => {
+  if (window.location.href !== currentUrl) {
+    currentUrl = window.location.href;
+    if (currentUrl.includes('linkedin.com/jobs/')) {
+      setTimeout(trackLinkedInJob, 2000); // Wait for page to load
+    }
+  }
+}, 1000);
+
+// Track job on initial load
+if (window.location.href.includes('linkedin.com/jobs/')) {
+  setTimeout(trackLinkedInJob, 2000);
+}
+
 // Method 1: Direct window property assignment (CSP-safe)
 try {
   console.log("🚀 JobSchedule: Attempting direct window assignment...");
@@ -37,9 +120,7 @@ try {
     diagnoseJobSync: jobScheduleFunctions.diagnose
   });
 
-  console.log("🚀 JobSchedule: Direct window assignment completed");
-  console.log("🚀 JobSchedule: window.JobSchedule available:", typeof window.JobSchedule);
-  console.log("🚀 JobSchedule: window.testJobSync available:", typeof window.testJobSync);
+
   
 } catch (error) {
   console.error("🚀 JobSchedule: Error during direct window assignment:", error);

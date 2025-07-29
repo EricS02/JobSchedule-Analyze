@@ -685,4 +685,25 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     });
     sendResponse({ success: true });
   }
+});
+
+// Listen for job tracking messages from content script
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'trackJobApplication' && message.jobData) {
+    console.log('JobSchedule: Received job tracking request:', message.jobData);
+    
+    trackJobApplication(message.jobData)
+      .then(result => {
+        sendResponse({ success: true, message: 'Job tracked successfully' });
+      })
+      .catch(error => {
+        console.error('JobSchedule: Error tracking job:', error);
+        sendResponse({ 
+          success: false, 
+          message: getUserFriendlyMessage(error) 
+        });
+      });
+    
+    return true; // Keep the message channel open for async response
+  }
 }); 

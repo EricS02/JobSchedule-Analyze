@@ -17,94 +17,44 @@ document.addEventListener('DOMContentLoaded', function() {
       loginSection.classList.add('hidden');
       loggedInSection.classList.remove('hidden');
       userEmail.textContent = result.user.email;
-    } else if (USE_TEST_ENDPOINTS) {
-      // In development mode, try to get a test token
-      fetch(`${API_BASE_URL}/test-token`)
-        .then(response => response.json())
-        .then(data => {
-          if (data.success && data.token) {
-            // Save token and user info
-            chrome.storage.local.set({
-              token: data.token,
-              user: data.user || { email: 'test@example.com' }
-            }, function() {
-              // Update UI
-              loginSection.classList.add('hidden');
-              loggedInSection.classList.remove('hidden');
-              userEmail.textContent = data.user?.email || 'test@example.com';
-            });
-          } else {
-            // Show login form
-            loginSection.classList.remove('hidden');
-            loggedInSection.classList.add('hidden');
-          }
-        })
-        .catch(error => {
-          console.error('Error getting test token:', error);
-          // Show login form
-          loginSection.classList.remove('hidden');
-          loggedInSection.classList.add('hidden');
-        });
     } else {
-      // User is not logged in
+      // User is not logged in - show instructions to authenticate via web app
       loginSection.classList.remove('hidden');
       loggedInSection.classList.add('hidden');
+      
+      // Update the login form to show web app authentication instructions
+      const loginForm = document.getElementById('login-form');
+      if (loginForm) {
+        loginForm.innerHTML = `
+          <div class="auth-instructions">
+            <h3>Authenticate via Web App</h3>
+            <p>To use the JobSchedule extension:</p>
+            <ol>
+              <li>Go to <a href="https://jobschedule.io/dashboard/extension" target="_blank">jobschedule.io/dashboard/extension</a></li>
+              <li>Log in to your account</li>
+              <li>Click "Generate Token"</li>
+              <li>Return here and refresh</li>
+            </ol>
+            <button id="open-web-app" class="btn-primary">Open Web App</button>
+          </div>
+        `;
+        
+        // Add event listener for the button
+        document.getElementById('open-web-app').addEventListener('click', function() {
+          chrome.tabs.create({ url: 'https://jobschedule.io/dashboard/extension' });
+        });
+      }
     }
   });
   
-  // Handle login
-  loginButton.addEventListener('click', function() {
-    const email = emailInput.value.trim();
-    const password = passwordInput.value.trim();
-    
-    if (!email || !password) {
-      showError('Please enter both email and password');
-      return;
-    }
-    
-    loginButton.textContent = 'Logging in...';
-    loginButton.disabled = true;
-    
-    // Send login request to your API
-    fetch(`${API_BASE_URL}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ email, password })
-    })
-    .then(response => response.json())
-    .then(data => {
-      loginButton.textContent = 'Login';
-      loginButton.disabled = false;
-      
-      if (data.success && data.token) {
-        // Save token and user info
-        chrome.storage.local.set({
-          token: data.token,
-          user: data.user
-        }, function() {
-          // Update UI
-          loginSection.classList.add('hidden');
-          loggedInSection.classList.remove('hidden');
-          userEmail.textContent = data.user.email;
-          
-          // Clear form
-          emailInput.value = '';
-          passwordInput.value = '';
-          hideError();
-        });
-      } else {
-        showError(data.message || 'Login failed');
-      }
-    })
-    .catch(error => {
-      loginButton.textContent = 'Login';
-      loginButton.disabled = false;
-      showError('Network error. Please try again.');
-      console.error('Login error:', error);
+  // Handle refresh to check for new tokens
+  const refreshButton = document.getElementById('refresh-button');
+  if (refreshButton) {
+    refreshButton.addEventListener('click', function() {
+      // Reload the popup to check for new tokens
+      window.location.reload();
     });
-  });
+  }
   
   // Handle logout
   logoutButton.addEventListener('click', function() {
