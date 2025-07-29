@@ -61,7 +61,7 @@ function extractJobData() {
     const benefitsElement = document.querySelector('[data-section="job-benefits"]');
     const jobBenefits = benefitsElement?.textContent?.trim() || '';
     
-    // Company logo - try multiple selectors
+    // Company logo - try multiple selectors with improved detection
     let logoUrl = null;
     const logoSelectors = [
       '.job-details-jobs-unified-top-card__company-logo img',
@@ -69,7 +69,19 @@ function extractJobData() {
       '.job-details-jobs-unified-top-card__company-logo svg',
       '.job-details-jobs-unified-top-card__company-logo',
       '.jobs-unified-top-card__company-logo img',
-      '.jobs-unified-top-card__company-logo svg'
+      '.jobs-unified-top-card__company-logo svg',
+      '.jobs-unified-top-card__company-logo-image img',
+      '.jobs-unified-top-card__company-logo-image',
+      '.jobs-box__company-logo img',
+      '.jobs-company-logo img',
+      '.company-logo img',
+      '.logo img',
+      '[data-test-id="company-logo"] img',
+      'img[alt*="logo"]',
+      'img[alt*="Logo"]',
+      'img[alt*="company"]',
+      'img[alt*="Company"]',
+      '.jobs-unified-top-card__company-logo-image img'
     ];
     
     for (const selector of logoSelectors) {
@@ -77,15 +89,24 @@ function extractJobData() {
       if (logoElement) {
         if (logoElement.tagName === 'IMG') {
           logoUrl = logoElement.src;
+          console.log("🚀 JobSchedule: Found logo with selector:", selector, logoUrl);
+          break;
         } else if (logoElement.tagName === 'SVG') {
           const imageElement = logoElement.querySelector('image');
           if (imageElement) {
             logoUrl = imageElement.getAttribute('href') || imageElement.getAttribute('xlink:href');
+            console.log("🚀 JobSchedule: Found logo with SVG selector:", selector, logoUrl);
+            break;
           }
-        }
-        if (logoUrl) {
-          console.log("🚀 JobSchedule: Found logo with selector:", selector);
-          break;
+        } else if (logoElement.style.backgroundImage) {
+          // Extract URL from background-image style
+          const bgImage = logoElement.style.backgroundImage;
+          const urlMatch = bgImage.match(/url\(['"]?([^'"]+)['"]?\)/);
+          if (urlMatch) {
+            logoUrl = urlMatch[1];
+            console.log("🚀 JobSchedule: Found logo with background-image:", selector, logoUrl);
+            break;
+          }
         }
       }
     }
@@ -208,6 +229,13 @@ function createFixedTrackButton() {
 
 // Handle track job click
 function handleTrackJobClick() {
+  // Prevent duplicate clicks
+  if (isProcessingClick) {
+    console.log("🚀 JobSchedule: Click already being processed, ignoring");
+    return;
+  }
+  
+  isProcessingClick = true;
   console.log("🚀 JobSchedule: Track job button clicked");
   
   // Extract job data when button is clicked
@@ -216,6 +244,7 @@ function handleTrackJobClick() {
   if (!jobData) {
     console.error("🚀 JobSchedule: Could not extract job data");
     showNotification("Could not extract job data", "error");
+    isProcessingClick = false;
     return;
   }
 
@@ -223,10 +252,21 @@ function handleTrackJobClick() {
     action: 'trackJobApplication',
     jobData: jobData
   }, function(response) {
+    // Reset processing flag
+    isProcessingClick = false;
+    
     if (response && response.success) {
       console.log("🚀 JobSchedule: Job tracked successfully");
       showNotification("Job tracked successfully!", "success");
       trackButton.innerHTML = '✅ Tracked';
+      trackButton.style.background = '#28a745';
+      setTimeout(() => {
+        if (trackButton) trackButton.remove();
+      }, 2000);
+    } else if (response && response.message && response.message.includes("already tracked")) {
+      console.log("🚀 JobSchedule: Job already tracked:", response.message);
+      showNotification("Job already tracked!", "info");
+      trackButton.innerHTML = '✅ Already Tracked';
       trackButton.style.background = '#28a745';
       setTimeout(() => {
         if (trackButton) trackButton.remove();
@@ -243,6 +283,9 @@ function handleTrackJobClick() {
     }
   });
 }
+
+// Global variable to prevent duplicate clicks
+let isProcessingClick = false;
 
 // Set up apply button monitoring with improved detection
 function setupApplyButtonMonitoring() {
@@ -276,8 +319,15 @@ function setupApplyButtonMonitoring() {
         return;
       }
 
-      // Monitor for apply button clicks
+      // Monitor for apply button clicks with debouncing
       applyButton.addEventListener('click', function() {
+        // Prevent duplicate clicks
+        if (isProcessingClick) {
+          console.log("🚀 JobSchedule: Click already being processed, ignoring");
+          return;
+        }
+        
+        isProcessingClick = true;
         console.log("🚀 JobSchedule: Apply button clicked!");
         
         // Extract job data when apply button is clicked
@@ -285,6 +335,7 @@ function setupApplyButtonMonitoring() {
         
         if (!jobData) {
           console.error("🚀 JobSchedule: Could not extract job data for apply tracking");
+          isProcessingClick = false;
           return;
         }
 
@@ -297,9 +348,15 @@ function setupApplyButtonMonitoring() {
             appliedAt: new Date().toISOString()
           }
         }, function(response) {
+          // Reset processing flag
+          isProcessingClick = false;
+          
           if (response && response.success) {
             console.log("🚀 JobSchedule: Job application tracked successfully");
             showNotification("Job application tracked!", "success");
+          } else if (response && response.message && response.message.includes("already tracked")) {
+            console.log("🚀 JobSchedule: Job already tracked:", response.message);
+            showNotification("Job already tracked!", "info");
           } else {
             console.error("🚀 JobSchedule: Failed to track job application:", response);
             showNotification("Failed to track application", "error");

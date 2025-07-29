@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "../ui/card";
 import { Button } from "../ui/button";
-import { File, ListFilter } from "lucide-react";
+import { File, ListFilter, Grid3X3, List } from "lucide-react";
 import {
   deleteJobById,
   getJobDetails,
@@ -39,6 +39,7 @@ import Loading from "../Loading";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AddJob } from "./AddJob";
 import MyJobsTable from "./MyJobsTable";
+import JobsCardView from "./JobsCardView";
 import { format } from "date-fns";
 import { useJobUpdates } from "@/hooks/useJobUpdates";
 
@@ -76,6 +77,7 @@ function JobsContainer({
   const [filterKey, setFilterKey] = useState<string>();
   const [editJob, setEditJob] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards');
 
   const jobsPerPage = APP_CONSTANTS.RECORDS_PER_PAGE;
 
@@ -228,61 +230,91 @@ function JobsContainer({
       <Card x-chunk="dashboard-06-chunk-0">
         <CardHeader className="flex-row justify-between items-center">
           <CardTitle>My Jobs</CardTitle>
-          <div className="flex items-center">
-            <div className="ml-auto flex items-center gap-2">
-              <Select value={filterKey} onValueChange={onFilterChange}>
-                <SelectTrigger className="w-[120px] h-8">
-                  <ListFilter className="h-3.5 w-3.5" />
-                  <SelectValue placeholder="Filter" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Filter by</SelectLabel>
-                    <SelectSeparator />
-                    <SelectItem value="none">None</SelectItem>
-                    <SelectItem value="applied">Applied</SelectItem>
-                    <SelectItem value="interview">Interview</SelectItem>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
-                    <SelectItem value="PT">Part-time</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 gap-1"
-                disabled={loading}
-                onClick={downloadJobsList}
-              >
-                <File className="h-3.5 w-3.5" />
-                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                  Export
-                </span>
-              </Button>
-              <AddJob
-                jobStatuses={statuses}
-                companies={companies}
-                jobTitles={titles}
-                locations={locations}
-                jobSources={sources}
-                editJob={editJob}
-                resetEditJob={resetEditJob}
-              />
+                      <div className="flex items-center">
+              <div className="ml-auto flex items-center gap-2">
+                {/* View Mode Toggle */}
+                <div className="flex items-center border rounded-md">
+                  <Button
+                    size="sm"
+                    variant={viewMode === 'cards' ? 'default' : 'ghost'}
+                    className="h-8 px-3"
+                    onClick={() => setViewMode('cards')}
+                  >
+                    <Grid3X3 className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={viewMode === 'table' ? 'default' : 'ghost'}
+                    className="h-8 px-3"
+                    onClick={() => setViewMode('table')}
+                  >
+                    <List className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                
+                <Select value={filterKey} onValueChange={onFilterChange}>
+                  <SelectTrigger className="w-[120px] h-8">
+                    <ListFilter className="h-3.5 w-3.5" />
+                    <SelectValue placeholder="Filter" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectLabel>Filter by</SelectLabel>
+                      <SelectSeparator />
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="applied">Applied</SelectItem>
+                      <SelectItem value="interview">Interview</SelectItem>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                      <SelectItem value="PT">Part-time</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 gap-1"
+                  disabled={loading}
+                  onClick={downloadJobsList}
+                >
+                  <File className="h-3.5 w-3.5" />
+                  <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                    Export
+                  </span>
+                </Button>
+                <AddJob
+                  jobStatuses={statuses}
+                  companies={companies}
+                  jobTitles={titles}
+                  locations={locations}
+                  jobSources={sources}
+                  editJob={editJob}
+                  resetEditJob={resetEditJob}
+                />
+              </div>
             </div>
-          </div>
         </CardHeader>
         <CardContent>
           {loading && <Loading />}
           {jobs.length > 0 && (
             <>
-              <MyJobsTable
-                jobs={jobs}
-                jobStatuses={statuses}
-                deleteJob={onDeleteJob}
-                editJob={onEditJob}
-                onChangeJobStatus={onChangeJobStatus}
-              />
+              {viewMode === 'cards' ? (
+                <JobsCardView
+                  jobs={jobs}
+                  jobStatuses={statuses}
+                  deleteJob={onDeleteJob}
+                  editJob={onEditJob}
+                  onChangeJobStatus={onChangeJobStatus}
+                />
+              ) : (
+                <MyJobsTable
+                  jobs={jobs}
+                  jobStatuses={statuses}
+                  deleteJob={onDeleteJob}
+                  editJob={onEditJob}
+                  onChangeJobStatus={onChangeJobStatus}
+                />
+              )}
               <div className="text-xs text-muted-foreground">
                 Showing{" "}
                 <strong>
