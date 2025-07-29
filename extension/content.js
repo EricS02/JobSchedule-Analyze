@@ -50,15 +50,15 @@ function extractJobData() {
     const jobDetails = document.querySelector('.jobs-description__content');
     const detailedDescription = jobDetails?.textContent?.trim() || '';
     
-    // Job requirements and responsibilities
-    const requirementsElement = document.querySelector('[data-section="job-requirements"], .jobs-box__group:contains("Requirements")');
+    // Job requirements and responsibilities - use proper CSS selectors
+    const requirementsElement = document.querySelector('[data-section="job-requirements"]');
     const jobRequirements = requirementsElement?.textContent?.trim() || '';
     
-    const responsibilitiesElement = document.querySelector('[data-section="job-responsibilities"], .jobs-box__group:contains("Responsibilities")');
+    const responsibilitiesElement = document.querySelector('[data-section="job-responsibilities"]');
     const jobResponsibilities = responsibilitiesElement?.textContent?.trim() || '';
     
     // Job benefits
-    const benefitsElement = document.querySelector('[data-section="job-benefits"], .jobs-box__group:contains("Benefits")');
+    const benefitsElement = document.querySelector('[data-section="job-benefits"]');
     const jobBenefits = benefitsElement?.textContent?.trim() || '';
     
     // Company logo - try multiple selectors
