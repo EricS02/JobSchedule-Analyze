@@ -316,16 +316,27 @@ export async function getWeeklyActivitiesSummary() {
         { day: "Sun", totalDuration: 0, count: 0 }
       ];
     }
-    // Get current week range
+    // Get current week range with proper timezone handling
     const now = new Date();
+    console.log('Current date for weekly activities:', now.toISOString());
+    
     const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
     const mondayOffset = currentDay === 0 ? 6 : currentDay - 1;
+    
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - mondayOffset);
     startOfWeek.setHours(0, 0, 0, 0);
+    
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 6);
     endOfWeek.setHours(23, 59, 59, 999);
+    
+    console.log('Week range for activities:', {
+      startOfWeek: startOfWeek.toISOString(),
+      endOfWeek: endOfWeek.toISOString(),
+      currentDay,
+      mondayOffset
+    });
     // Fetch activities for the week
     const activities = await prisma.activity.findMany({
       where: {
@@ -341,13 +352,19 @@ export async function getWeeklyActivitiesSummary() {
         duration: true,
       },
     });
-    // Prepare weekly summary
+    // Prepare weekly summary with correct day mapping
     const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     const summary = weekDays.map((day) => ({ day, totalDuration: 0, count: 0 }));
+    
     activities.forEach((activity) => {
       const date = new Date(activity.startTime);
       const jsDay = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
-      const weekDay = weekDays[jsDay === 0 ? 6 : jsDay - 1];
+      
+      // Convert JavaScript day (0=Sunday) to our week format (0=Monday)
+      // Sunday (0) becomes 6, Monday (1) becomes 0, etc.
+      const weekDayIndex = jsDay === 0 ? 6 : jsDay - 1;
+      const weekDay = weekDays[weekDayIndex];
+      
       const daySummary = summary.find((d) => d.day === weekDay);
       if (daySummary) {
         daySummary.count++;

@@ -483,18 +483,33 @@ export const createResumeProfileWithClientExtraction = async (
         if (canUseAI) {
           console.log('Attempting AI parsing of client-extracted text...');
           
-          // Dynamic import of AI parsing function
-          const { parseResumeWithAI } = await import('@/utils/pdf.utils');
-          const parsedData = await parseResumeWithAI(extractedText);
+          // Add timeout for AI parsing to prevent long delays
+          const aiParsingPromise = (async () => {
+            const { parseResumeWithAI } = await import('@/utils/pdf.utils');
+            return await parseResumeWithAI(extractedText);
+          })();
           
-          if (parsedData) {
-            parsingSucceeded = true;
-            console.log('AI parsing successful, populating resume sections...');
-            await populateResumeFromParsedData(resumeId, parsedData, user.id);
-            console.log('✅ Resume populated with AI-parsed data from client extraction');
-          } else {
-            parsingError = 'AI parsing returned no usable data';
-            console.log('AI parsing returned no usable data');
+          // Set a 30-second timeout for AI parsing
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('AI parsing timeout')), 30000);
+          });
+          
+          try {
+            const parsedData = await Promise.race([aiParsingPromise, timeoutPromise]);
+            
+            if (parsedData) {
+              parsingSucceeded = true;
+              console.log('AI parsing successful, populating resume sections...');
+              await populateResumeFromParsedData(resumeId, parsedData, user.id);
+              console.log('✅ Resume populated with AI-parsed data from client extraction');
+            } else {
+              parsingError = 'AI parsing returned no usable data';
+              console.log('AI parsing returned no usable data');
+            }
+          } catch (aiError) {
+            parsingError = aiError instanceof Error ? aiError.message : 'AI parsing failed';
+            console.warn('AI parsing failed:', aiError);
+            // Continue without AI parsing - the resume is still created with the file
           }
         } else {
           parsingError = 'AI parsing disabled - missing API key or feature disabled';

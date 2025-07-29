@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -80,6 +80,45 @@ function JobsContainer({
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards');
 
   const jobsPerPage = APP_CONSTANTS.RECORDS_PER_PAGE;
+
+  // Prevent infinite loops by adding a ref to track if we're already loading
+  const isLoadingRef = useRef(false);
+  
+  // Modified loadJobs function to prevent infinite loops
+  const loadJobsWithLoopProtection = useCallback(async (page: number, filter?: string) => {
+    if (isLoadingRef.current) {
+      console.log('JobsContainer: Already loading, skipping request');
+      return;
+    }
+    
+    isLoadingRef.current = true;
+    setLoading(true);
+    
+    try {
+      const { success, data, total, message } = await getJobsList(page, jobsPerPage, filter);
+      if (success && data) {
+        setJobs((prev) => (page === 1 ? data : [...prev, ...data]));
+        setTotalJobs(total);
+        setPage(page);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error!",
+          description: message,
+        });
+      }
+    } catch (error) {
+      console.error('JobsContainer: Error loading jobs:', error);
+      toast({
+        variant: "destructive",
+        title: "Error!",
+        description: "Failed to load jobs",
+      });
+    } finally {
+      setLoading(false);
+      isLoadingRef.current = false;
+    }
+  }, [jobsPerPage, toast]);
 
   const loadJobs = useCallback(
     async (page: number, filter?: string) => {
@@ -176,12 +215,12 @@ function JobsContainer({
   useEffect(() => {
     const interval = setInterval(() => {
       if (!loading) {
-        loadJobs(1, filterKey);
+        loadJobsWithLoopProtection(1, filterKey);
       }
     }, 30000); // 30 seconds
 
     return () => clearInterval(interval);
-  }, [loadJobs, filterKey, loading]);
+  }, [loadJobsWithLoopProtection, filterKey, loading]);
 
   const onFilterChange = (filterBy: string) => {
     if (filterBy === "none") {

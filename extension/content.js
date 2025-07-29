@@ -50,39 +50,67 @@ function extractJobData() {
     const jobDetails = document.querySelector('.jobs-description__content');
     let detailedDescription = jobDetails?.textContent?.trim() || '';
     
-    // Try to get structured job description sections
+    // Try to get structured job description sections with more titles
     const jobDescriptionSections = {
       about: '',
       responsibilities: '',
       requirements: '',
       benefits: '',
-      qualifications: ''
+      qualifications: '',
+      skills: '',
+      experience: '',
+      education: '',
+      compensation: '',
+      workEnvironment: '',
+      companyCulture: '',
+      growthOpportunities: '',
+      applicationProcess: '',
+      additionalInfo: ''
     };
     
-    // Look for structured sections
-    const sections = document.querySelectorAll('.jobs-description__content h3, .jobs-description__content h4, .jobs-description__content strong');
+    // Look for structured sections with more comprehensive matching
+    const sections = document.querySelectorAll('.jobs-description__content h3, .jobs-description__content h4, .jobs-description__content strong, .jobs-description__content h2');
     sections.forEach(section => {
       const sectionText = section.textContent?.toLowerCase() || '';
       const nextElement = section.nextElementSibling;
       const content = nextElement?.textContent?.trim() || '';
       
-      if (sectionText.includes('about') || sectionText.includes('description')) {
+      if (sectionText.includes('about') || sectionText.includes('description') || sectionText.includes('overview')) {
         jobDescriptionSections.about = content;
-      } else if (sectionText.includes('responsibility') || sectionText.includes('duties')) {
+      } else if (sectionText.includes('responsibility') || sectionText.includes('duties') || sectionText.includes('what you\'ll do')) {
         jobDescriptionSections.responsibilities = content;
-      } else if (sectionText.includes('requirement') || sectionText.includes('skill')) {
+      } else if (sectionText.includes('requirement') || sectionText.includes('qualification') || sectionText.includes('what you\'ll bring')) {
         jobDescriptionSections.requirements = content;
-      } else if (sectionText.includes('benefit') || sectionText.includes('perk')) {
+      } else if (sectionText.includes('benefit') || sectionText.includes('perk') || sectionText.includes('compensation')) {
         jobDescriptionSections.benefits = content;
-      } else if (sectionText.includes('qualification') || sectionText.includes('education')) {
-        jobDescriptionSections.qualifications = content;
+      } else if (sectionText.includes('education') || sectionText.includes('degree')) {
+        jobDescriptionSections.education = content;
+      } else if (sectionText.includes('skill') || sectionText.includes('technology')) {
+        jobDescriptionSections.skills = content;
+      } else if (sectionText.includes('experience') || sectionText.includes('background')) {
+        jobDescriptionSections.experience = content;
+      } else if (sectionText.includes('salary') || sectionText.includes('pay') || sectionText.includes('compensation')) {
+        jobDescriptionSections.compensation = content;
+      } else if (sectionText.includes('work environment') || sectionText.includes('remote') || sectionText.includes('hybrid')) {
+        jobDescriptionSections.workEnvironment = content;
+      } else if (sectionText.includes('culture') || sectionText.includes('values') || sectionText.includes('mission')) {
+        jobDescriptionSections.companyCulture = content;
+      } else if (sectionText.includes('growth') || sectionText.includes('career') || sectionText.includes('development')) {
+        jobDescriptionSections.growthOpportunities = content;
+      } else if (sectionText.includes('application') || sectionText.includes('apply') || sectionText.includes('process')) {
+        jobDescriptionSections.applicationProcess = content;
+      } else if (sectionText.includes('additional') || sectionText.includes('note') || sectionText.includes('other')) {
+        jobDescriptionSections.additionalInfo = content;
       }
     });
     
-    // Create structured description
+    // Create structured description with better organization
     const structuredDescription = Object.entries(jobDescriptionSections)
       .filter(([_, content]) => content.length > 0)
-      .map(([section, content]) => `**${section.charAt(0).toUpperCase() + section.slice(1)}:**\n${content}`)
+      .map(([section, content]) => {
+        const title = section.charAt(0).toUpperCase() + section.slice(1).replace(/([A-Z])/g, ' $1');
+        return `**${title}:**\n${content}`;
+      })
       .join('\n\n');
     
     if (structuredDescription) {
@@ -160,6 +188,23 @@ function extractJobData() {
           }
         }
       }
+    }
+    
+    // Additional debugging for logo extraction
+    console.log("🚀 JobSchedule: Final logo URL for company:", jobData.company, "Logo URL:", logoUrl);
+    if (!logoUrl) {
+      console.log("🚀 JobSchedule: No logo found for company:", jobData.company);
+      // Try to find any image that might be a logo
+      const allImages = document.querySelectorAll('img');
+      console.log("🚀 JobSchedule: Found", allImages.length, "images on page");
+      allImages.forEach((img, index) => {
+        console.log(`🚀 JobSchedule: Image ${index}:`, {
+          src: img.src,
+          alt: img.alt,
+          className: img.className,
+          id: img.id
+        });
+      });
     }
 
     const jobData = {
