@@ -684,30 +684,6 @@ async function testAPIConnection() {
   }
 }
 
-// Listen for extension token from web app
-chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
-  if (message.type === 'EXTENSION_TOKEN_READY' && message.token) {
-    console.log('JobSchedule: Received extension token from web app');
-    chrome.storage.local.set({ 
-      token: message.token,
-      user: message.user || { email: 'user@example.com' }
-    });
-    sendResponse({ success: true });
-  }
-});
-
-// Listen for extension token from web app (via content script)
-chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
-  if (message.type === 'EXTENSION_TOKEN_READY' && message.token) {
-    console.log('JobSchedule: Received extension token from web app');
-    chrome.storage.local.set({ 
-      token: message.token,
-      user: message.user || { email: 'user@example.com' }
-    });
-    sendResponse({ success: true });
-  }
-});
-
 // Listen for messages from content scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('JobSchedule: Received message from content script:', message);
@@ -741,7 +717,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-// Listen for extension token from web app (via content script)
+// Listen for extension token from web app
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
   if (message.type === 'EXTENSION_TOKEN_READY' && message.token) {
     console.log('JobSchedule: Received extension token from web app');
