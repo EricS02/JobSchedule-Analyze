@@ -551,7 +551,7 @@ async function trackJobApplication(jobData) {
       
       // Handle specific error cases
       if (response.status === 409 && data?.message) {
-        // Duplicate job detected
+        // Duplicate job detected (old behavior - should not happen now)
         console.log("JobSchedule: Duplicate job detected:", data.duplicateDetails);
         throw new Error(data.message);
       }
@@ -641,6 +641,9 @@ function getUserFriendlyMessage(error) {
   }
   if (error.message.includes('already tracked')) {
     return error.message;
+  }
+  if (error.message.includes('Job updated with new information')) {
+    return 'Job information updated successfully!';
   }
   if (error.message.includes('HTTP error')) {
     return `Server error (${error.message}). Please try again later.`;

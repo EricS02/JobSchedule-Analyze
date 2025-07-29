@@ -216,27 +216,56 @@ export async function POST(req: NextRequest) {
     }
     
     if (existingJob) {
-      console.log("API: Duplicate job detected:", {
+      console.log("API: Duplicate job detected, updating with new information:", {
         existingJobId: existingJob.id,
         existingJobTitle: existingJob.jobTitle?.label,
         existingCompany: existingJob.jobsAppliedCompany?.label,
         existingLocation: existingJob.location,
-        existingCreatedAt: existingJob.createdAt
+        existingCreatedAt: existingJob.createdAt,
+        hasNewLogo: !!jobData.logoUrl,
+        hasNewDescription: !!jobData.description
       });
+      
+      // Update the existing job with new information (logo, description, etc.)
+      const updatedJob = await prisma.job.update({
+        where: { id: existingJob.id },
+        data: {
+          description: jobData.description || existingJob.description,
+          detailedDescription: jobData.detailedDescription || existingJob.detailedDescription,
+          jobRequirements: jobData.jobRequirements || existingJob.jobRequirements,
+          jobResponsibilities: jobData.jobResponsibilities || existingJob.jobResponsibilities,
+          jobBenefits: jobData.jobBenefits || existingJob.jobBenefits,
+          updatedAt: new Date()
+        },
+        include: {
+          jobTitle: true,
+          jobsAppliedCompany: true
+        }
+      });
+      
+      // Also update the company logo if we have a new one
+      if (jobData.logoUrl && existingJob.jobsAppliedCompany) {
+        const cleanLogoUrl = jobData.logoUrl;
+        if (!cleanLogoUrl.includes('default') && !cleanLogoUrl.includes('placeholder') && 
+            !cleanLogoUrl.includes('generic') && !cleanLogoUrl.includes('soti')) {
+          console.log(`API: Updating existing company logo from "${existingJob.jobsAppliedCompany.logoUrl}" to "${cleanLogoUrl}"`);
+          await prisma.company.update({
+            where: { id: existingJob.jobsAppliedCompany.id },
+            data: { logoUrl: cleanLogoUrl }
+          });
+        }
+      }
+      
+      console.log("API: Successfully updated existing job with new information");
       
       return corsHeaders(NextResponse.json(
         { 
-          success: false, 
-          message: `You've already tracked this job: ${existingJob.jobTitle?.label} at ${existingJob.jobsAppliedCompany?.label} (${existingJob.location})`, 
-          job: existingJob,
-          duplicateDetails: {
-            jobTitle: existingJob.jobTitle?.label,
-            company: existingJob.jobsAppliedCompany?.label,
-            location: existingJob.location,
-            trackedAt: existingJob.createdAt
-          }
+          success: true, 
+          message: `Job updated with new information: ${updatedJob.jobTitle?.label} at ${updatedJob.jobsAppliedCompany?.label} (${updatedJob.location})`, 
+          job: updatedJob,
+          isUpdate: true
         },
-        { status: 409 }
+        { status: 200 }
       ));
     }
     
