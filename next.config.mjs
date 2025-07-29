@@ -58,7 +58,9 @@ const nextConfig = {
     // Only use fallbacks in development
     ...(process.env.NODE_ENV === 'development' ? {
       DATABASE_URL: process.env.DATABASE_URL || "file:./dev.db",
+      DATABASE_PROVIDER: process.env.DATABASE_PROVIDER || "sqlite",
       AUTH_SECRET: process.env.AUTH_SECRET || "Z5jXQ5zznTNgKpNf0SOqDxPkTFQtapMF0B3T6J9owzg=",
+      JWT_SECRET: process.env.JWT_SECRET || process.env.AUTH_SECRET || "Z5jXQ5zznTNgKpNf0SOqDxPkTFQtapMF0B3T6J9owzg=",
       NEXTAUTH_URL: process.env.NEXTAUTH_URL || "http://localhost:3000",
       // Kinde Auth (Server-side) - only fallbacks in development
       KINDE_CLIENT_SECRET: process.env.KINDE_CLIENT_SECRET || "placeholder",
@@ -84,7 +86,9 @@ const nextConfig = {
       // In production, only pass through the actual environment variables
       // This ensures Kinde gets the real values from Vercel
       DATABASE_URL: process.env.DATABASE_URL,
+      DATABASE_PROVIDER: process.env.DATABASE_PROVIDER || "postgresql",
       AUTH_SECRET: process.env.AUTH_SECRET,
+      JWT_SECRET: process.env.JWT_SECRET || process.env.AUTH_SECRET,
       NEXTAUTH_URL: process.env.NEXTAUTH_URL,
       KINDE_CLIENT_SECRET: process.env.KINDE_CLIENT_SECRET,
       KINDE_ISSUER_URL: process.env.KINDE_ISSUER_URL,

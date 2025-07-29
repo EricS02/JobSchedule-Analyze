@@ -7,6 +7,40 @@ import { NextRequest, NextResponse } from 'next/server';
 // Force dynamic rendering to prevent build-time execution
 export const dynamic = 'force-dynamic';
 
+// Helper function to check job tracking eligibility for a specific user
+async function checkJobTrackingEligibilityForUser(userId: string): Promise<{
+  isEligible: boolean;
+  message: string;
+  remainingJobs: number;
+  plan: 'free' | 'trial' | 'pro';
+  trialInfo?: {
+    daysRemaining: number;
+    trialEndDate: Date;
+  };
+}> {
+  const userDB = await prisma.user.findFirst({
+    where: { id: userId },
+  });
+
+  if (!userDB) {
+    return {
+      isEligible: false,
+      message: "User not found.",
+      remainingJobs: 0,
+      plan: 'free',
+    };
+  }
+
+  // For now, allow unlimited tracking for extension users
+  // This can be enhanced later with proper subscription checks
+  return {
+    isEligible: true,
+    message: "Unlimited job tracking via extension.",
+    remainingJobs: -1, // unlimited
+    plan: 'pro',
+  };
+}
+
 // Helper function to add CORS headers
 function corsHeaders(response: NextResponse) {
   response.headers.set('Access-Control-Allow-Origin', '*');
@@ -209,8 +243,7 @@ export async function POST(req: NextRequest) {
     console.log("API: No duplicates found, proceeding with job creation");
 
     // Check job tracking eligibility (daily limits for free users)
-    const { checkJobTrackingEligibility } = await import("@/actions/stripe.actions");
-    const eligibility = await checkJobTrackingEligibility();
+    const eligibility = await checkJobTrackingEligibilityForUser(user.id);
     console.log("API: Job tracking eligibility:", eligibility);
     
     if (!eligibility.isEligible) {

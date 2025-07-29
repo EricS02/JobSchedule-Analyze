@@ -1,21 +1,29 @@
 import { NextResponse } from "next/server";
-import { sign } from "jsonwebtoken";
+import { SignJWT } from "jose";
 
 export async function GET() {
   try {
-    // Create a test token for the test user
-    const testUser = {
-      id: "test-user-id",
-      email: "test@example.com",
-      name: "Test User"
-    };
+    // Get the test user from the database
+    const prisma = (await import('@/lib/db')).default;
     
-    // Sign the token with your secret
-    const token = sign(
-      { id: testUser.id, email: testUser.email },
-      process.env.JWT_SECRET || "test-secret",
-      { expiresIn: "1d" }
-    );
+    const testUser = await prisma.user.findUnique({
+      where: { email: 'test@example.com' }
+    });
+    
+    if (!testUser) {
+      return NextResponse.json(
+        { success: false, message: "Test user not found" },
+        { status: 404 }
+      );
+    }
+    
+    // Sign the token with your secret using jose library
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET || process.env.AUTH_SECRET || "test-secret");
+    const token = await new SignJWT({ userId: testUser.id })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setExpirationTime("30d") // Token valid for 30 days
+      .sign(secret);
     
     // Return the token
     const response = NextResponse.json({

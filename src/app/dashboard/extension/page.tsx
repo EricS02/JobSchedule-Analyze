@@ -31,10 +31,33 @@ export default function ExtensionPage() {
 
       if (data.success) {
         setToken(data.token);
+        
+        // Store token in localStorage for the extension to pick up
+        localStorage.setItem('extension_token', data.token);
+        localStorage.setItem('extension_user', JSON.stringify(data.user));
+        
         toast({
           title: "Token Generated",
-          description: "Your extension token has been generated successfully.",
+          description: "Your extension token has been generated and sent to the extension automatically.",
         });
+        
+        // Check if extension is installed and listening
+        setTimeout(() => {
+          const tokenStillThere = localStorage.getItem('extension_token');
+          if (tokenStillThere) {
+            toast({
+              title: "Extension Not Detected",
+              description: "Make sure the JobSync extension is installed and refresh this page.",
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Extension Connected!",
+              description: "Your extension has been successfully authenticated.",
+            });
+          }
+        }, 2000);
+        
       } else {
         toast({
           title: "Error",
@@ -134,7 +157,7 @@ export default function ExtensionPage() {
 
             {token && (
               <div className="space-y-2">
-                <Label htmlFor="token">Your Extension Token</Label>
+                <Label htmlFor="token">Extension Token (Auto-sent)</Label>
                 <div className="flex gap-2">
                   <Input
                     id="token"
@@ -156,7 +179,7 @@ export default function ExtensionPage() {
                   </Button>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Copy this token and paste it into your browser extension settings
+                  Token automatically sent to extension. Copy only if needed for manual setup.
                 </p>
               </div>
             )}
@@ -181,9 +204,9 @@ export default function ExtensionPage() {
               </p>
             </div>
             <div className="space-y-2">
-              <h4 className="font-semibold">3. Configure Extension</h4>
+              <h4 className="font-semibold">3. Authenticate Extension</h4>
               <p className="text-sm text-muted-foreground">
-                Open the extension settings and paste your token to authenticate.
+                Click "Generate Token" and the extension will automatically receive the authentication token.
               </p>
             </div>
             <div className="space-y-2">

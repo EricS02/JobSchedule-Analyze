@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     });
     
     // Create JWT token for extension
-    const secret = new TextEncoder().encode(process.env.AUTH_SECRET);
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET || process.env.AUTH_SECRET);
     const token = await new SignJWT({ userId: user.id })
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()
