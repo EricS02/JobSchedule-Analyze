@@ -425,9 +425,9 @@ async function trackJobApplication(jobData) {
     }
     
     // Get token again (in case we just set it)
-    const { token: updatedToken } = await chrome.storage.local.get('token');
+    const { token: currentToken } = await chrome.storage.local.get('token');
     
-    if (!updatedToken) {
+    if (!currentToken) {
       throw new Error("Authentication failed. Please log in to JobSync.");
     }
     
@@ -472,8 +472,8 @@ async function trackJobApplication(jobData) {
         console.log("JobSchedule: About to make fetch request with details:", {
           url: `${API_BASE_URL}/jobs/extension`,
           method: 'POST',
-          hasToken: !!updatedToken,
-          tokenLength: updatedToken?.length || 0,
+          hasToken: !!currentToken,
+          tokenLength: currentToken?.length || 0,
           bodySize: JSON.stringify(sanitizedJobData).length,
           timeout: CONNECTION_TIMEOUT
         });
@@ -482,7 +482,7 @@ async function trackJobApplication(jobData) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${updatedToken}`
+            'Authorization': `Bearer ${currentToken}`
           },
           body: JSON.stringify(sanitizedJobData),
           signal: controller.signal

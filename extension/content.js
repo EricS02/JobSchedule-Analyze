@@ -41,11 +41,54 @@ function extractAndSetupJobTracking() {
 
     // Extract additional data
     const jobUrl = window.location.href;
-    const description = document.querySelector('.jobs-description__content')?.textContent?.trim() || '';
     
-    // Company logo
-    const logoElement = document.querySelector('.job-details-jobs-unified-top-card__company-logo img');
-    const logoUrl = logoElement?.src || null;
+    // Get full job description
+    const descriptionElement = document.querySelector('.jobs-description__content');
+    const description = descriptionElement?.textContent?.trim() || '';
+    
+    // Get detailed job sections
+    const jobDetails = document.querySelector('.jobs-description__content');
+    const detailedDescription = jobDetails?.textContent?.trim() || '';
+    
+    // Job requirements and responsibilities
+    const requirementsElement = document.querySelector('[data-section="job-requirements"], .jobs-box__group:contains("Requirements")');
+    const jobRequirements = requirementsElement?.textContent?.trim() || '';
+    
+    const responsibilitiesElement = document.querySelector('[data-section="job-responsibilities"], .jobs-box__group:contains("Responsibilities")');
+    const jobResponsibilities = responsibilitiesElement?.textContent?.trim() || '';
+    
+    // Job benefits
+    const benefitsElement = document.querySelector('[data-section="job-benefits"], .jobs-box__group:contains("Benefits")');
+    const jobBenefits = benefitsElement?.textContent?.trim() || '';
+    
+    // Company logo - try multiple selectors
+    let logoUrl = null;
+    const logoSelectors = [
+      '.job-details-jobs-unified-top-card__company-logo img',
+      '.job-details-jobs-unified-top-card__company-logo svg image',
+      '.job-details-jobs-unified-top-card__company-logo svg',
+      '.job-details-jobs-unified-top-card__company-logo',
+      '.jobs-unified-top-card__company-logo img',
+      '.jobs-unified-top-card__company-logo svg'
+    ];
+    
+    for (const selector of logoSelectors) {
+      const logoElement = document.querySelector(selector);
+      if (logoElement) {
+        if (logoElement.tagName === 'IMG') {
+          logoUrl = logoElement.src;
+        } else if (logoElement.tagName === 'SVG') {
+          const imageElement = logoElement.querySelector('image');
+          if (imageElement) {
+            logoUrl = imageElement.getAttribute('href') || imageElement.getAttribute('xlink:href');
+          }
+        }
+        if (logoUrl) {
+          console.log("🚀 JobSchedule: Found logo with selector:", selector);
+          break;
+        }
+      }
+    }
 
     currentJobData = {
       jobTitle,
@@ -53,6 +96,10 @@ function extractAndSetupJobTracking() {
       location: location || 'Remote',
       jobUrl,
       description: description.substring(0, 2000),
+      detailedDescription: detailedDescription.substring(0, 5000),
+      jobRequirements: jobRequirements.substring(0, 3000),
+      jobResponsibilities: jobResponsibilities.substring(0, 3000),
+      jobBenefits: jobBenefits.substring(0, 2000),
       logoUrl,
       source: 'linkedin'
     };
@@ -154,10 +201,23 @@ function handleTrackJobClick() {
 
   console.log("🚀 JobSchedule: Track job button clicked");
   
+  // Check if chrome.runtime is available
+  if (typeof chrome === 'undefined' || !chrome.runtime) {
+    console.error("🚀 JobSchedule: Chrome runtime not available");
+    showNotification("Extension not available", "error");
+    return;
+  }
+  
   chrome.runtime.sendMessage({
     action: 'trackJobApplication',
     jobData: currentJobData
   }, function(response) {
+    if (chrome.runtime.lastError) {
+      console.error("🚀 JobSchedule: Runtime error:", chrome.runtime.lastError);
+      showNotification("Connection error", "error");
+      return;
+    }
+    
     if (response && response.success) {
       console.log("🚀 JobSchedule: Job tracked successfully");
       showNotification("Job tracked successfully!", "success");
@@ -182,7 +242,26 @@ function handleTrackJobClick() {
 // Set up apply button monitoring
 function setupApplyButtonMonitoring() {
   try {
-    const applyButton = document.querySelector('.jobs-apply-button, .jobs-s-apply-button, [data-control-name="jobdetails_topcard_inapply"]');
+    // Try multiple selectors for apply button
+    const applyButtonSelectors = [
+      '.jobs-apply-button',
+      '.jobs-s-apply-button',
+      '[data-control-name="jobdetails_topcard_inapply"]',
+      'button[aria-label*="Apply"]',
+      'button[aria-label*="apply"]',
+      '.artdeco-button--primary'
+    ];
+    
+    let applyButton = null;
+    
+    // Try to find the apply button
+    for (const selector of applyButtonSelectors) {
+      applyButton = document.querySelector(selector);
+      if (applyButton) {
+        console.log("🚀 JobSchedule: Found apply button with selector:", selector);
+        break;
+      }
+    }
     
     if (!applyButton) {
       console.log("🚀 JobSchedule: Apply button not found for monitoring");
@@ -207,6 +286,12 @@ function setupApplyButtonMonitoring() {
           appliedAt: new Date().toISOString()
         }
       }, function(response) {
+        if (chrome.runtime.lastError) {
+          console.error("🚀 JobSchedule: Runtime error during apply:", chrome.runtime.lastError);
+          showNotification("Connection error", "error");
+          return;
+        }
+        
         if (response && response.success) {
           console.log("🚀 JobSchedule: Job application tracked successfully");
           showNotification("Job application tracked!", "success");
