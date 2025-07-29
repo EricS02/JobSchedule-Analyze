@@ -15,9 +15,10 @@ function initializeJobTracking() {
 
     console.log("🚀 JobSchedule: LinkedIn job page detected");
     
-    // Wait for page to load completely
+    // Wait for page to load completely, then create track button
     setTimeout(() => {
-      extractAndSetupJobTracking();
+      createTrackButton();
+      setupApplyButtonMonitoring();
     }, 2000);
     
   } catch (error) {
@@ -25,8 +26,8 @@ function initializeJobTracking() {
   }
 }
 
-// Extract job data and set up tracking
-function extractAndSetupJobTracking() {
+// Extract job data when needed
+function extractJobData() {
   try {
     // Extract basic job information
     const jobTitle = document.querySelector('.job-details-jobs-unified-top-card__job-title')?.textContent?.trim();
@@ -34,9 +35,8 @@ function extractAndSetupJobTracking() {
     const location = document.querySelector('.job-details-jobs-unified-top-card__bullet')?.textContent?.trim();
     
     if (!jobTitle || !company) {
-      console.log("🚀 JobSchedule: Job data not found, retrying...");
-      setTimeout(extractAndSetupJobTracking, 1000);
-      return;
+      console.log("🚀 JobSchedule: Job data not found");
+      return null;
     }
 
     // Extract additional data
@@ -90,7 +90,7 @@ function extractAndSetupJobTracking() {
       }
     }
 
-    currentJobData = {
+    const jobData = {
       jobTitle,
       company,
       location: location || 'Remote',
@@ -104,16 +104,12 @@ function extractAndSetupJobTracking() {
       source: 'linkedin'
     };
 
-    console.log("🚀 JobSchedule: Job data extracted:", currentJobData);
-    
-    // Create track button
-    createTrackButton();
-    
-    // Set up apply button monitoring
-    setupApplyButtonMonitoring();
+    console.log("🚀 JobSchedule: Job data extracted:", jobData);
+    return jobData;
     
   } catch (error) {
     console.error("🚀 JobSchedule: Error extracting job data:", error);
+    return null;
   }
 }
 
@@ -212,16 +208,20 @@ function createFixedTrackButton() {
 
 // Handle track job click
 function handleTrackJobClick() {
-  if (!currentJobData) {
-    console.error("🚀 JobSchedule: No job data available");
+  console.log("🚀 JobSchedule: Track job button clicked");
+  
+  // Extract job data when button is clicked
+  const jobData = extractJobData();
+  
+  if (!jobData) {
+    console.error("🚀 JobSchedule: Could not extract job data");
+    showNotification("Could not extract job data", "error");
     return;
   }
 
-  console.log("🚀 JobSchedule: Track job button clicked");
-  
   chrome.runtime.sendMessage({
     action: 'trackJobApplication',
-    jobData: currentJobData
+    jobData: jobData
   }, function(response) {
     if (response && response.success) {
       console.log("🚀 JobSchedule: Job tracked successfully");
@@ -280,8 +280,11 @@ function setupApplyButtonMonitoring() {
       applyButton.addEventListener('click', function() {
         console.log("🚀 JobSchedule: Apply button clicked!");
         
-        if (!currentJobData) {
-          console.error("🚀 JobSchedule: No job data available for apply tracking");
+        // Extract job data when apply button is clicked
+        const jobData = extractJobData();
+        
+        if (!jobData) {
+          console.error("🚀 JobSchedule: Could not extract job data for apply tracking");
           return;
         }
 
@@ -289,7 +292,7 @@ function setupApplyButtonMonitoring() {
         chrome.runtime.sendMessage({
           action: 'trackJobApplication',
           jobData: {
-            ...currentJobData,
+            ...jobData,
             applied: true,
             appliedAt: new Date().toISOString()
           }
