@@ -115,12 +115,33 @@ function validateJobData(jobData) {
     sanitized.description = jobData.description.trim().substring(0, 2000);
   }
   
+  if (jobData.detailedDescription) {
+    sanitized.detailedDescription = jobData.detailedDescription.trim().substring(0, 5000);
+  }
+  
+  if (jobData.jobRequirements) {
+    sanitized.jobRequirements = jobData.jobRequirements.trim().substring(0, 3000);
+  }
+  
+  if (jobData.jobResponsibilities) {
+    sanitized.jobResponsibilities = jobData.jobResponsibilities.trim().substring(0, 3000);
+  }
+  
+  if (jobData.jobBenefits) {
+    sanitized.jobBenefits = jobData.jobBenefits.trim().substring(0, 2000);
+  }
+  
   if (jobData.jobUrl && typeof jobData.jobUrl === 'string') {
     sanitized.jobUrl = jobData.jobUrl.trim().substring(0, 500);
   }
   
   if (jobData.logoUrl && typeof jobData.logoUrl === 'string') {
     sanitized.logoUrl = jobData.logoUrl.trim().substring(0, 500);
+  }
+  
+  // Source field
+  if (jobData.source) {
+    sanitized.source = jobData.source.trim().substring(0, 50);
   }
   
   return {
@@ -687,23 +708,47 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   }
 });
 
-// Listen for job tracking messages from content script
+// Listen for messages from content scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'trackJobApplication' && message.jobData) {
+  console.log('JobSchedule: Received message from content script:', message);
+  
+  if (message.type === 'EXTENSION_TOKEN_READY' && message.token) {
+    console.log('JobSchedule: Received extension token from content script');
+    chrome.storage.local.set({ 
+      token: message.token,
+      user: message.user || { email: 'user@example.com' }
+    });
+    sendResponse({ success: true });
+  } else if (message.action === 'trackJobApplication' && message.jobData) {
     console.log('JobSchedule: Received job tracking request:', message.jobData);
     
     trackJobApplication(message.jobData)
       .then(result => {
+        console.log('JobSchedule: Job tracked successfully:', result);
         sendResponse({ success: true, message: 'Job tracked successfully' });
       })
       .catch(error => {
         console.error('JobSchedule: Error tracking job:', error);
+        const errorMessage = getUserFriendlyMessage(error);
+        console.log('JobSchedule: Sending error response:', errorMessage);
         sendResponse({ 
           success: false, 
-          message: getUserFriendlyMessage(error) 
+          message: errorMessage 
         });
       });
     
     return true; // Keep the message channel open for async response
+  }
+});
+
+// Listen for extension token from web app (via content script)
+chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+  if (message.type === 'EXTENSION_TOKEN_READY' && message.token) {
+    console.log('JobSchedule: Received extension token from web app');
+    chrome.storage.local.set({ 
+      token: message.token,
+      user: message.user || { email: 'user@example.com' }
+    });
+    sendResponse({ success: true });
   }
 }); 

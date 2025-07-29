@@ -10,18 +10,28 @@ function checkForExtensionToken() {
     if (token && user) {
       console.log('JobSchedule: Found extension token, sending to background script');
       
-      // Send token to extension
-      chrome.runtime.sendMessage({
-        type: 'EXTENSION_TOKEN_READY',
-        token: token,
-        user: JSON.parse(user)
-      });
+      // Send token to extension via chrome.runtime.sendMessage
+      if (typeof chrome !== 'undefined' && chrome.runtime) {
+        chrome.runtime.sendMessage({
+          type: 'EXTENSION_TOKEN_READY',
+          token: token,
+          user: JSON.parse(user)
+        }, function(response) {
+          if (response && response.success) {
+            console.log('JobSchedule: Token sent successfully to background script');
+          } else {
+            console.warn('JobSchedule: Failed to send token to background script');
+          }
+        });
+      } else {
+        console.warn('JobSchedule: Chrome runtime not available');
+      }
       
       // Clear the token from localStorage
       localStorage.removeItem('extension_token');
       localStorage.removeItem('extension_user');
       
-      console.log('JobSchedule: Token sent and cleared from localStorage');
+      console.log('JobSchedule: Token cleared from localStorage');
     }
   } catch (error) {
     console.warn('JobSchedule: Error checking for token:', error);

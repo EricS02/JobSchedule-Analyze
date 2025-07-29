@@ -10,38 +10,203 @@ function trackLinkedInJob() {
     if (window.location.href.includes('linkedin.com/jobs/')) {
       console.log("🚀 JobSchedule: LinkedIn job page detected");
       
-      // Extract job information
-      const jobTitle = document.querySelector('.job-details-jobs-unified-top-card__job-title')?.textContent?.trim();
-      const company = document.querySelector('.job-details-jobs-unified-top-card__company-name')?.textContent?.trim();
-      const location = document.querySelector('.job-details-jobs-unified-top-card__bullet')?.textContent?.trim();
-      const jobUrl = window.location.href;
+      // Extract comprehensive job information
+      const jobData = extractLinkedInJobData();
       
-      if (jobTitle && company) {
-        console.log("🚀 JobSchedule: Job data extracted:", { jobTitle, company, location, jobUrl });
+      if (jobData.jobTitle && jobData.company) {
+        console.log("🚀 JobSchedule: Job data extracted:", jobData);
         
-        // Send job data to background script
-        chrome.runtime.sendMessage({
-          action: 'trackJobApplication',
-          jobData: {
-            jobTitle,
-            company,
-            location: location || 'Remote',
-            jobUrl,
-            source: 'linkedin'
-          }
-        }, function(response) {
-          if (response && response.success) {
-            console.log("🚀 JobSchedule: Job tracked successfully");
-            showTrackingNotification(jobTitle, company);
-          } else {
-            console.error("🚀 JobSchedule: Failed to track job:", response);
-          }
-        });
+        // Create track job button next to apply button
+        createTrackJobButton(jobData);
       }
     }
   } catch (error) {
     console.error("🚀 JobSchedule: Error tracking LinkedIn job:", error);
   }
+}
+
+// Extract comprehensive job data from LinkedIn
+function extractLinkedInJobData() {
+  try {
+    // Basic job info
+    const jobTitle = document.querySelector('.job-details-jobs-unified-top-card__job-title')?.textContent?.trim();
+    const company = document.querySelector('.job-details-jobs-unified-top-card__company-name')?.textContent?.trim();
+    const location = document.querySelector('.job-details-jobs-unified-top-card__bullet')?.textContent?.trim();
+    const jobUrl = window.location.href;
+    
+    // Company logo
+    const logoElement = document.querySelector('.job-details-jobs-unified-top-card__company-logo img, .job-details-jobs-unified-top-card__company-logo svg');
+    const logoUrl = logoElement?.src || logoElement?.querySelector('image')?.getAttribute('href') || null;
+    
+    // Job description
+    const descriptionElement = document.querySelector('.job-details-jobs-unified-top-card__job-description, .jobs-description__content');
+    const description = descriptionElement?.textContent?.trim() || '';
+    
+    // Detailed job info
+    const jobDetails = document.querySelector('.jobs-description__content');
+    const detailedDescription = jobDetails?.textContent?.trim() || '';
+    
+    // Job requirements and responsibilities
+    const requirementsElement = document.querySelector('[data-section="job-requirements"], .jobs-box__group:contains("Requirements")');
+    const jobRequirements = requirementsElement?.textContent?.trim() || '';
+    
+    const responsibilitiesElement = document.querySelector('[data-section="job-responsibilities"], .jobs-box__group:contains("Responsibilities")');
+    const jobResponsibilities = responsibilitiesElement?.textContent?.trim() || '';
+    
+    // Job benefits
+    const benefitsElement = document.querySelector('[data-section="job-benefits"], .jobs-box__group:contains("Benefits")');
+    const jobBenefits = benefitsElement?.textContent?.trim() || '';
+    
+    return {
+      jobTitle,
+      company,
+      location: location || 'Remote',
+      jobUrl,
+      logoUrl,
+      description,
+      detailedDescription,
+      jobRequirements,
+      jobResponsibilities,
+      jobBenefits,
+      source: 'linkedin'
+    };
+  } catch (error) {
+    console.error("🚀 JobSchedule: Error extracting job data:", error);
+    return {};
+  }
+}
+
+// Create track job button next to apply button
+function createTrackJobButton(jobData) {
+  try {
+    // Remove existing button if any
+    const existingButton = document.getElementById('jobschedule-track-button');
+    if (existingButton) {
+      existingButton.remove();
+    }
+    
+    // Find the apply button container
+    const applyButtonContainer = document.querySelector('.jobs-apply-button, .jobs-s-apply-button, [data-control-name="jobdetails_topcard_inapply"]');
+    
+    if (!applyButtonContainer) {
+      console.log("🚀 JobSchedule: Apply button container not found, using fixed positioning");
+      createFixedTrackButton(jobData);
+      return;
+    }
+    
+    // Create the track button
+    const trackButton = document.createElement('button');
+    trackButton.id = 'jobschedule-track-button';
+    trackButton.innerHTML = '📋 Track Job';
+    trackButton.style.cssText = `
+      background: #0077b5;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      margin-left: 8px;
+      transition: background-color 0.2s;
+    `;
+    
+    // Add hover effect
+    trackButton.addEventListener('mouseenter', () => {
+      trackButton.style.background = '#005582';
+    });
+    trackButton.addEventListener('mouseleave', () => {
+      trackButton.style.background = '#0077b5';
+    });
+    
+    // Add click handler
+    trackButton.addEventListener('click', function() {
+      console.log("🚀 JobSchedule: Track job button clicked");
+      
+      // Send comprehensive job data to background script
+      chrome.runtime.sendMessage({
+        action: 'trackJobApplication',
+        jobData: jobData
+      }, function(response) {
+        if (response && response.success) {
+          console.log("🚀 JobSchedule: Job tracked successfully");
+          showTrackingNotification(jobData.jobTitle, jobData.company);
+          trackButton.innerHTML = '✅ Tracked';
+          trackButton.style.background = '#28a745';
+          setTimeout(() => trackButton.remove(), 2000);
+        } else {
+          console.error("🚀 JobSchedule: Failed to track job:", response);
+          trackButton.innerHTML = '❌ Failed';
+          trackButton.style.background = '#dc3545';
+          setTimeout(() => {
+            trackButton.innerHTML = '📋 Track Job';
+            trackButton.style.background = '#0077b5';
+          }, 2000);
+        }
+      });
+    });
+    
+    // Insert next to apply button
+    applyButtonContainer.parentNode.insertBefore(trackButton, applyButtonContainer.nextSibling);
+    console.log("🚀 JobSchedule: Track job button created next to apply button");
+    
+  } catch (error) {
+    console.error("🚀 JobSchedule: Error creating track button:", error);
+    // Fallback to fixed positioning
+    createFixedTrackButton(jobData);
+  }
+}
+
+// Fallback function for fixed positioning
+function createFixedTrackButton(jobData) {
+  const trackButton = document.createElement('button');
+  trackButton.id = 'jobschedule-track-button';
+  trackButton.innerHTML = '📋 Track Job';
+  trackButton.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #0077b5;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    z-index: 10000;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  `;
+  
+  // Add click handler
+  trackButton.addEventListener('click', function() {
+    console.log("🚀 JobSchedule: Track job button clicked");
+    
+    chrome.runtime.sendMessage({
+      action: 'trackJobApplication',
+      jobData: jobData
+    }, function(response) {
+      if (response && response.success) {
+        console.log("🚀 JobSchedule: Job tracked successfully");
+        showTrackingNotification(jobData.jobTitle, jobData.company);
+        trackButton.innerHTML = '✅ Tracked';
+        trackButton.style.background = '#28a745';
+        setTimeout(() => trackButton.remove(), 2000);
+      } else {
+        console.error("🚀 JobSchedule: Failed to track job:", response);
+        trackButton.innerHTML = '❌ Failed';
+        trackButton.style.background = '#dc3545';
+        setTimeout(() => {
+          trackButton.innerHTML = '📋 Track Job';
+          trackButton.style.background = '#0077b5';
+        }, 2000);
+      }
+    });
+  });
+  
+  document.body.appendChild(trackButton);
+  console.log("🚀 JobSchedule: Track job button created with fixed positioning");
 }
 
 // Show notification when job is tracked
@@ -77,6 +242,13 @@ setInterval(() => {
     currentUrl = window.location.href;
     if (currentUrl.includes('linkedin.com/jobs/')) {
       setTimeout(trackLinkedInJob, 2000); // Wait for page to load
+    } else {
+      // Remove track button when leaving job page
+      const existingButton = document.getElementById('jobschedule-track-button');
+      if (existingButton) {
+        existingButton.remove();
+        console.log("🚀 JobSchedule: Removed track button - left job page");
+      }
     }
   }
 }, 1000);
