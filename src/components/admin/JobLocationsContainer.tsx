@@ -88,7 +88,7 @@ function JobLocationsContainer() {
       // Then load the locations
       await loadJobLocations(1);
     })();
-  }, [loadJobLocations, handleFixJobRelationships, repairLocationOwnership]);
+  }, [loadJobLocations, handleFixJobRelationships]); // Removed repairLocationOwnership from dependencies
 
   return (
     <>

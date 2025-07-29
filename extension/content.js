@@ -65,15 +65,33 @@ function extractJobData() {
       companyCulture: '',
       growthOpportunities: '',
       applicationProcess: '',
-      additionalInfo: ''
+      additionalInfo: '',
+      purpose: '',
+      accountability: '',
+      mainActivities: '',
+      knowledgeRequirements: '',
+      softSkills: '',
+      jobComplexities: '',
+      whatWeOffer: ''
     };
     
     // Look for structured sections with more comprehensive matching
-    const sections = document.querySelectorAll('.jobs-description__content h3, .jobs-description__content h4, .jobs-description__content strong, .jobs-description__content h2');
+    const sections = document.querySelectorAll('.jobs-description__content h3, .jobs-description__content h4, .jobs-description__content strong, .jobs-description__content h2, .jobs-description__content p strong');
     sections.forEach(section => {
       const sectionText = section.textContent?.toLowerCase() || '';
+      let content = '';
+      
+      // Get content from next sibling or parent
       const nextElement = section.nextElementSibling;
-      const content = nextElement?.textContent?.trim() || '';
+      if (nextElement) {
+        content = nextElement.textContent?.trim() || '';
+      } else {
+        // If no next sibling, get content from parent
+        const parent = section.parentElement;
+        if (parent) {
+          content = parent.textContent?.replace(sectionText, '').trim() || '';
+        }
+      }
       
       if (sectionText.includes('about') || sectionText.includes('description') || sectionText.includes('overview')) {
         jobDescriptionSections.about = content;
@@ -101,6 +119,20 @@ function extractJobData() {
         jobDescriptionSections.applicationProcess = content;
       } else if (sectionText.includes('additional') || sectionText.includes('note') || sectionText.includes('other')) {
         jobDescriptionSections.additionalInfo = content;
+      } else if (sectionText.includes('purpose')) {
+        jobDescriptionSections.purpose = content;
+      } else if (sectionText.includes('accountability')) {
+        jobDescriptionSections.accountability = content;
+      } else if (sectionText.includes('main activities')) {
+        jobDescriptionSections.mainActivities = content;
+      } else if (sectionText.includes('knowledge') || sectionText.includes('skill requirements')) {
+        jobDescriptionSections.knowledgeRequirements = content;
+      } else if (sectionText.includes('soft skills')) {
+        jobDescriptionSections.softSkills = content;
+      } else if (sectionText.includes('complexities') || sectionText.includes('thinking challenges')) {
+        jobDescriptionSections.jobComplexities = content;
+      } else if (sectionText.includes('what we offer') || sectionText.includes('benefits')) {
+        jobDescriptionSections.whatWeOffer = content;
       }
     });
     
@@ -205,6 +237,12 @@ function extractJobData() {
           id: img.id
         });
       });
+    }
+    
+    // Ensure we don't use a generic/default logo
+    if (logoUrl && (logoUrl.includes('default') || logoUrl.includes('placeholder') || logoUrl.includes('generic'))) {
+      console.log("🚀 JobSchedule: Detected generic logo, setting to null");
+      logoUrl = null;
     }
 
     const jobData = {

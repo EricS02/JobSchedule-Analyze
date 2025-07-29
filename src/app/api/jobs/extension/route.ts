@@ -275,6 +275,12 @@ export async function POST(req: NextRequest) {
     let cleanLogoUrl = jobData.logoUrl;
     if (cleanLogoUrl) {
       console.log("API: Using logo URL as-is:", cleanLogoUrl);
+      
+      // Check if this is a generic/default logo and reject it
+      if (cleanLogoUrl.includes('default') || cleanLogoUrl.includes('placeholder') || cleanLogoUrl.includes('generic') || cleanLogoUrl.includes('soti')) {
+        console.log("API: Detected generic logo, setting to null");
+        cleanLogoUrl = null;
+      }
     }
     
     // Log the company and logo for debugging
@@ -287,8 +293,8 @@ export async function POST(req: NextRequest) {
     
     let company;
     if (existingCompany) {
-      // Only update the logo if we have a new one and it's different
-      if (cleanLogoUrl && cleanLogoUrl !== existingCompany.logoUrl) {
+      // Only update the logo if we have a new one and it's different and not generic
+      if (cleanLogoUrl && cleanLogoUrl !== existingCompany.logoUrl && !cleanLogoUrl.includes('soti')) {
         console.log(`API: Updating company "${jobData.company}" logo from "${existingCompany.logoUrl}" to "${cleanLogoUrl}"`);
         company = await prisma.company.update({
           where: { id: existingCompany.id },
