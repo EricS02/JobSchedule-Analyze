@@ -13,9 +13,10 @@ function initializeJobTracking() {
       return;
     }
 
-    // Prevent multiple initializations
-    if (isInitialized) {
-      console.log("🚀 JobSchedule: Already initialized, skipping");
+    // Prevent multiple initializations for the same URL
+    const currentUrl = window.location.href;
+    if (initializedUrls.has(currentUrl)) {
+      console.log("🚀 JobSchedule: Already initialized for this URL, skipping");
       return;
     }
 
@@ -25,7 +26,16 @@ function initializeJobTracking() {
     setTimeout(() => {
       createTrackButton();
       setupApplyButtonMonitoring();
-      isInitialized = true;
+      initializedUrls.add(currentUrl);
+      
+      // Clean up old URLs to prevent memory leaks (keep only last 10)
+      if (initializedUrls.size > 10) {
+        const urlsArray = Array.from(initializedUrls);
+        initializedUrls.clear();
+        urlsArray.slice(-5).forEach(url => initializedUrls.add(url));
+      }
+      
+      console.log("🚀 JobSchedule: Initialization completed for URL:", currentUrl);
     }, 2000);
     
   } catch (error) {
@@ -453,7 +463,7 @@ function handleTrackJobClick() {
 // Global variables to prevent duplicate clicks and track initialization
 let isProcessingClick = false;
 let lastProcessedUrl = null;
-let isInitialized = false;
+let initializedUrls = new Set();
 
 // Set up apply button monitoring with improved detection
 function setupApplyButtonMonitoring() {
