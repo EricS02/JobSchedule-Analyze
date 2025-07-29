@@ -101,10 +101,10 @@ function JobsCardView({
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-lg leading-tight line-clamp-2">
-                      {job.JobTitle?.label || job.title}
+                      {job.JobTitle?.label}
                     </h3>
                     <p className="text-sm text-muted-foreground font-medium">
-                      {job.Company?.label || job.company}
+                      {job.Company?.label}
                     </p>
                   </div>
                 </div>
