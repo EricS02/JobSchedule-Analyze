@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "JobSchedule",
-  "version": "1.0.0",
-  "description": "Track job applications from LinkedIn",
+  "name": "JobSchedule (Dev)",
+  "version": "1.0.1",
+  "description": "Track job applications from LinkedIn - Development Version",
   "permissions": [
     "storage",
     "notifications",
@@ -27,21 +27,15 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "*://*.linkedin.com/*"
-      ],
-      "js": [
-        "content.js"
-      ]
+      "matches": ["*://*.linkedin.com/*"],
+      "js": ["content.js"]
     },
     {
       "matches": [
         "http://localhost:3000/*",
         "https://jobschedule.io/*"
       ],
-      "js": [
-        "jobschedule-content.js"
-      ]
+      "js": ["jobschedule-content.js"]
     }
   ],
   "icons": {
@@ -49,4 +43,4 @@
     "48": "icon48.png",
     "128": "icon128.png"
   }
-}
+} 

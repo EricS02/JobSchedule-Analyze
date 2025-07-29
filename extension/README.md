@@ -1,125 +1,81 @@
 # JobSchedule Extension
 
-A Chrome extension for tracking job applications from LinkedIn.
+A Chrome extension for automatically tracking job applications from LinkedIn.
 
-## Environment Configuration
+## Setup
 
-The extension now uses environment-based configuration instead of hardcoded development mode.
-
-### How it works
-
-The extension automatically detects whether it's running in development or production mode based on the version in `manifest.json`:
-
-- **Development**: Version contains "dev" (e.g., "1.0-dev")
-  - Uses: `http://localhost:3000/api`
-  - Enables test endpoints and development features
-
-- **Production**: Version is clean (e.g., "1.0")
-  - Uses: `https://jobschedule.io/api`
-  - Disables test endpoints and development features
-
-### Switching Modes
-
-Use the build script to switch between development and production modes:
-
+### Development Mode (Local Testing)
 ```bash
 # Switch to development mode
-node build.js dev
+node switch-env.js dev
 
-# Switch to production mode
-node build.js prod
+# Reload extension in Chrome
+# Go to chrome://extensions/ → JobSchedule (Dev) → Reload
 ```
 
-### Manual Configuration
+### Production Mode (Live Site)
+```bash
+# Switch to production mode
+node switch-env.js prod
 
-If you prefer to manually configure:
+# Reload extension in Chrome
+# Go to chrome://extensions/ → JobSchedule → Reload
+```
 
-1. **Development Mode**: Edit `manifest.json` and set `"version": "1.0-dev"`
-2. **Production Mode**: Edit `manifest.json` and set `"version": "1.0"`
+## Authentication
 
-### Files Changed
+1. **Load the extension** in Chrome
+2. **Go to** `https://jobschedule.io/dashboard/extension` (or `http://localhost:3000/dashboard/extension` for dev)
+3. **Log in** to your account
+4. **Click "Generate Token"** - the extension will automatically receive the token
+5. **Return to the extension** and refresh if needed
 
-- `config.js` - Now uses `chrome.runtime.getManifest().version` to detect mode
-- `background.js` - Imports configuration from `config.js`
-- `manifest.json` - Updated to include production domain permissions
-- `manifest.prod.json` - Production version of manifest
-- `build.js` - Script to switch between modes
+## Features
 
-### Benefits
+- ✅ **Automatic Job Detection**: Detects when you're on LinkedIn job pages
+- ✅ **Job Tracking**: Automatically tracks job applications
+- ✅ **Dashboard Integration**: Jobs appear in your JobSchedule dashboard
+- ✅ **Notifications**: Shows confirmation when jobs are tracked
+- ✅ **Web App Authentication**: Seamless authentication via web app
 
-✅ **No more hardcoded development mode**  
-✅ **Automatic environment detection**  
-✅ **Easy switching between dev/prod**  
-✅ **Production-ready configuration**  
-✅ **Maintains backward compatibility**
+## How It Works
 
-## Security Enhancements
+1. **Job Detection**: The extension monitors LinkedIn job pages
+2. **Data Extraction**: Extracts job title, company, location, and URL
+3. **API Communication**: Sends job data to your JobSchedule backend
+4. **Dashboard Update**: Jobs appear in your dashboard automatically
 
-The extension now includes comprehensive security features:
+## Troubleshooting
 
-### Message Validation
-- **Action Whitelist**: Only allows predefined actions (`trackJobApplication`, `checkAuth`)
-- **Data Structure Validation**: Validates required fields and data types
-- **Enhanced Logging**: Detailed security event logging
+### Extension Not Loading
+- Check that the manifest.json has a valid version (e.g., "1.0.1")
+- Reload the extension in Chrome
 
-### Input Sanitization
-- **String Sanitization**: Trims and limits string lengths
-- **URL Validation**: Validates URL format before processing
-- **Data Type Validation**: Ensures proper data types for all fields
+### Authentication Issues
+- Make sure you're logged into the web app
+- Generate a new token from the extension page
+- Check browser console for errors
 
-### Rate Limiting
-- **Request Limiting**: 10 requests per minute per user
-- **Abuse Prevention**: Prevents spam and abuse
-- **Configurable Limits**: Easy to adjust rate limits
+### Job Tracking Not Working
+- Verify the extension is authenticated
+- Check that you're on a LinkedIn job page
+- Look for console logs starting with "🚀 JobSchedule"
 
-### Security Utilities (`security.js`)
-- `sanitizeString()` - Sanitize string inputs
-- `isValidUrl()` - Validate URL format
-- `isValidEmail()` - Validate email format
-- `validateJobData()` - Comprehensive job data validation
-- `logSecurityEvent()` - Security event logging
-- `RateLimiter` - Rate limiting utility
+## Development
 
-### Security Features
-✅ **Input validation and sanitization**  
-✅ **Rate limiting protection**  
-✅ **Action whitelisting**  
-✅ **Comprehensive error logging**  
-✅ **Data type validation**  
-✅ **URL validation**  
-✅ **Security event tracking**
+### Files Structure
+- `manifest.json` - Extension configuration
+- `background.js` - Background service worker
+- `content.js` - LinkedIn job detection script
+- `popup.html/js` - Extension popup interface
+- `config.js` - Environment configuration
 
-## Error Logging & Monitoring
+### Environment Switching
+- **Development**: Uses localhost:3000 API
+- **Production**: Uses jobschedule.io API
+- Use `node switch-env.js [dev|prod]` to switch
 
-The extension now includes production-ready error logging and monitoring:
+## Version History
 
-### Centralized Error Logger (`error-logger.js`)
-- `logError()` - Enhanced error logging with context
-- `getUserFriendlyMessage()` - Convert technical errors to user-friendly messages
-- `logApiError()` - Log API response errors with full context
-- `showErrorNotification()` - Show error notifications to users
-- `logPerformance()` - Track operation performance metrics
-- `logLifecycleEvent()` - Log extension lifecycle events
-
-### Error Categories
-- **Network Errors**: Connection issues, timeouts
-- **Authentication Errors**: 401/403 responses
-- **Server Errors**: 500/502/503 responses
-- **Validation Errors**: Invalid data, missing fields
-- **Rate Limiting**: Too many requests
-- **Critical Errors**: Security-related issues
-
-### Performance Monitoring
-- **Operation Timing**: Track how long operations take
-- **Slow Operation Detection**: Warn when operations take >5 seconds
-- **Success/Failure Metrics**: Track operation success rates
-
-### Error Features
-✅ **Comprehensive error context**  
-✅ **User-friendly error messages**  
-✅ **Performance monitoring**  
-✅ **Security event integration**  
-✅ **API error logging**  
-✅ **Lifecycle event tracking**  
-✅ **Critical error detection**  
-✅ **Stack trace preservation** 
+- **1.0.1** - Development version with localhost API
+- **1.0.0** - Production version with live API 
