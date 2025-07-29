@@ -13,12 +13,19 @@ function initializeJobTracking() {
       return;
     }
 
+    // Prevent multiple initializations
+    if (isInitialized) {
+      console.log("🚀 JobSchedule: Already initialized, skipping");
+      return;
+    }
+
     console.log("🚀 JobSchedule: LinkedIn job page detected");
     
     // Wait for page to load completely, then create track button
     setTimeout(() => {
       createTrackButton();
       setupApplyButtonMonitoring();
+      isInitialized = true;
     }, 2000);
     
   } catch (error) {
@@ -248,16 +255,19 @@ function extractJobData() {
       const companyNameLower = company.toLowerCase();
       const logoUrlLower = logoUrl.toLowerCase();
       
-      // Check for common logo URL patterns that should match the company
-      const isCompanySpecific = logoUrlLower.includes(companyNameLower) || 
-                               logoUrlLower.includes(companyNameLower.replace(/\s+/g, '')) ||
-                               logoUrlLower.includes(companyNameLower.replace(/\s+/g, '-')) ||
-                               logoUrlLower.includes(companyNameLower.replace(/\s+/g, '_'));
+      // Only validate if it's clearly a generic logo
+      const isGenericLogo = logoUrlLower.includes('default') || 
+                           logoUrlLower.includes('placeholder') ||
+                           logoUrlLower.includes('generic') ||
+                           logoUrlLower.includes('soti') ||
+                           (logoUrlLower.includes('coinbase') && !company.toLowerCase().includes('coinbase'));
       
-      if (!isCompanySpecific) {
-        console.log("🚀 JobSchedule: Logo URL doesn't match company name, setting to null");
+      if (isGenericLogo) {
+        console.log("🚀 JobSchedule: Generic logo detected, setting to null");
         console.log("🚀 JobSchedule: Company:", company, "Logo URL:", logoUrl);
         logoUrl = null;
+      } else {
+        console.log("🚀 JobSchedule: Valid logo found for company:", company);
       }
     }
     
@@ -440,9 +450,10 @@ function handleTrackJobClick() {
   });
 }
 
-// Global variable to prevent duplicate clicks
+// Global variables to prevent duplicate clicks and track initialization
 let isProcessingClick = false;
 let lastProcessedUrl = null;
+let isInitialized = false;
 
 // Set up apply button monitoring with improved detection
 function setupApplyButtonMonitoring() {
@@ -513,7 +524,12 @@ function setupApplyButtonMonitoring() {
           jobTitle: jobData.jobTitle,
           company: jobData.company,
           jobUrl: jobData.jobUrl,
-          hasLogo: !!jobData.logoUrl
+          hasLogo: !!jobData.logoUrl,
+          descriptionLength: jobData.description?.length || 0,
+          detailedDescriptionLength: jobData.detailedDescription?.length || 0,
+          jobRequirementsLength: jobData.jobRequirements?.length || 0,
+          jobResponsibilitiesLength: jobData.jobResponsibilities?.length || 0,
+          jobBenefitsLength: jobData.jobBenefits?.length || 0
         });
 
         // Track the job application
