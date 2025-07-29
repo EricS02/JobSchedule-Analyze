@@ -453,7 +453,7 @@ async function trackJobApplication(jobData) {
     console.log("JobSchedule: Request URL:", `${API_BASE_URL}/jobs/extension`);
     console.log("JobSchedule: Request headers:", {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${updatedToken.substring(0, 20)}...`
+      'Authorization': `Bearer ${currentToken.substring(0, 20)}...`
     });
     console.log("JobSchedule: Request body:", sanitizedJobData);
     
@@ -605,8 +605,7 @@ async function trackJobApplication(jobData) {
         hasUrl: !!jobData.jobUrl
       } : null,
       timestamp: new Date().toISOString(),
-      apiUrl: `${API_BASE_URL}/jobs/extension`,
-      hasToken: !!updatedToken
+      apiUrl: `${API_BASE_URL}/jobs/extension`
     });
     
     // Re-throw the error for the caller to handle
