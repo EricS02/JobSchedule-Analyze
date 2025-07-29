@@ -10,15 +10,25 @@ function trackLinkedInJob() {
     if (window.location.href.includes('linkedin.com/jobs/')) {
       console.log("🚀 JobSchedule: LinkedIn job page detected");
       
-      // Extract comprehensive job information
-      const jobData = extractLinkedInJobData();
-      
-      if (jobData.jobTitle && jobData.company) {
-        console.log("🚀 JobSchedule: Job data extracted:", jobData);
-        
-        // Create track job button next to apply button
-        createTrackJobButton(jobData);
-      }
+      // Wait for page to be fully loaded before extracting data
+      setTimeout(() => {
+        try {
+          // Extract comprehensive job information
+          const jobData = extractLinkedInJobData();
+          
+          if (jobData.jobTitle && jobData.company) {
+            console.log("🚀 JobSchedule: Job data extracted:", jobData);
+            
+            // Create track job button next to apply button
+            createTrackJobButton(jobData);
+            
+            // Set up apply button monitoring
+            setupApplyButtonMonitoring(jobData);
+          }
+        } catch (error) {
+          console.error("🚀 JobSchedule: Error extracting job data:", error);
+        }
+      }, 3000); // Wait 3 seconds for page to load
     }
   } catch (error) {
     console.error("🚀 JobSchedule: Error tracking LinkedIn job:", error);
@@ -85,8 +95,26 @@ function createTrackJobButton(jobData) {
       existingButton.remove();
     }
     
-    // Find the apply button container
-    const applyButtonContainer = document.querySelector('.jobs-apply-button, .jobs-s-apply-button, [data-control-name="jobdetails_topcard_inapply"]');
+    // Find the apply button container with multiple selectors
+    const applyButtonSelectors = [
+      '.jobs-apply-button',
+      '.jobs-s-apply-button',
+      '[data-control-name="jobdetails_topcard_inapply"]',
+      'button[aria-label*="Apply"]',
+      'button[aria-label*="apply"]',
+      '.artdeco-button--primary'
+    ];
+    
+    let applyButtonContainer = null;
+    
+    // Try to find the apply button
+    for (const selector of applyButtonSelectors) {
+      applyButtonContainer = document.querySelector(selector);
+      if (applyButtonContainer) {
+        console.log("🚀 JobSchedule: Found apply button with selector:", selector);
+        break;
+      }
+    }
     
     if (!applyButtonContainer) {
       console.log("🚀 JobSchedule: Apply button container not found, using fixed positioning");
@@ -110,6 +138,8 @@ function createTrackJobButton(jobData) {
       font-weight: 600;
       margin-left: 8px;
       transition: background-color 0.2s;
+      display: inline-block;
+      vertical-align: middle;
     `;
     
     // Add hover effect
@@ -147,9 +177,14 @@ function createTrackJobButton(jobData) {
       });
     });
     
-    // Insert next to apply button
-    applyButtonContainer.parentNode.insertBefore(trackButton, applyButtonContainer.nextSibling);
-    console.log("🚀 JobSchedule: Track job button created next to apply button");
+    // Try to insert next to apply button
+    try {
+      applyButtonContainer.parentNode.insertBefore(trackButton, applyButtonContainer.nextSibling);
+      console.log("🚀 JobSchedule: Track job button created next to apply button");
+    } catch (insertError) {
+      console.log("🚀 JobSchedule: Could not insert next to apply button, using fixed positioning");
+      createFixedTrackButton(jobData);
+    }
     
   } catch (error) {
     console.error("🚀 JobSchedule: Error creating track button:", error);
@@ -210,13 +245,13 @@ function createFixedTrackButton(jobData) {
 }
 
 // Show notification when job is tracked
-function showTrackingNotification(jobTitle, company) {
+function showTrackingNotification(jobTitle, company, action = "Tracked") {
   const notification = document.createElement('div');
   notification.style.cssText = `
     position: fixed;
     top: 20px;
     right: 20px;
-    background: #0077b5;
+    background: ${action === "Applied!" ? '#28a745' : '#0077b5'};
     color: white;
     padding: 15px;
     border-radius: 5px;
@@ -226,7 +261,7 @@ function showTrackingNotification(jobTitle, company) {
   `;
   notification.innerHTML = `
     <strong>JobSchedule</strong><br>
-    Job tracked: ${jobTitle} at ${company}
+    Job ${action.toLowerCase()}: ${jobTitle} at ${company}
   `;
   document.body.appendChild(notification);
   
@@ -252,6 +287,62 @@ setInterval(() => {
     }
   }
 }, 1000);
+
+// Set up monitoring for apply button clicks
+function setupApplyButtonMonitoring(jobData) {
+  try {
+    // Find all possible apply button selectors
+    const applyButtonSelectors = [
+      '.jobs-apply-button',
+      '.jobs-s-apply-button',
+      '[data-control-name="jobdetails_topcard_inapply"]',
+      'button[aria-label*="Apply"]',
+      'button[aria-label*="apply"]',
+      '.artdeco-button--primary'
+    ];
+    
+    let applyButton = null;
+    
+    // Try to find the apply button
+    for (const selector of applyButtonSelectors) {
+      applyButton = document.querySelector(selector);
+      if (applyButton) {
+        console.log("🚀 JobSchedule: Found apply button with selector:", selector);
+        break;
+      }
+    }
+    
+    if (applyButton) {
+      // Monitor for apply button clicks
+      applyButton.addEventListener('click', function() {
+        console.log("🚀 JobSchedule: Apply button clicked!");
+        
+        // Track the job application automatically
+        chrome.runtime.sendMessage({
+          action: 'trackJobApplication',
+          jobData: {
+            ...jobData,
+            applied: true,
+            appliedAt: new Date().toISOString()
+          }
+        }, function(response) {
+          if (response && response.success) {
+            console.log("🚀 JobSchedule: Job application tracked successfully");
+            showTrackingNotification(jobData.jobTitle, jobData.company, "Applied!");
+          } else {
+            console.error("🚀 JobSchedule: Failed to track job application:", response);
+          }
+        });
+      });
+      
+      console.log("🚀 JobSchedule: Apply button monitoring set up");
+    } else {
+      console.log("🚀 JobSchedule: Apply button not found, monitoring not set up");
+    }
+  } catch (error) {
+    console.error("🚀 JobSchedule: Error setting up apply button monitoring:", error);
+  }
+}
 
 // Track job on initial load
 if (window.location.href.includes('linkedin.com/jobs/')) {
@@ -312,7 +403,7 @@ try {
       
       // Handle different message types
       if (event.data.action === 'test') {
-        const result = jobScheduleFunctions.test();
+        const result = window.jobScheduleTest ? window.jobScheduleTest() : "Function not available";
         window.postMessage({
           type: 'JobSchedule',
           action: 'testResponse',
@@ -326,7 +417,7 @@ try {
   window.postMessage({
     type: 'JobSchedule',
     action: 'extensionLoaded',
-    functions: Object.keys(jobScheduleFunctions)
+    functions: ['test', 'diagnose', 'reset']
   }, '*');
   
   console.log("🚀 JobSchedule: postMessage setup completed");
