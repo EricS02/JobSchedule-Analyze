@@ -125,8 +125,26 @@ function createTrackButton() {
       trackButton.remove();
     }
 
-    // Find apply button
-    const applyButton = document.querySelector('.jobs-apply-button, .jobs-s-apply-button, [data-control-name="jobdetails_topcard_inapply"]');
+    // Find apply button with multiple selectors
+    const applyButtonSelectors = [
+      '.jobs-apply-button',
+      '.jobs-s-apply-button',
+      '[data-control-name="jobdetails_topcard_inapply"]',
+      'button[aria-label*="Apply"]',
+      'button[aria-label*="apply"]',
+      '.artdeco-button--primary'
+    ];
+    
+    let applyButton = null;
+    
+    // Try to find the apply button
+    for (const selector of applyButtonSelectors) {
+      applyButton = document.querySelector(selector);
+      if (applyButton) {
+        console.log("🚀 JobSchedule: Found apply button with selector:", selector);
+        break;
+      }
+    }
     
     if (!applyButton) {
       console.log("🚀 JobSchedule: Apply button not found, using fixed positioning");
@@ -201,23 +219,10 @@ function handleTrackJobClick() {
 
   console.log("🚀 JobSchedule: Track job button clicked");
   
-  // Check if chrome.runtime is available
-  if (typeof chrome === 'undefined' || !chrome.runtime) {
-    console.error("🚀 JobSchedule: Chrome runtime not available");
-    showNotification("Extension not available", "error");
-    return;
-  }
-  
   chrome.runtime.sendMessage({
     action: 'trackJobApplication',
     jobData: currentJobData
   }, function(response) {
-    if (chrome.runtime.lastError) {
-      console.error("🚀 JobSchedule: Runtime error:", chrome.runtime.lastError);
-      showNotification("Connection error", "error");
-      return;
-    }
-    
     if (response && response.success) {
       console.log("🚀 JobSchedule: Job tracked successfully");
       showNotification("Job tracked successfully!", "success");
@@ -239,70 +244,69 @@ function handleTrackJobClick() {
   });
 }
 
-// Set up apply button monitoring
+// Set up apply button monitoring with improved detection
 function setupApplyButtonMonitoring() {
   try {
-    // Try multiple selectors for apply button
-    const applyButtonSelectors = [
-      '.jobs-apply-button',
-      '.jobs-s-apply-button',
-      '[data-control-name="jobdetails_topcard_inapply"]',
-      'button[aria-label*="Apply"]',
-      'button[aria-label*="apply"]',
-      '.artdeco-button--primary'
-    ];
-    
-    let applyButton = null;
-    
-    // Try to find the apply button
-    for (const selector of applyButtonSelectors) {
-      applyButton = document.querySelector(selector);
-      if (applyButton) {
-        console.log("🚀 JobSchedule: Found apply button with selector:", selector);
-        break;
-      }
-    }
-    
-    if (!applyButton) {
-      console.log("🚀 JobSchedule: Apply button not found for monitoring");
-      return;
-    }
-
-    // Monitor for apply button clicks
-    applyButton.addEventListener('click', function() {
-      console.log("🚀 JobSchedule: Apply button clicked!");
+    // Wait a bit for the page to fully load
+    setTimeout(() => {
+      // Try multiple selectors for apply button
+      const applyButtonSelectors = [
+        '.jobs-apply-button',
+        '.jobs-s-apply-button',
+        '[data-control-name="jobdetails_topcard_inapply"]',
+        'button[aria-label*="Apply"]',
+        'button[aria-label*="apply"]',
+        '.artdeco-button--primary',
+        'button[data-control-name="jobdetails_topcard_inapply"]'
+      ];
       
-      if (!currentJobData) {
-        console.error("🚀 JobSchedule: No job data available for apply tracking");
+      let applyButton = null;
+      
+      // Try to find the apply button
+      for (const selector of applyButtonSelectors) {
+        applyButton = document.querySelector(selector);
+        if (applyButton) {
+          console.log("🚀 JobSchedule: Found apply button with selector:", selector);
+          break;
+        }
+      }
+      
+      if (!applyButton) {
+        console.log("🚀 JobSchedule: Apply button not found for monitoring");
         return;
       }
 
-      // Track the job application
-      chrome.runtime.sendMessage({
-        action: 'trackJobApplication',
-        jobData: {
-          ...currentJobData,
-          applied: true,
-          appliedAt: new Date().toISOString()
-        }
-      }, function(response) {
-        if (chrome.runtime.lastError) {
-          console.error("🚀 JobSchedule: Runtime error during apply:", chrome.runtime.lastError);
-          showNotification("Connection error", "error");
+      // Monitor for apply button clicks
+      applyButton.addEventListener('click', function() {
+        console.log("🚀 JobSchedule: Apply button clicked!");
+        
+        if (!currentJobData) {
+          console.error("🚀 JobSchedule: No job data available for apply tracking");
           return;
         }
-        
-        if (response && response.success) {
-          console.log("🚀 JobSchedule: Job application tracked successfully");
-          showNotification("Job application tracked!", "success");
-        } else {
-          console.error("🚀 JobSchedule: Failed to track job application:", response);
-          showNotification("Failed to track application", "error");
-        }
+
+        // Track the job application
+        chrome.runtime.sendMessage({
+          action: 'trackJobApplication',
+          jobData: {
+            ...currentJobData,
+            applied: true,
+            appliedAt: new Date().toISOString()
+          }
+        }, function(response) {
+          if (response && response.success) {
+            console.log("🚀 JobSchedule: Job application tracked successfully");
+            showNotification("Job application tracked!", "success");
+          } else {
+            console.error("🚀 JobSchedule: Failed to track job application:", response);
+            showNotification("Failed to track application", "error");
+          }
+        });
       });
-    });
-    
-    console.log("🚀 JobSchedule: Apply button monitoring set up");
+      
+      console.log("🚀 JobSchedule: Apply button monitoring set up");
+      
+    }, 1000); // Wait 1 second for page to load
     
   } catch (error) {
     console.error("🚀 JobSchedule: Error setting up apply button monitoring:", error);
