@@ -223,9 +223,9 @@ function extractJobData() {
     }
     
     // Additional debugging for logo extraction
-    console.log("🚀 JobSchedule: Final logo URL for company:", jobData.company, "Logo URL:", logoUrl);
+    console.log("🚀 JobSchedule: Final logo URL for company:", company, "Logo URL:", logoUrl);
     if (!logoUrl) {
-      console.log("🚀 JobSchedule: No logo found for company:", jobData.company);
+      console.log("🚀 JobSchedule: No logo found for company:", company);
       // Try to find any image that might be a logo
       const allImages = document.querySelectorAll('img');
       console.log("🚀 JobSchedule: Found", allImages.length, "images on page");
