@@ -105,7 +105,14 @@ export async function POST(req: NextRequest) {
       location: jobData.location,
       jobUrl: jobData.jobUrl,
       hasDescription: !!jobData.description,
-      hasLogoUrl: !!jobData.logoUrl
+      hasDetailedDescription: !!jobData.detailedDescription,
+      hasJobRequirements: !!jobData.jobRequirements,
+      hasJobResponsibilities: !!jobData.jobResponsibilities,
+      hasJobBenefits: !!jobData.jobBenefits,
+      hasLogoUrl: !!jobData.logoUrl,
+      logoUrl: jobData.logoUrl?.substring(0, 100) + '...',
+      descriptionLength: jobData.description?.length || 0,
+      detailedDescriptionLength: jobData.detailedDescription?.length || 0
     });
     
     // Validate job data
@@ -382,6 +389,18 @@ export async function POST(req: NextRequest) {
     // No need to fetch job status since we're using string field
     
     // Create job
+    console.log("API: Creating job with data:", {
+      jobTitle: jobData.jobTitle,
+      company: jobData.company,
+      location: jobData.location,
+      hasDescription: !!jobData.description,
+      hasDetailedDescription: !!jobData.detailedDescription,
+      hasJobRequirements: !!jobData.jobRequirements,
+      hasJobResponsibilities: !!jobData.jobResponsibilities,
+      hasJobBenefits: !!jobData.jobBenefits,
+      jobUrl: jobData.jobUrl
+    });
+    
     const job = await prisma.job.create({
       data: {
         userId: user.id,
@@ -407,7 +426,18 @@ export async function POST(req: NextRequest) {
     });
     
     // After creating the job
-    console.log("API: Job created successfully:", job);
+    console.log("API: Job created successfully:", {
+      id: job.id,
+      title: job.title,
+      company: job.company,
+      location: job.location,
+      hasDescription: !!job.description,
+      hasDetailedDescription: !!job.detailedDescription,
+      hasJobRequirements: !!job.jobRequirements,
+      hasJobResponsibilities: !!job.jobResponsibilities,
+      hasJobBenefits: !!job.jobBenefits,
+      jobUrl: job.jobUrl
+    });
     
     // Revalidate multiple paths to ensure all related pages update
     revalidatePath('/dashboard');

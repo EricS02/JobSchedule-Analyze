@@ -29,10 +29,18 @@ function initializeJobTracking() {
 // Extract job data when needed
 function extractJobData() {
   try {
+    console.log("🚀 JobSchedule: Starting job data extraction for URL:", window.location.href);
+    
     // Extract basic job information
     const jobTitle = document.querySelector('.job-details-jobs-unified-top-card__job-title')?.textContent?.trim();
     const company = document.querySelector('.job-details-jobs-unified-top-card__company-name')?.textContent?.trim();
     const location = document.querySelector('.job-details-jobs-unified-top-card__bullet')?.textContent?.trim();
+    
+    console.log("🚀 JobSchedule: Basic job info extracted:", {
+      jobTitle: jobTitle?.substring(0, 50),
+      company: company?.substring(0, 50),
+      location: location?.substring(0, 50)
+    });
     
     if (!jobTitle || !company) {
       console.log("🚀 JobSchedule: Job data not found");
@@ -434,12 +442,20 @@ function handleTrackJobClick() {
 
 // Global variable to prevent duplicate clicks
 let isProcessingClick = false;
+let lastProcessedUrl = null;
 
 // Set up apply button monitoring with improved detection
 function setupApplyButtonMonitoring() {
   try {
     // Wait a bit for the page to fully load
     setTimeout(() => {
+      // Check if we're on a new job page
+      const currentUrl = window.location.href;
+      if (lastProcessedUrl === currentUrl) {
+        console.log("🚀 JobSchedule: Already processed this URL, skipping");
+        return;
+      }
+      
       // Try multiple selectors for apply button
       const applyButtonSelectors = [
         '.jobs-apply-button',
@@ -467,6 +483,11 @@ function setupApplyButtonMonitoring() {
         return;
       }
 
+      // Remove any existing event listeners to prevent duplicates
+      const newApplyButton = applyButton.cloneNode(true);
+      applyButton.parentNode.replaceChild(newApplyButton, applyButton);
+      applyButton = newApplyButton;
+
       // Monitor for apply button clicks with debouncing
       applyButton.addEventListener('click', function() {
         // Prevent duplicate clicks
@@ -476,7 +497,8 @@ function setupApplyButtonMonitoring() {
         }
         
         isProcessingClick = true;
-        console.log("🚀 JobSchedule: Apply button clicked!");
+        lastProcessedUrl = currentUrl;
+        console.log("🚀 JobSchedule: Apply button clicked for URL:", currentUrl);
         
         // Extract job data when apply button is clicked
         const jobData = extractJobData();
@@ -486,6 +508,13 @@ function setupApplyButtonMonitoring() {
           isProcessingClick = false;
           return;
         }
+
+        console.log("🚀 JobSchedule: Extracted job data for tracking:", {
+          jobTitle: jobData.jobTitle,
+          company: jobData.company,
+          jobUrl: jobData.jobUrl,
+          hasLogo: !!jobData.logoUrl
+        });
 
         // Track the job application
         chrome.runtime.sendMessage({
@@ -512,7 +541,7 @@ function setupApplyButtonMonitoring() {
         });
       });
       
-      console.log("🚀 JobSchedule: Apply button monitoring set up");
+      console.log("🚀 JobSchedule: Apply button monitoring set up for URL:", currentUrl);
       
     }, 1000); // Wait 1 second for page to load
     
