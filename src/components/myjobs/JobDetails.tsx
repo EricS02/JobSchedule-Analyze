@@ -147,7 +147,15 @@ function formatJobDescription(text: string) {
 }
 
 function JobDetails({ job }: { job: JobResponse }) {
-  console.log('JobDetails: job object', job);
+  console.log('JobDetails: job object', {
+    id: job.id,
+    title: job.JobTitle?.label,
+    company: job.Company?.label,
+    description: job.description?.substring(0, 100),
+    detailedDescription: job.detailedDescription?.substring(0, 100),
+    hasDescription: !!job.description,
+    hasDetailedDescription: !!job.detailedDescription
+  });
   const [aiSectionOpen, setAiSectionOpen] = useState(false);
   const router = useRouter();
   const goBack = () => router.back();
@@ -280,10 +288,10 @@ function JobDetails({ job }: { job: JobResponse }) {
             </div>
           )}
           {/* Detailed Job Description Section */}
-          {job?.detailedDescription && (
+          {(job?.detailedDescription || job?.description) && (
             <div className="my-4 ml-4">
               <h4 className="font-bold mb-2">Job Description</h4>
-              {formatJobDescription(job.detailedDescription)}
+              {formatJobDescription(job.detailedDescription || job.description)}
             </div>
           )}
           <CardFooter></CardFooter>

@@ -163,36 +163,31 @@ function extractJobData() {
     // Company logo - try multiple selectors with improved detection
     let logoUrl = null;
     const logoSelectors = [
+      // Most specific selectors first
       '.job-details-jobs-unified-top-card__company-logo img',
-      '.job-details-jobs-unified-top-card__company-logo svg image',
-      '.job-details-jobs-unified-top-card__company-logo svg',
-      '.job-details-jobs-unified-top-card__company-logo',
       '.jobs-unified-top-card__company-logo img',
-      '.jobs-unified-top-card__company-logo svg',
       '.jobs-unified-top-card__company-logo-image img',
+      '[data-test-id="company-logo"] img',
+      // Company-specific logo containers
+      '.job-details-jobs-unified-top-card__company-logo',
+      '.jobs-unified-top-card__company-logo',
       '.jobs-unified-top-card__company-logo-image',
+      '[data-test-id="company-logo"]',
+      // SVG logos
+      '.job-details-jobs-unified-top-card__company-logo svg image',
+      '.jobs-unified-top-card__company-logo svg image',
+      '.job-details-jobs-unified-top-card__company-logo svg',
+      '.jobs-unified-top-card__company-logo svg',
+      // Fallback selectors (more specific)
       '.jobs-box__company-logo img',
       '.jobs-company-logo img',
       '.company-logo img',
       '.logo img',
-      '[data-test-id="company-logo"] img',
-      'img[alt*="logo"]',
-      'img[alt*="Logo"]',
+      // Only use these if no company-specific logo found
+      'img[alt*="logo"][src*="company"]',
+      'img[alt*="Logo"][src*="company"]',
       'img[alt*="company"]',
-      'img[alt*="Company"]',
-      '.jobs-unified-top-card__company-logo-image img',
-      // Additional selectors for better coverage
-      '.jobs-unified-top-card__company-logo-image img[src*="logo"]',
-      '.jobs-unified-top-card__company-logo img[src*="logo"]',
-      'img[src*="logo"]',
-      'img[src*="Logo"]',
-      'img[src*="company"]',
-      'img[src*="Company"]',
-      // LinkedIn specific selectors
-      '[data-test-id="company-logo"] img',
-      '[data-test-id="company-logo"]',
-      '.jobs-unified-top-card__company-logo-image img[src]',
-      '.jobs-unified-top-card__company-logo img[src]'
+      'img[alt*="Company"]'
     ];
     
     for (const selector of logoSelectors) {
@@ -237,6 +232,25 @@ function extractJobData() {
           id: img.id
         });
       });
+    }
+    
+    // Validate that the logo URL is appropriate for the company
+    if (logoUrl) {
+      // Check if the logo URL contains the company name (case insensitive)
+      const companyNameLower = company.toLowerCase();
+      const logoUrlLower = logoUrl.toLowerCase();
+      
+      // Check for common logo URL patterns that should match the company
+      const isCompanySpecific = logoUrlLower.includes(companyNameLower) || 
+                               logoUrlLower.includes(companyNameLower.replace(/\s+/g, '')) ||
+                               logoUrlLower.includes(companyNameLower.replace(/\s+/g, '-')) ||
+                               logoUrlLower.includes(companyNameLower.replace(/\s+/g, '_'));
+      
+      if (!isCompanySpecific) {
+        console.log("🚀 JobSchedule: Logo URL doesn't match company name, setting to null");
+        console.log("🚀 JobSchedule: Company:", company, "Logo URL:", logoUrl);
+        logoUrl = null;
+      }
     }
     
     // Ensure we don't use a generic/default logo
