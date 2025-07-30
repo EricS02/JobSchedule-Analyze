@@ -5,6 +5,7 @@ import path from "path";
 import fs from "fs";
 import { getTimestampedFileName } from "@/lib/utils";
 import prisma from "@/lib/db";
+import { processPDFResumeServer } from "@/utils/pdf-server.utils";
 
 // Force dynamic rendering to prevent build-time execution
 export const dynamic = 'force-dynamic';
@@ -99,122 +100,213 @@ export const POST = async (req: NextRequest, res: NextResponse) => {
       // Ensure directory exists
       try {
         if (!fs.existsSync(uploadDir)) {
-          console.log('📁 Creating upload directory...');
           fs.mkdirSync(uploadDir, { recursive: true });
-          console.log('✅ Upload directory created');
-        } else {
-          console.log('✅ Upload directory already exists');
+          console.log('✅ Created upload directory');
         }
       } catch (dirError) {
         console.error('❌ Failed to create upload directory:', dirError);
-        throw new Error(`Failed to create upload directory: ${dirError instanceof Error ? dirError.message : 'Unknown error'}`);
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Failed to create upload directory",
+          },
+          {
+            status: 500,
+          }
+        );
       }
       
-      const timestampedFileName = getTimestampedFileName(file.name);
-      filePath = path.join(uploadDir, timestampedFileName);
-      console.log('- Final file path:', filePath);
+      // Generate unique filename
+      const timestamp = getTimestampedFileName(file.name);
+      const fileExtension = path.extname(file.name);
+      const fileName = `${timestamp}${fileExtension}`;
+      filePath = path.join(uploadDir, fileName);
       
+      console.log('- Generated filename:', fileName);
+      console.log('- Full file path:', filePath);
+      
+      // Convert file to buffer for processing
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(new Uint8Array(arrayBuffer));
+      console.log('- File converted to buffer, size:', buffer.length);
+      
+      // Process PDF with enhanced extraction and AI parsing
+      let processedText = extractedText || '';
+      let parsedData = null;
+      
+      if (file.type === 'application/pdf') {
+        console.log('📄 Processing PDF with enhanced extraction...');
+        try {
+          const pdfResult = await processPDFResumeServer(buffer);
+          processedText = pdfResult.extractedText;
+          parsedData = pdfResult.parsedData;
+          
+          console.log('✅ PDF processing completed');
+          console.log('- Extracted text length:', processedText.length);
+          console.log('- AI parsed data available:', !!parsedData);
+          
+          if (parsedData) {
+            console.log('- Parsed data structure:', {
+              hasContactInfo: !!parsedData.contactInfo,
+              hasExperience: !!parsedData.experience?.length,
+              hasEducation: !!parsedData.education?.length,
+              hasSkills: !!parsedData.technicalSkills?.length,
+              hasProjects: !!parsedData.projects?.length,
+              hasCertifications: !!parsedData.certifications?.length
+            });
+          }
+        } catch (pdfError) {
+          console.error('❌ PDF processing failed:', pdfError);
+          // Continue with file upload even if PDF processing fails
+          processedText = 'PDF processing encountered an issue. You can manually enter your information below.';
+        }
+      }
+      
+      // Save file to disk
       try {
-        const { uploadFile } = await import("@/actions/profile.actions");
-      await uploadFile(file, uploadDir, filePath);
-        console.log('✅ File uploaded successfully');
-      } catch (uploadError) {
-        console.error('❌ File upload failed:', uploadError);
-        throw new Error(`File upload failed: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`);
-      }
-    } else {
-      console.log('⚠️ No file provided for upload');
-    }
-
-    if (resumeId && title) {
-      if (fileId && file?.name) {
-        const { deleteFile } = await import("@/actions/profile.actions");
-        await deleteFile(fileId);
-        fileId = undefined;
-      }
-
-              const { editResume } = await import("@/actions/profile.actions");
-        const res = await editResume(
-        resumeId,
-        title,
-        fileId,
-        file?.name,
-        filePath
-      );
-      return NextResponse.json(res, { status: 200 });
-    }
-
-    // Handle client-extracted text or fallback to server-side processing
-    let response;
-    
-    if (extractedText && extractedText.trim().length > 50) {
-      console.log('Creating resume with client-extracted text');
-      console.log('- Extracted text length:', extractedText.length);
-      if (extractionMetadata) {
-        console.log('- Extraction metadata:', extractionMetadata);
+        fs.writeFileSync(filePath, buffer);
+        console.log('✅ File saved to disk');
+      } catch (writeError) {
+        console.error('❌ Failed to save file:', writeError);
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Failed to save file",
+          },
+          {
+            status: 500,
+          }
+        );
       }
       
-      // Use the new client extraction function
-              const { createResumeProfileWithClientExtraction } = await import("@/actions/profile.actions");
-        response = await createResumeProfileWithClientExtraction(
-        title,
-        file?.name ?? null,
-        filePath,
-        extractedText,
-        extractionMetadata ? JSON.parse(extractionMetadata) : undefined
-      );
+      // Get or create user profile
+      let profile = await prisma.profile.findFirst({
+        where: { userId: userId }
+      });
+      
+      if (!profile) {
+        if (!userId) {
+          return NextResponse.json(
+            { success: false, error: "User ID is required" },
+            { status: 400 }
+          );
+        }
+        profile = await prisma.profile.create({
+          data: { userId: userId }
+        });
+        console.log('✅ Created user profile');
+      }
+      
+      // Create or update resume in database
+      try {
+        console.log('💾 Saving resume to database...');
+        
+        let resume;
+        if (resumeId) {
+          // Update existing resume
+          resume = await prisma.resume.update({
+            where: { id: resumeId },
+            data: {
+              title: title || file.name,
+            },
+            include: {
+              File: true,
+              profile: true
+            }
+          });
+          console.log('✅ Resume updated in database');
+        } else {
+          // Create File record first
+          const fileRecord = await prisma.file.create({
+            data: {
+              fileName: fileName,
+              filePath: filePath,
+              fileType: file.type,
+            }
+          });
+          
+          // Create new resume
+          resume = await prisma.resume.create({
+            data: {
+              title: title || file.name,
+              profileId: profile.id,
+              FileId: fileRecord.id,
+            },
+            include: {
+              File: true,
+              profile: true
+            }
+          });
+          console.log('✅ Resume created in database');
+        }
+        
+        console.log('🎉 Resume processing completed successfully');
+        console.log('- Resume ID:', resume.id);
+        console.log('- File path:', resume.File?.filePath);
+        console.log('- File name:', resume.File?.fileName);
+        
+        return NextResponse.json({
+          success: true,
+          resume: {
+            id: resume.id,
+            title: resume.title,
+            fileName: resume.File?.fileName,
+            filePath: resume.File?.filePath,
+            fileSize: file.size,
+            extractedText: processedText,
+            parsedData: parsedData,
+            createdAt: resume.createdAt,
+            updatedAt: resume.updatedAt,
+          },
+          message: "Resume uploaded and processed successfully",
+        });
+        
+      } catch (dbError) {
+        console.error('❌ Database operation failed:', dbError);
+        
+        // Clean up file if database operation fails
+        try {
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+            console.log('🧹 Cleaned up file after database error');
+          }
+        } catch (cleanupError) {
+          console.error('❌ Failed to clean up file:', cleanupError);
+        }
+        
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Failed to save resume to database",
+          },
+          {
+            status: 500,
+          }
+        );
+      }
     } else {
-      console.log('Creating resume without text extraction');
-              const { createResumeProfile } = await import("@/actions/profile.actions");
-        response = await createResumeProfile(
-        title,
-        file?.name ?? null,
-        filePath
-      );
-    }
-    
-    // Check if the response indicates success
-    if (response && response.success) {
-      return NextResponse.json(response, { status: 201 });
-    } else {
-      // Handle error response from the action
-      const errorMessage = response?.message || response?.error || 'Failed to create resume';
-      console.error('Resume creation failed:', response);
+      console.log('❌ No file provided');
       return NextResponse.json(
-        { success: false, error: errorMessage },
-        { status: 500 }
+        {
+          success: false,
+          error: "No file provided",
+        },
+        {
+          status: 400,
+        }
       );
     }
   } catch (error) {
     console.error('❌ Resume API error:', error);
-    console.error('❌ Error details:', {
-      name: error instanceof Error ? error.name : 'Unknown',
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    });
-    const isProd = process.env.NODE_ENV === 'production';
-    if (error instanceof Error) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: error.message ?? "Resume update or File upload failed",
-          ...(isProd ? {} : { stack: error.stack })
-        },
-        {
-          status: 500,
-        }
-      );
-    } else {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "An unexpected error occurred while processing the resume",
-        },
-        {
-          status: 500,
-        }
-      );
-    }
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Internal server error",
+      },
+      {
+        status: 500,
+      }
+    );
   }
 };
 

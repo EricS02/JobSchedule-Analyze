@@ -3,6 +3,7 @@ import prisma from "@/lib/db";
 import { revalidatePath } from 'next/cache';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { NextRequest, NextResponse } from 'next/server';
+import { JobExtractionData, extractCompanyLogo, isValidLogoUrl } from "@/utils/job-extraction.utils";
 
 // Force dynamic rendering to prevent build-time execution
 export const dynamic = 'force-dynamic';
@@ -48,6 +49,20 @@ function corsHeaders(response: NextResponse) {
   response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   response.headers.set('Content-Type', 'application/json'); // Ensure JSON content type
   return response;
+}
+
+// Enhanced logo validation function
+function validateAndCleanLogoUrl(logoUrl: string | undefined, companyName: string): string | null {
+  if (!logoUrl) return null;
+  
+  // Use the enhanced validation from job-extraction.utils
+  if (!isValidLogoUrl(logoUrl, companyName)) {
+    console.log(`API: Invalid logo detected for company "${companyName}": ${logoUrl}`);
+    return null;
+  }
+  
+  console.log(`API: Valid logo found for company "${companyName}": ${logoUrl}`);
+  return logoUrl;
 }
 
 export async function POST(req: NextRequest) {
@@ -98,7 +113,7 @@ export async function POST(req: NextRequest) {
     console.log(`API: Using authenticated user: ${user.email}`);
     
     // Get job data from request
-    const jobData = await req.json();
+    const jobData: JobExtractionData = await req.json();
     console.log("API: Received job data:", {
       jobTitle: jobData.jobTitle,
       company: jobData.company,
@@ -112,7 +127,13 @@ export async function POST(req: NextRequest) {
       hasLogoUrl: !!jobData.logoUrl,
       logoUrl: jobData.logoUrl?.substring(0, 100) + '...',
       descriptionLength: jobData.description?.length || 0,
-      detailedDescriptionLength: jobData.detailedDescription?.length || 0
+      detailedDescriptionLength: jobData.detailedDescription?.length || 0,
+      salary: jobData.salary,
+      jobType: jobData.jobType,
+      experienceLevel: jobData.experienceLevel,
+      remoteWork: jobData.remoteWork,
+      technologies: jobData.technologies?.length || 0,
+      skills: jobData.skills?.length || 0
     });
     
     // Validate job data
@@ -127,6 +148,9 @@ export async function POST(req: NextRequest) {
       ));
     }
     
+    // Enhanced logo validation
+    const validatedLogoUrl = validateAndCleanLogoUrl(jobData.logoUrl, jobData.company);
+    
     // Check for duplicate job applications with improved logic
     let existingJob = null;
     
@@ -135,7 +159,8 @@ export async function POST(req: NextRequest) {
       company: jobData.company,
       location: jobData.location,
       hasJobUrl: !!jobData.jobUrl,
-      jobUrlLength: jobData.jobUrl?.length || 0
+      jobUrlLength: jobData.jobUrl?.length || 0,
+      hasValidLogo: !!validatedLogoUrl
     });
     
     // First check by jobUrl if provided (most reliable)
@@ -229,8 +254,11 @@ export async function POST(req: NextRequest) {
         existingCompany: existingJob.jobsAppliedCompany?.label,
         existingLocation: existingJob.location,
         existingCreatedAt: existingJob.createdAt,
-        hasNewLogo: !!jobData.logoUrl,
-        hasNewDescription: !!jobData.description
+        hasNewLogo: !!validatedLogoUrl,
+        hasNewDescription: !!jobData.description,
+        hasNewRequirements: !!jobData.jobRequirements,
+        hasNewResponsibilities: !!jobData.jobResponsibilities,
+        hasNewBenefits: !!jobData.jobBenefits
       });
       
       // Update the existing job with new information (logo, description, etc.)
@@ -250,17 +278,13 @@ export async function POST(req: NextRequest) {
         }
       });
       
-      // Also update the company logo if we have a new one
-      if (jobData.logoUrl && existingJob.jobsAppliedCompany) {
-        const cleanLogoUrl = jobData.logoUrl;
-        if (!cleanLogoUrl.includes('default') && !cleanLogoUrl.includes('placeholder') && 
-            !cleanLogoUrl.includes('generic') && !cleanLogoUrl.includes('soti')) {
-          console.log(`API: Updating existing company logo from "${existingJob.jobsAppliedCompany.logoUrl}" to "${cleanLogoUrl}"`);
-          await prisma.company.update({
-            where: { id: existingJob.jobsAppliedCompany.id },
-            data: { logoUrl: cleanLogoUrl }
-          });
-        }
+      // Also update the company logo if we have a new valid one
+      if (validatedLogoUrl && existingJob.jobsAppliedCompany) {
+        console.log(`API: Updating existing company logo from "${existingJob.jobsAppliedCompany.logoUrl}" to "${validatedLogoUrl}"`);
+        await prisma.company.update({
+          where: { id: existingJob.jobsAppliedCompany.id },
+          data: { logoUrl: validatedLogoUrl }
+        });
       }
       
       console.log("API: Successfully updated existing job with new information");
@@ -304,23 +328,8 @@ export async function POST(req: NextRequest) {
       }
     });
     
-    // Find or create company with logo
-    console.log(`API: Processing company "${jobData.company}" with logo: ${jobData.logoUrl || 'NO LOGO'}`);
-    
-    // Use the logo URL as-is (LinkedIn URLs should not be modified)
-    let cleanLogoUrl = jobData.logoUrl;
-    if (cleanLogoUrl) {
-      console.log("API: Using logo URL as-is:", cleanLogoUrl);
-      
-      // Check if this is a generic/default logo and reject it
-      if (cleanLogoUrl.includes('default') || cleanLogoUrl.includes('placeholder') || cleanLogoUrl.includes('generic') || cleanLogoUrl.includes('soti')) {
-        console.log("API: Detected generic logo, setting to null");
-        cleanLogoUrl = null;
-      }
-    }
-    
-    // Log the company and logo for debugging
-    console.log(`API: Processing company "${jobData.company}" with logo: ${cleanLogoUrl || 'NO LOGO'}`);
+    // Find or create company with enhanced logo handling
+    console.log(`API: Processing company "${jobData.company}" with logo: ${validatedLogoUrl || 'NO LOGO'}`);
     
     // Check if company exists and update logo if different
     const existingCompany = await prisma.company.findUnique({
@@ -329,13 +338,13 @@ export async function POST(req: NextRequest) {
     
     let company;
     if (existingCompany) {
-      // Only update the logo if we have a new one and it's different and not generic
-      if (cleanLogoUrl && cleanLogoUrl !== existingCompany.logoUrl && !cleanLogoUrl.includes('soti')) {
-        console.log(`API: Updating company "${jobData.company}" logo from "${existingCompany.logoUrl}" to "${cleanLogoUrl}"`);
+      // Only update the logo if we have a new valid one and it's different
+      if (validatedLogoUrl && validatedLogoUrl !== existingCompany.logoUrl) {
+        console.log(`API: Updating company "${jobData.company}" logo from "${existingCompany.logoUrl}" to "${validatedLogoUrl}"`);
         company = await prisma.company.update({
           where: { id: existingCompany.id },
           data: {
-            logoUrl: cleanLogoUrl,
+            logoUrl: validatedLogoUrl,
             label: jobData.company
           }
         });
@@ -346,13 +355,13 @@ export async function POST(req: NextRequest) {
       }
     } else {
       // Create new company
-      console.log(`API: Creating new company "${jobData.company}" with logo: "${cleanLogoUrl}"`);
+      console.log(`API: Creating new company "${jobData.company}" with logo: "${validatedLogoUrl}"`);
       company = await prisma.company.create({
         data: {
           label: jobData.company,
           value: jobData.company.toLowerCase().replace(/\s+/g, '-'),
           createdBy: user.id,
-          logoUrl: cleanLogoUrl || null
+          logoUrl: validatedLogoUrl || null
         }
       });
     }
@@ -386,10 +395,8 @@ export async function POST(req: NextRequest) {
       ));
     }
     
-    // No need to fetch job status since we're using string field
-    
-    // Create job
-    console.log("API: Creating job with data:", {
+    // Create job with enhanced data
+    console.log("API: Creating job with enhanced data:", {
       jobTitle: jobData.jobTitle,
       company: jobData.company,
       location: jobData.location,
@@ -399,7 +406,13 @@ export async function POST(req: NextRequest) {
       hasJobResponsibilities: !!jobData.jobResponsibilities,
       hasJobBenefits: !!jobData.jobBenefits,
       jobUrl: jobData.jobUrl,
-      applied: jobData.applied || false
+              applied: true, // Set applied to true for jobs created via extension
+      salary: jobData.salary,
+      jobType: jobData.jobType,
+      experienceLevel: jobData.experienceLevel,
+      remoteWork: jobData.remoteWork,
+      technologies: jobData.technologies?.length || 0,
+      skills: jobData.skills?.length || 0
     });
     
     const job = await prisma.job.create({
