@@ -173,7 +173,7 @@ function JobsCardView({
                 )}
 
                 {/* Date Applied */}
-                {job.appliedDate && (
+                {job.applied && job.appliedDate && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Calendar className="h-4 w-4" />
                     <span>Applied {format(new Date(job.appliedDate), "MMM d, yyyy")}</span>
@@ -184,6 +184,9 @@ function JobsCardView({
                 <div className="flex items-center justify-between">
                   <Badge className={`${getStatusColor(job.Status?.value || 'draft')} text-white`}>
                     {getStatusText(job.Status?.value || 'draft')}
+                    {job.applied && (
+                      <span className="ml-1 text-xs">✓</span>
+                    )}
                   </Badge>
                   
                   {/* Source */}

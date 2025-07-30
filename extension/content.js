@@ -4,6 +4,11 @@ console.log("🚀 JobSchedule: Content script loaded");
 // Global variables
 let currentJobData = null;
 let trackButton = null;
+let isProcessingClick = false;
+let lastProcessedUrl = null;
+let initializedUrls = new Set();
+let processedJobs = new Set(); // Track processed jobs to prevent duplicates
+let currentJobIdentifier = null; // Track current job being processed
 
 // Main function to initialize job tracking
 function initializeJobTracking() {
@@ -63,6 +68,25 @@ function extractJobData() {
       console.log("🚀 JobSchedule: Job data not found");
       return null;
     }
+
+    // Create a unique job identifier to prevent duplicates
+    const jobIdentifier = `${jobTitle}-${company}-${location || 'Remote'}`;
+    
+    // Check if we're already processing this job
+    if (currentJobIdentifier === jobIdentifier) {
+      console.log("🚀 JobSchedule: Already processing this job, skipping:", jobIdentifier);
+      return null;
+    }
+    
+    // Check if this job has already been processed
+    if (processedJobs.has(jobIdentifier)) {
+      console.log("🚀 JobSchedule: Job already processed, skipping:", jobIdentifier);
+      return null;
+    }
+
+    // Set current job identifier to prevent concurrent processing
+    currentJobIdentifier = jobIdentifier;
+    console.log("🚀 JobSchedule: Processing job:", jobIdentifier);
 
     // Extract additional data
     const jobUrl = window.location.href;
@@ -207,12 +231,7 @@ function extractJobData() {
       '.jobs-box__company-logo img',
       '.jobs-company-logo img',
       '.company-logo img',
-      '.logo img',
-      // Only use these if no company-specific logo found
-      'img[alt*="logo"][src*="company"]',
-      'img[alt*="Logo"][src*="company"]',
-      'img[alt*="company"]',
-      'img[alt*="Company"]'
+      '.logo img'
     ];
     
     for (const selector of logoSelectors) {
@@ -270,6 +289,7 @@ function extractJobData() {
                            logoUrlLower.includes('placeholder') ||
                            logoUrlLower.includes('generic') ||
                            logoUrlLower.includes('soti') ||
+                           logoUrlLower.includes('tata_consultancy_services') ||
                            (logoUrlLower.includes('coinbase') && !company.toLowerCase().includes('coinbase'));
       
       if (isGenericLogo) {
@@ -302,10 +322,16 @@ function extractJobData() {
     };
 
     console.log("🚀 JobSchedule: Job data extracted:", jobData);
+    
+    // Mark this job as processed to prevent duplicates
+    processedJobs.add(jobIdentifier);
+    currentJobIdentifier = null; // Clear current job identifier
+    
     return jobData;
     
   } catch (error) {
     console.error("🚀 JobSchedule: Error extracting job data:", error);
+    currentJobIdentifier = null; // Clear current job identifier on error
     return null;
   }
 }
@@ -460,12 +486,7 @@ function handleTrackJobClick() {
   });
 }
 
-// Global variables to prevent duplicate clicks and track initialization
-let isProcessingClick = false;
-let lastProcessedUrl = null;
-let initializedUrls = new Set();
-
-// Set up apply button monitoring with improved detection
+// Set up apply button monitoring with improved detection and duplicate prevention
 function setupApplyButtonMonitoring() {
   try {
     // Wait a bit for the page to fully load

@@ -144,6 +144,9 @@ function MyJobsTable({
                         )}
                       >
                         {job.Status?.label}
+                        {job.applied && job.Status?.value === "applied" && (
+                          <span className="ml-1">✓</span>
+                        )}
                       </Badge>
                     )}
                   </TableCell>

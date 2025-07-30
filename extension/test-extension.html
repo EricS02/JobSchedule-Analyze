@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JobSchedule Extension Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-button {
+            background: #0077b5;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #005a8b;
+        }
+        .log {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>JobSchedule Extension Test</h1>
+    
+    <div class="test-section">
+        <h2>Extension Status</h2>
+        <button class="test-button" onclick="checkExtensionStatus()">Check Extension Status</button>
+        <div id="extension-status" class="log"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Authentication Test</h2>
+        <button class="test-button" onclick="testAuthentication()">Test Authentication</button>
+        <div id="auth-status" class="log"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Job Tracking Test</h2>
+        <button class="test-button" onclick="testJobTracking()">Test Job Tracking</button>
+        <div id="tracking-status" class="log"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Console Logs</h2>
+        <button class="test-button" onclick="clearLogs()">Clear Logs</button>
+        <div id="console-logs" class="log"></div>
+    </div>
+
+    <script>
+        // Capture console logs
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        
+        function addToLogs(message, type = 'log') {
+            const logsDiv = document.getElementById('console-logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            logsDiv.textContent += logEntry;
+        }
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addToLogs(args.join(' '), 'log');
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addToLogs(args.join(' '), 'error');
+        };
+        
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            addToLogs(args.join(' '), 'warn');
+        };
+        
+        function clearLogs() {
+            document.getElementById('console-logs').textContent = '';
+        }
+        
+        function checkExtensionStatus() {
+            const statusDiv = document.getElementById('extension-status');
+            statusDiv.textContent = 'Checking extension status...\n';
+            
+            if (typeof chrome !== 'undefined' && chrome.runtime) {
+                statusDiv.textContent += '✅ Chrome extension API available\n';
+                
+                if (chrome.runtime.id) {
+                    statusDiv.textContent += `✅ Extension ID: ${chrome.runtime.id}\n`;
+                } else {
+                    statusDiv.textContent += '❌ Extension ID not found\n';
+                }
+            } else {
+                statusDiv.textContent += '❌ Chrome extension API not available\n';
+            }
+        }
+        
+        function testAuthentication() {
+            const authDiv = document.getElementById('auth-status');
+            authDiv.textContent = 'Testing authentication...\n';
+            
+            if (typeof chrome !== 'undefined' && chrome.runtime) {
+                chrome.runtime.sendMessage({ action: 'checkAuth' }, function(response) {
+                    if (chrome.runtime.lastError) {
+                        authDiv.textContent += `❌ Error: ${chrome.runtime.lastError.message}\n`;
+                    } else if (response && response.isAuthenticated) {
+                        authDiv.textContent += '✅ User is authenticated\n';
+                    } else {
+                        authDiv.textContent += '❌ User is not authenticated\n';
+                        if (response && response.error) {
+                            authDiv.textContent += `Error: ${response.error}\n`;
+                        }
+                    }
+                });
+            } else {
+                authDiv.textContent += '❌ Chrome extension API not available\n';
+            }
+        }
+        
+        function testJobTracking() {
+            const trackingDiv = document.getElementById('tracking-status');
+            trackingDiv.textContent = 'Testing job tracking...\n';
+            
+            const testJobData = {
+                jobTitle: 'Test Software Engineer',
+                company: 'Test Company',
+                location: 'Remote',
+                jobUrl: 'https://example.com/test-job',
+                description: 'This is a test job for extension testing',
+                source: 'linkedin'
+            };
+            
+            if (typeof chrome !== 'undefined' && chrome.runtime) {
+                chrome.runtime.sendMessage({
+                    action: 'trackJobApplication',
+                    jobData: testJobData
+                }, function(response) {
+                    if (chrome.runtime.lastError) {
+                        trackingDiv.textContent += `❌ Error: ${chrome.runtime.lastError.message}\n`;
+                    } else if (response && response.success) {
+                        trackingDiv.textContent += '✅ Job tracked successfully\n';
+                        trackingDiv.textContent += `Message: ${response.message}\n`;
+                    } else {
+                        trackingDiv.textContent += '❌ Failed to track job\n';
+                        if (response && response.message) {
+                            trackingDiv.textContent += `Error: ${response.message}\n`;
+                        }
+                    }
+                });
+            } else {
+                trackingDiv.textContent += '❌ Chrome extension API not available\n';
+            }
+        }
+        
+        // Auto-check extension status on load
+        window.addEventListener('load', function() {
+            setTimeout(checkExtensionStatus, 1000);
+        });
+    </script>
+</body>
+</html> 

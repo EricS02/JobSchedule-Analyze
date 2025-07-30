@@ -398,7 +398,8 @@ export async function POST(req: NextRequest) {
       hasJobRequirements: !!jobData.jobRequirements,
       hasJobResponsibilities: !!jobData.jobResponsibilities,
       hasJobBenefits: !!jobData.jobBenefits,
-      jobUrl: jobData.jobUrl
+      jobUrl: jobData.jobUrl,
+      applied: jobData.applied || false
     });
     
     const job = await prisma.job.create({
@@ -436,7 +437,9 @@ export async function POST(req: NextRequest) {
       hasJobRequirements: !!job.jobRequirements,
       hasJobResponsibilities: !!job.jobResponsibilities,
       hasJobBenefits: !!job.jobBenefits,
-      jobUrl: job.jobUrl
+      jobUrl: job.jobUrl,
+      applied: job.applied,
+      createdAt: job.createdAt
     });
     
     // Revalidate multiple paths to ensure all related pages update
