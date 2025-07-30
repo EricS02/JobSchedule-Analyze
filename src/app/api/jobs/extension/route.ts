@@ -273,6 +273,19 @@ export async function POST(req: NextRequest) {
           jobRequirements: jobData.jobRequirements || existingJob.jobRequirements,
           jobResponsibilities: jobData.jobResponsibilities || existingJob.jobResponsibilities,
           jobBenefits: jobData.jobBenefits || existingJob.jobBenefits,
+          // Enhanced fields from GitHub commit
+          salary: jobData.salary || existingJob.salary,
+          jobType: jobData.jobType || existingJob.jobType,
+          experienceLevel: jobData.experienceLevel || existingJob.experienceLevel,
+          remoteWork: jobData.remoteWork || existingJob.remoteWork,
+          applicationDeadline: jobData.applicationDeadline || existingJob.applicationDeadline,
+          postedDate: jobData.postedDate || existingJob.postedDate,
+          companySize: jobData.companySize || existingJob.companySize,
+          industry: jobData.industry || existingJob.industry,
+          technologies: jobData.technologies || existingJob.technologies,
+          skills: jobData.skills || existingJob.skills,
+          education: jobData.education || existingJob.education,
+          certifications: jobData.certifications || existingJob.certifications,
           updatedAt: new Date()
         },
         include: {
@@ -438,7 +451,20 @@ export async function POST(req: NextRequest) {
         locationId: location.id,
         jobSourceId: jobSource.id,
         jobUrl: jobData.jobUrl || null,
-        source: "extension"
+        source: "extension",
+        // Enhanced fields from the GitHub commit
+        salary: jobData.salary || null,
+        jobType: jobData.jobType || null,
+        experienceLevel: jobData.experienceLevel || null,
+        remoteWork: jobData.remoteWork || null,
+        applicationDeadline: jobData.applicationDeadline || null,
+        postedDate: jobData.postedDate || null,
+        companySize: jobData.companySize || null,
+        industry: jobData.industry || null,
+        technologies: jobData.technologies || [],
+        skills: jobData.skills || [],
+        education: jobData.education || null,
+        certifications: jobData.certifications || []
       }
     });
     

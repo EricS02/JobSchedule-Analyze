@@ -246,6 +246,20 @@ model Job {
 
   applied     Boolean  @default(false)
 
+  // Enhanced fields from GitHub commit
+  salary              String?
+  jobType             String?
+  experienceLevel     String?
+  remoteWork          String?
+  applicationDeadline String?
+  postedDate          String?
+  companySize         String?
+  industry            String?
+  technologies        String[] @default([])
+  skills              String[] @default([])
+  education           String?
+  certifications      String[] @default([])
+
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

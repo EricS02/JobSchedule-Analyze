@@ -873,14 +873,25 @@ function createTrackButton() {
       trackButton.remove();
     }
 
-    // Find apply button with multiple selectors
+    // Find apply button with multiple selectors - Updated for current LinkedIn structure
     const applyButtonSelectors = [
-      '.jobs-apply-button',
-      '.jobs-s-apply-button',
-      '[data-control-name="jobdetails_topcard_inapply"]',
+      // Primary apply button selectors
+      'button[data-control-name="jobdetails_topcard_inapply"]',
       'button[aria-label*="Apply"]',
       'button[aria-label*="apply"]',
-      '.artdeco-button--primary'
+      '.jobs-apply-button',
+      '.jobs-s-apply-button',
+      // Alternative selectors
+      '.artdeco-button--primary',
+      'button[data-control-name="jobdetails_topcard_inapply"]',
+      // New LinkedIn selectors
+      '[data-control-name="jobdetails_topcard_inapply"]',
+      'button[data-control-name="jobdetails_topcard_inapply"]',
+      // Fallback selectors
+      'button:contains("Apply")',
+      'button:contains("apply")',
+      '[class*="apply"]',
+      '[class*="Apply"]'
     ];
     
     let applyButton = null;
@@ -1027,15 +1038,25 @@ function setupApplyButtonMonitoring() {
         return;
       }
       
-      // Try multiple selectors for apply button
+      // Try multiple selectors for apply button - Updated for current LinkedIn structure
       const applyButtonSelectors = [
-        '.jobs-apply-button',
-        '.jobs-s-apply-button',
-        '[data-control-name="jobdetails_topcard_inapply"]',
+        // Primary apply button selectors
+        'button[data-control-name="jobdetails_topcard_inapply"]',
         'button[aria-label*="Apply"]',
         'button[aria-label*="apply"]',
+        '.jobs-apply-button',
+        '.jobs-s-apply-button',
+        // Alternative selectors
         '.artdeco-button--primary',
-        'button[data-control-name="jobdetails_topcard_inapply"]'
+        'button[data-control-name="jobdetails_topcard_inapply"]',
+        // New LinkedIn selectors
+        '[data-control-name="jobdetails_topcard_inapply"]',
+        'button[data-control-name="jobdetails_topcard_inapply"]',
+        // Fallback selectors
+        'button:contains("Apply")',
+        'button:contains("apply")',
+        '[class*="apply"]',
+        '[class*="Apply"]'
       ];
       
       let applyButton = null;
