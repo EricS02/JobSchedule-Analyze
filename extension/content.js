@@ -9,12 +9,19 @@ let lastProcessedUrl = null;
 let initializedUrls = new Set();
 let processedJobs = new Set(); // Track processed jobs to prevent duplicates
 let currentJobIdentifier = null; // Track current job being processed
+let isInitializing = false; // Prevent multiple initializations
 
 // Main function to initialize job tracking
 function initializeJobTracking() {
   try {
     // Only run on LinkedIn job pages
     if (!window.location.href.includes('linkedin.com/jobs/')) {
+      return;
+    }
+
+    // Prevent multiple initializations
+    if (isInitializing) {
+      console.log("🚀 JobSchedule: Already initializing, skipping");
       return;
     }
 
@@ -25,6 +32,7 @@ function initializeJobTracking() {
       return;
     }
 
+    isInitializing = true;
     console.log("🚀 JobSchedule: LinkedIn job page detected");
     
     // Wait for page to load completely, then create track button
@@ -41,10 +49,12 @@ function initializeJobTracking() {
       }
       
       console.log("🚀 JobSchedule: Initialization completed for URL:", currentUrl);
+      isInitializing = false;
     }, 2000);
     
   } catch (error) {
     console.error("🚀 JobSchedule: Error initializing job tracking:", error);
+    isInitializing = false;
   }
 }
 
@@ -56,7 +66,45 @@ function extractJobData() {
     // Extract basic job information
     const jobTitle = document.querySelector('.job-details-jobs-unified-top-card__job-title')?.textContent?.trim();
     const company = document.querySelector('.job-details-jobs-unified-top-card__company-name')?.textContent?.trim();
-    const location = document.querySelector('.job-details-jobs-unified-top-card__bullet')?.textContent?.trim();
+    
+    // Try multiple selectors for location
+    let location = null;
+    const locationSelectors = [
+      '.job-details-jobs-unified-top-card__bullet',
+      '.jobs-unified-top-card__bullet',
+      '.job-details-jobs-unified-top-card__location',
+      '.jobs-unified-top-card__location',
+      '[data-test-id="job-location"]',
+      '.job-details-jobs-unified-top-card__subline',
+      '.jobs-unified-top-card__subline'
+    ];
+    
+    for (const selector of locationSelectors) {
+      const locationElement = document.querySelector(selector);
+      if (locationElement) {
+        location = locationElement.textContent?.trim();
+        if (location) {
+          console.log("🚀 JobSchedule: Found location with selector:", selector, location);
+          break;
+        }
+      }
+    }
+    
+    // If no location found, try to extract from other elements
+    if (!location) {
+      const allElements = document.querySelectorAll('*');
+      for (const element of allElements) {
+        const text = element.textContent?.trim();
+        if (text && (text.includes(',') || text.includes('Remote') || text.includes('Hybrid') || text.includes('On-site'))) {
+          // Check if this looks like a location
+          if (text.length < 100 && !text.includes('job') && !text.includes('apply')) {
+            location = text;
+            console.log("🚀 JobSchedule: Found location from general search:", location);
+            break;
+          }
+        }
+      }
+    }
     
     console.log("🚀 JobSchedule: Basic job info extracted:", {
       jobTitle: jobTitle?.substring(0, 50),
@@ -70,7 +118,8 @@ function extractJobData() {
     }
 
     // Create a unique job identifier to prevent duplicates
-    const jobIdentifier = `${jobTitle}-${company}-${location || 'Remote'}`;
+    const jobUrl = window.location.href;
+    const jobIdentifier = `${jobTitle}-${company}-${location || 'Remote'}-${jobUrl}`;
     
     // Check if we're already processing this job
     if (currentJobIdentifier === jobIdentifier) {
@@ -100,7 +149,7 @@ function extractJobData() {
     }
 
     // Extract additional data
-    const jobUrl = window.location.href;
+    const jobUrlForData = window.location.href;
     
     // Get full job description with better structure
     const descriptionElement = document.querySelector('.jobs-description__content');
@@ -267,19 +316,7 @@ function extractJobData() {
       '.jobs-box__company-logo img',
       '.jobs-company-logo img',
       '.company-logo img',
-      '.logo img',
-      // Additional selectors for different LinkedIn layouts
-      '[data-test-id="company-logo"] img',
-      '.jobs-unified-top-card__company-logo-image img',
-      '.jobs-unified-top-card__company-logo img',
-      '.job-details-jobs-unified-top-card__company-logo img',
-      // More generic selectors as fallback
-      'img[alt*="logo"]',
-      'img[alt*="Logo"]',
-      'img[alt*="company"]',
-      'img[alt*="Company"]',
-      // Background image logos
-      '[style*="background-image"]'
+      '.logo img'
     ];
     
     console.log("🚀 JobSchedule: Starting logo detection for company:", company);
@@ -370,6 +407,7 @@ function extractJobData() {
                            logoUrlLower.includes('generic') ||
                            logoUrlLower.includes('soti') ||
                            logoUrlLower.includes('tata_consultancy_services') ||
+                           logoUrlLower.includes('doordash') ||
                            (logoUrlLower.includes('coinbase') && !company.toLowerCase().includes('coinbase'));
       
       if (isGenericLogo) {
@@ -391,7 +429,7 @@ function extractJobData() {
       jobTitle,
       company,
       location: location || 'Remote',
-      jobUrl,
+      jobUrl: jobUrlForData,
       description: description.substring(0, 2000),
       detailedDescription: detailedDescription.substring(0, 5000),
       jobRequirements: finalJobRequirements.substring(0, 3000),
@@ -704,7 +742,11 @@ function showNotification(message, type = "info") {
 let currentUrl = window.location.href;
 setInterval(() => {
   if (window.location.href !== currentUrl) {
-    currentUrl = window.location.href;
+    const newUrl = window.location.href;
+    console.log("🚀 JobSchedule: URL changed from", currentUrl, "to", newUrl);
+    
+    // Clear current job identifier when changing pages
+    currentJobIdentifier = null;
     
     // Remove track button when leaving job page
     if (trackButton) {
@@ -712,11 +754,13 @@ setInterval(() => {
       trackButton = null;
     }
     
-    // Clear current job identifier when changing pages
-    currentJobIdentifier = null;
+    // Update current URL
+    currentUrl = newUrl;
     
     // Initialize tracking on new job page
     if (currentUrl.includes('linkedin.com/jobs/')) {
+      // Clear initialization flag for new page
+      isInitializing = false;
       setTimeout(initializeJobTracking, 1000);
     }
   }
@@ -730,6 +774,7 @@ if (window.location.href.includes('linkedin.com/jobs/')) {
 // Clean up on page unload
 window.addEventListener('beforeunload', () => {
   currentJobIdentifier = null;
+  isInitializing = false;
   if (trackButton) {
     trackButton.remove();
     trackButton = null;
