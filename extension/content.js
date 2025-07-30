@@ -87,6 +87,17 @@ function extractJobData() {
     // Set current job identifier to prevent concurrent processing
     currentJobIdentifier = jobIdentifier;
     console.log("🚀 JobSchedule: Processing job:", jobIdentifier);
+    
+    // Also add to processed jobs immediately to prevent race conditions
+    processedJobs.add(jobIdentifier);
+    
+    // Clean up processed jobs set to prevent memory issues (keep only last 50)
+    if (processedJobs.size > 50) {
+      const jobsArray = Array.from(processedJobs);
+      processedJobs.clear();
+      jobsArray.slice(-25).forEach(job => processedJobs.add(job));
+      console.log("🚀 JobSchedule: Cleaned up processed jobs set, kept last 25");
+    }
 
     // Extract additional data
     const jobUrl = window.location.href;
@@ -209,6 +220,31 @@ function extractJobData() {
     const benefitsElement = document.querySelector('[data-section="job-benefits"]');
     const jobBenefits = benefitsElement?.textContent?.trim() || '';
     
+    // If we don't have structured requirements/responsibilities, try to extract from description
+    let finalJobRequirements = jobRequirements;
+    let finalJobResponsibilities = jobResponsibilities;
+    let finalJobBenefits = jobBenefits;
+    
+    if (!finalJobRequirements && jobDescriptionSections.requirements) {
+      finalJobRequirements = jobDescriptionSections.requirements;
+    }
+    
+    if (!finalJobResponsibilities && jobDescriptionSections.responsibilities) {
+      finalJobResponsibilities = jobDescriptionSections.responsibilities;
+    }
+    
+    if (!finalJobBenefits && jobDescriptionSections.benefits) {
+      finalJobBenefits = jobDescriptionSections.benefits;
+    }
+    
+    console.log("🚀 JobSchedule: Extracted job details:", {
+      descriptionLength: description.length,
+      detailedDescriptionLength: detailedDescription.length,
+      requirementsLength: finalJobRequirements.length,
+      responsibilitiesLength: finalJobResponsibilities.length,
+      benefitsLength: finalJobBenefits.length
+    });
+    
     // Company logo - try multiple selectors with improved detection
     let logoUrl = null;
     const logoSelectors = [
@@ -231,12 +267,28 @@ function extractJobData() {
       '.jobs-box__company-logo img',
       '.jobs-company-logo img',
       '.company-logo img',
-      '.logo img'
+      '.logo img',
+      // Additional selectors for different LinkedIn layouts
+      '[data-test-id="company-logo"] img',
+      '.jobs-unified-top-card__company-logo-image img',
+      '.jobs-unified-top-card__company-logo img',
+      '.job-details-jobs-unified-top-card__company-logo img',
+      // More generic selectors as fallback
+      'img[alt*="logo"]',
+      'img[alt*="Logo"]',
+      'img[alt*="company"]',
+      'img[alt*="Company"]',
+      // Background image logos
+      '[style*="background-image"]'
     ];
+    
+    console.log("🚀 JobSchedule: Starting logo detection for company:", company);
     
     for (const selector of logoSelectors) {
       const logoElement = document.querySelector(selector);
       if (logoElement) {
+        console.log("🚀 JobSchedule: Found element with selector:", selector);
+        
         if (logoElement.tagName === 'IMG') {
           logoUrl = logoElement.src;
           console.log("🚀 JobSchedule: Found logo with selector:", selector, logoUrl);
@@ -257,6 +309,18 @@ function extractJobData() {
             console.log("🚀 JobSchedule: Found logo with background-image:", selector, logoUrl);
             break;
           }
+        } else {
+          // Check if the element has a background image in computed styles
+          const computedStyle = window.getComputedStyle(logoElement);
+          const bgImage = computedStyle.backgroundImage;
+          if (bgImage && bgImage !== 'none') {
+            const urlMatch = bgImage.match(/url\(['"]?([^'"]+)['"]?\)/);
+            if (urlMatch) {
+              logoUrl = urlMatch[1];
+              console.log("🚀 JobSchedule: Found logo with computed background-image:", selector, logoUrl);
+              break;
+            }
+          }
         }
       }
     }
@@ -274,6 +338,22 @@ function extractJobData() {
           alt: img.alt,
           className: img.className,
           id: img.id
+        });
+      });
+      
+      // Also check for elements with background images
+      const allElements = document.querySelectorAll('*');
+      const elementsWithBg = Array.from(allElements).filter(el => {
+        const style = window.getComputedStyle(el);
+        return style.backgroundImage && style.backgroundImage !== 'none';
+      });
+      console.log("🚀 JobSchedule: Found", elementsWithBg.length, "elements with background images");
+      elementsWithBg.forEach((el, index) => {
+        const style = window.getComputedStyle(el);
+        console.log(`🚀 JobSchedule: Element ${index} with background:`, {
+          tagName: el.tagName,
+          className: el.className,
+          backgroundImage: style.backgroundImage
         });
       });
     }
@@ -314,9 +394,9 @@ function extractJobData() {
       jobUrl,
       description: description.substring(0, 2000),
       detailedDescription: detailedDescription.substring(0, 5000),
-      jobRequirements: jobRequirements.substring(0, 3000),
-      jobResponsibilities: jobResponsibilities.substring(0, 3000),
-      jobBenefits: jobBenefits.substring(0, 2000),
+      jobRequirements: finalJobRequirements.substring(0, 3000),
+      jobResponsibilities: finalJobResponsibilities.substring(0, 3000),
+      jobBenefits: finalJobBenefits.substring(0, 2000),
       logoUrl,
       source: 'linkedin'
     };
@@ -324,7 +404,7 @@ function extractJobData() {
     console.log("🚀 JobSchedule: Job data extracted:", jobData);
     
     // Mark this job as processed to prevent duplicates
-    processedJobs.add(jobIdentifier);
+    // processedJobs.add(jobIdentifier); // This line is now redundant due to the new_code
     currentJobIdentifier = null; // Clear current job identifier
     
     return jobData;
@@ -632,6 +712,9 @@ setInterval(() => {
       trackButton = null;
     }
     
+    // Clear current job identifier when changing pages
+    currentJobIdentifier = null;
+    
     // Initialize tracking on new job page
     if (currentUrl.includes('linkedin.com/jobs/')) {
       setTimeout(initializeJobTracking, 1000);
@@ -643,5 +726,14 @@ setInterval(() => {
 if (window.location.href.includes('linkedin.com/jobs/')) {
   initializeJobTracking();
 }
+
+// Clean up on page unload
+window.addEventListener('beforeunload', () => {
+  currentJobIdentifier = null;
+  if (trackButton) {
+    trackButton.remove();
+    trackButton = null;
+  }
+});
 
 console.log("🚀 JobSchedule: Content script initialized"); 
