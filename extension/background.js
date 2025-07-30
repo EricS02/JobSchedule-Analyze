@@ -3,7 +3,7 @@ console.log("JobSchedule: Background script loaded");
 
 // Configuration
 const API_BASE_URL = 'https://jobschedule.io/api';
-const USE_TEST_ENDPOINTS = false; // Set to false for production
+const USE_TEST_ENDPOINTS = true; // Set to true for development/testing
 
 // Add connection timeout and retry logic
 const CONNECTION_TIMEOUT = 10000; // 10 seconds
@@ -286,66 +286,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         
         sendResponse({ success: true, message: "Job tracked successfully" });
       } catch (error) {
-        // ✅ ENHANCED: Production-ready error reporting for job tracking
-        console.error("JobSchedule: Raw error caught in message handler:", {
-          error: error,
-          errorType: typeof error,
-          errorConstructor: error?.constructor?.name,
-          errorKeys: error ? Object.keys(error) : 'no keys',
-          errorString: String(error),
-          errorMessage: error?.message,
-          errorStack: error?.stack
-        });
+        console.error("JobSchedule: Error in job tracking:", error);
         
-        // Ensure we have a proper error object
-        const errorObj = error instanceof Error ? error : new Error(String(error));
+        // Get user-friendly error message
+        const userMessage = getUserFriendlyMessage(error);
         
-        console.error("JobSchedule: Processed error object:", {
-          errorObj: errorObj,
-          errorObjType: typeof errorObj,
-          errorObjMessage: errorObj.message,
-          errorObjStack: errorObj.stack
-        });
-        
-        logError(errorObj, 'job tracking in message handler', {
-          sender: sender?.tab?.url || 'unknown',
-          jobData: message.jobData ? Object.keys(message.jobData) : null
-        });
-        
-        // User-friendly error message
-        const userMessage = getUserFriendlyMessage(errorObj);
-        console.error("JobSchedule: Final error details for user:", {
-          originalError: errorObj.message,
-          userMessage: userMessage,
-          errorType: typeof errorObj,
-          timestamp: new Date().toISOString()
-        });
-        
-        // Send the actual error message if it's a known type, otherwise send the user-friendly message
-        const responseMessage = errorObj.message.includes('already tracked') || 
-                              errorObj.message.includes('Not authenticated') ||
-                              errorObj.message.includes('Too many requests') ||
-                              errorObj.message.includes('daily limit') ||
-                              errorObj.message.includes('subscription') ||
-                              errorObj.message.includes('You\'ve already tracked this job') ||
-                              errorObj.message.includes('already tracked this job')
-                              ? errorObj.message 
-                              : userMessage;
-        
-        console.error("JobSchedule: Sending response to content script:", {
-          success: false,
-          message: responseMessage,
-          originalError: errorObj.message,
-          isKnownError: errorObj.message.includes('already tracked') || 
-                       errorObj.message.includes('Not authenticated') ||
-                       errorObj.message.includes('Too many requests') ||
-                       errorObj.message.includes('daily limit') ||
-                       errorObj.message.includes('subscription') ||
-                       errorObj.message.includes('You\'ve already tracked this job') ||
-                       errorObj.message.includes('already tracked this job')
-        });
-        
-        sendResponse({ success: false, message: responseMessage });
+        // Send response to content script
+        sendResponse({ success: false, message: userMessage });
       }
     })();
     
@@ -462,33 +409,33 @@ async function trackJobApplication(jobData) {
     console.log("JobSchedule: USE_TEST_ENDPOINTS:", USE_TEST_ENDPOINTS);
     console.log("JobSchedule: API_BASE_URL:", API_BASE_URL);
     
-    if (!token && USE_TEST_ENDPOINTS) {
-      // Try to get a test token in development mode
+    if (!token) {
+      // Try to get a test token for development
       try {
-        console.log("JobSchedule: Attempting to get test token from:", `${API_BASE_URL}/test-token`);
+        console.log("JobSchedule: No token found, attempting to get test token");
         const tokenResponse = await fetch(`${API_BASE_URL}/test-token`);
         console.log("JobSchedule: Test token response status:", tokenResponse.status);
-        const tokenData = await tokenResponse.json();
-        console.log("JobSchedule: Test token data:", tokenData);
-        if (tokenData.token) {
-          // Save the token
-          await chrome.storage.local.set({ 
-            token: tokenData.token,
-            user: tokenData.user || { email: 'test@example.com' }
-          });
-          console.log("JobSchedule: Retrieved and saved test token");
+        
+        if (tokenResponse.ok) {
+          const tokenData = await tokenResponse.json();
+          console.log("JobSchedule: Test token data:", tokenData);
+          if (tokenData.token) {
+            // Save the token
+            await chrome.storage.local.set({ 
+              token: tokenData.token,
+              user: tokenData.user || { email: 'test@example.com' }
+            });
+            console.log("JobSchedule: Retrieved and saved test token");
+          } else {
+            throw new Error("Could not retrieve test token");
+          }
         } else {
-          throw new Error("Could not retrieve test token");
+          throw new Error(`Failed to get test token: ${tokenResponse.status}`);
         }
       } catch (tokenError) {
         console.error("JobSchedule: Error getting test token", tokenError);
-        throw new Error("Not authenticated. Please log in to JobSync.");
+        throw new Error("Not authenticated. Please log in to JobSync at https://jobschedule.io");
       }
-    } else if (!token) {
-      // In production, require login
-      console.log("JobSchedule: No token found, requiring login");
-      console.log("JobSchedule: Please log in to JobSync at https://jobschedule.io to get started");
-      throw new Error("Not authenticated. Please log in to JobSync first at https://jobschedule.io");
     }
     
     // Get token again (in case we just set it)
@@ -684,8 +631,7 @@ async function trackJobApplication(jobData) {
 function getUserFriendlyMessage(error) {
   console.log("JobSchedule: Processing error for user message:", {
     errorMessage: error.message,
-    errorType: typeof error,
-    errorKeys: error ? Object.keys(error) : 'no keys'
+    errorType: typeof error
   });
 
   if (error.message.includes('Not authenticated')) {
@@ -721,13 +667,6 @@ function getUserFriendlyMessage(error) {
   if (error.message.includes('Failed to track job application')) {
     return 'Failed to save job application. Please try again.';
   }
-  
-  // Log the unhandled error for debugging
-  console.error("JobSchedule: Unhandled error type:", {
-    message: error.message,
-    type: typeof error,
-    constructor: error?.constructor?.name
-  });
   
   return 'An error occurred while tracking your job application. Please try again.';
 }
