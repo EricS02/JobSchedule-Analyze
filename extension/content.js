@@ -883,8 +883,40 @@ function extractJobData() {
       skills: jobData.skills?.length || 0
     });
     
+    // Enhanced validation with fallbacks
+    if (!jobData.jobTitle || jobData.jobTitle === 'Untitled Job') {
+      console.log("🚀 JobSchedule: Job title not found, trying fallback extraction");
+      // Try to extract from page title or URL
+      const pageTitle = document.title;
+      if (pageTitle && pageTitle.includes('|')) {
+        const titlePart = pageTitle.split('|')[0].trim();
+        if (titlePart && titlePart.length > 0) {
+          jobData.jobTitle = titlePart;
+          console.log("🚀 JobSchedule: Using page title as job title:", titlePart);
+        }
+      }
+    }
+    
+    if (!jobData.company || jobData.company === 'Unknown Company') {
+      console.log("🚀 JobSchedule: Company not found, trying fallback extraction");
+      // Try to extract from page title or URL
+      const pageTitle = document.title;
+      if (pageTitle && pageTitle.includes('|')) {
+        const parts = pageTitle.split('|');
+        if (parts.length > 1) {
+          const companyPart = parts[1].trim();
+          if (companyPart && companyPart.length > 0) {
+            jobData.company = companyPart;
+            console.log("🚀 JobSchedule: Using page title as company:", companyPart);
+          }
+        }
+      }
+    }
+    
     if (!jobData.jobTitle || !jobData.company) {
-      console.log("🚀 JobSchedule: Job data not found");
+      console.log("🚀 JobSchedule: Job data still not found after fallbacks");
+      console.log("🚀 JobSchedule: Page title:", document.title);
+      console.log("🚀 JobSchedule: Current URL:", window.location.href);
       return null;
     }
 

@@ -713,10 +713,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       })
       .catch(error => {
         console.error('JobSchedule: Error tracking job:', error);
+        
+        // Handle extension context errors specifically
+        if (error.message && error.message.includes('Extension context invalidated')) {
+          console.error("JobSchedule: Extension context invalidated, user needs to refresh");
+          sendResponse({ 
+            success: false, 
+            message: "Extension error - please refresh the page and try again" 
+          });
+          return;
+        }
+        
         const errorMessage = getUserFriendlyMessage(error);
         console.log('JobSchedule: Sending error response:', errorMessage);
         sendResponse({ 
-          success: false, 
+          success: false,
           message: errorMessage 
         });
       });

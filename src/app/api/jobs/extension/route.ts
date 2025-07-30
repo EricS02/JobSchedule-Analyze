@@ -353,63 +353,45 @@ export async function POST(req: NextRequest) {
     // Find or create company with enhanced logo handling
     console.log(`API: Processing company "${jobData.company}" with logo: ${validatedLogoUrl || 'NO LOGO'}`);
     
-    // Check if company exists for this user and update logo if different
-    const existingCompany = await prisma.company.findFirst({
-      where: { 
-        value: jobData.company.toLowerCase().replace(/\s+/g, '-'),
+        // Find or create company for this user using upsert
+    const companyValue = jobData.company.toLowerCase().replace(/\s+/g, '-');
+    let company = await prisma.company.upsert({
+      where: {
+        value: companyValue,
         createdBy: user.id
+      },
+      update: {
+        label: jobData.company,
+        logoUrl: validatedLogoUrl || undefined // Only update if we have a new logo
+      },
+      create: {
+        label: jobData.company,
+        value: companyValue,
+        createdBy: user.id,
+        logoUrl: validatedLogoUrl || null
       }
     });
-    
-    let company;
-    if (existingCompany) {
-      // Only update the logo if we have a new valid one and it's different
-      if (validatedLogoUrl && validatedLogoUrl !== existingCompany.logoUrl) {
-        console.log(`API: Updating company "${jobData.company}" logo from "${existingCompany.logoUrl}" to "${validatedLogoUrl}"`);
-        company = await prisma.company.update({
-          where: { id: existingCompany.id },
-          data: {
-            logoUrl: validatedLogoUrl,
-            label: jobData.company
-          }
-        });
-      } else {
-        // Keep existing company data
-        company = existingCompany;
-        console.log(`API: Using existing company "${jobData.company}" with logo: "${existingCompany.logoUrl}"`);
-      }
-    } else {
-      // Create new company for this user
-      console.log(`API: Creating new company "${jobData.company}" with logo: "${validatedLogoUrl}"`);
-      company = await prisma.company.create({
-        data: {
-          label: jobData.company,
-          value: jobData.company.toLowerCase().replace(/\s+/g, '-'),
-          createdBy: user.id,
-          logoUrl: validatedLogoUrl || null
-        }
-      });
-    }
     
     console.log(`API: Company processed - ID: ${company.id}, Logo: ${company.logoUrl || 'NO LOGO'}`);
     
-    // Find or create location for this user
-    let location = await prisma.location.findFirst({
+    console.log(`API: Company processed - ID: ${company.id}, Logo: ${company.logoUrl || 'NO LOGO'}`);
+    
+    // Find or create location for this user using upsert to handle unique constraint
+    const locationValue = jobData.location.toLowerCase().replace(/\s+/g, '-');
+    let location = await prisma.location.upsert({
       where: { 
-        value: jobData.location.toLowerCase().replace(/\s+/g, '-'),
+        value: locationValue,
+        createdBy: user.id
+      },
+      update: {
+        label: jobData.location // Update label in case it changed
+      },
+      create: {
+        label: jobData.location,
+        value: locationValue,
         createdBy: user.id
       }
     });
-    
-    if (!location) {
-      location = await prisma.location.create({
-        data: { 
-          label: jobData.location,
-          value: jobData.location.toLowerCase().replace(/\s+/g, '-'),
-          createdBy: user.id
-        }
-      });
-    }
     
     // Get job source
     const jobSource = await prisma.jobSource.findFirst({
