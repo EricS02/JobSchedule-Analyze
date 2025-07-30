@@ -76,23 +76,23 @@ export function extractCompanyLogo(document: Document, companyName: string): Log
     let logoUrl: string | undefined;
     let confidence = 0;
 
-    if (logoElement.tagName === 'IMG') {
-      logoUrl = (logoElement as HTMLImageElement).src;
-      confidence = 0.8;
-    } else if (logoElement.tagName === 'SVG') {
-      const imageElement = logoElement.querySelector('image');
-      if (imageElement) {
-        logoUrl = imageElement.getAttribute('href') || imageElement.getAttribute('xlink:href');
-        confidence = 0.7;
-      }
-    } else {
+          if (logoElement.tagName === 'IMG') {
+        logoUrl = (logoElement as HTMLImageElement).src;
+        confidence = 0.8;
+      } else if (logoElement.tagName === 'SVG') {
+        const imageElement = logoElement.querySelector('image');
+        if (imageElement) {
+          logoUrl = imageElement.getAttribute('href') || imageElement.getAttribute('xlink:href') || undefined;
+          confidence = 0.7;
+        }
+      } else {
       // Check for background image
       const computedStyle = window.getComputedStyle(logoElement);
       const bgImage = computedStyle.backgroundImage;
       if (bgImage && bgImage !== 'none') {
         const urlMatch = bgImage.match(/url\(['"]?([^'"]+)['"]?\)/);
         if (urlMatch) {
-          logoUrl = urlMatch[1];
+          logoUrl = urlMatch[1] || undefined;
           confidence = 0.6;
         }
       }
