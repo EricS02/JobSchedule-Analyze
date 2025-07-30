@@ -10,6 +10,7 @@ let initializedUrls = new Set();
 let processedJobs = new Set(); // Track processed jobs to prevent duplicates
 let currentJobIdentifier = null; // Track current job being processed
 let isInitializing = false; // Prevent multiple initializations
+let clickTimeout = null; // Track click timeout
 
 // Advanced logo extraction with comprehensive validation
 function extractCompanyLogo(document, companyName) {
@@ -286,11 +287,22 @@ function extractLocation() {
 // Extract job description
 function extractJobDescription() {
   const selectors = [
+    // LinkedIn specific selectors
     '.jobs-description__content',
     '.job-description',
     '[data-section="job-description"]',
     '.description',
-    '[class*="description"]'
+    '[class*="description"]',
+    // Additional LinkedIn selectors
+    '.jobs-box__html-content',
+    '.jobs-description-content__text',
+    '.job-description-content',
+    '.jobs-description__content-text',
+    '.jobs-box__content',
+    // Fallback selectors
+    '[data-test-id="job-description"]',
+    '.job-details-jobs-unified-top-card__job-description',
+    '.jobs-unified-top-card__job-description'
   ];
 
   for (const selector of selectors) {
@@ -298,11 +310,14 @@ function extractJobDescription() {
     if (element) {
       const text = element.textContent?.trim();
       if (text && text.length > 0) {
-        return text.substring(0, 2000);
+        console.log("🚀 JobSchedule: Found job description with selector:", selector);
+        console.log("🚀 JobSchedule: Description length:", text.length);
+        return text.substring(0, 5000); // Increased limit
       }
     }
   }
 
+  console.log("🚀 JobSchedule: No job description found with any selector");
   return '';
 }
 
@@ -1022,14 +1037,25 @@ function createFixedTrackButton() {
 
 // Handle track job click
 function handleTrackJobClick() {
-  // Prevent duplicate clicks
+  // Prevent duplicate clicks with timeout
   if (isProcessingClick) {
     console.log("🚀 JobSchedule: Click already being processed, ignoring");
     return;
   }
   
+  // Clear any existing timeout
+  if (clickTimeout) {
+    clearTimeout(clickTimeout);
+  }
+  
   isProcessingClick = true;
   console.log("🚀 JobSchedule: Track job button clicked");
+  
+  // Set a timeout to reset the processing flag
+  clickTimeout = setTimeout(() => {
+    isProcessingClick = false;
+    clickTimeout = null;
+  }, 10000); // 10 second timeout
   
   // Extract job data when button is clicked
   const jobData = extractJobData();
@@ -1041,40 +1067,72 @@ function handleTrackJobClick() {
     return;
   }
 
-  chrome.runtime.sendMessage({
-    action: 'trackJobApplication',
-    jobData: jobData
-  }, function(response) {
-    // Reset processing flag
+  try {
+    chrome.runtime.sendMessage({
+      action: 'trackJobApplication',
+      jobData: jobData
+    }, function(response) {
+      // Reset processing flag and clear timeout
+      isProcessingClick = false;
+      if (clickTimeout) {
+        clearTimeout(clickTimeout);
+        clickTimeout = null;
+      }
+      
+      if (chrome.runtime.lastError) {
+        console.error("🚀 JobSchedule: Extension context error:", chrome.runtime.lastError);
+        showNotification("Extension error - please refresh the page", "error");
+        trackButton.innerHTML = '❌ Error';
+        trackButton.style.background = '#dc3545';
+        setTimeout(() => {
+          trackButton.innerHTML = '📋 Track Job';
+          trackButton.style.background = '#0077b5';
+        }, 2000);
+        return;
+      }
+      
+      if (response && response.success) {
+        console.log("🚀 JobSchedule: Job tracked successfully");
+        showNotification("Job tracked successfully!", "success");
+        trackButton.innerHTML = '✅ Tracked';
+        trackButton.style.background = '#28a745';
+        setTimeout(() => {
+          if (trackButton) trackButton.remove();
+        }, 2000);
+      } else if (response && response.message && response.message.includes("already tracked")) {
+        console.log("🚀 JobSchedule: Job already tracked:", response.message);
+        showNotification("Job already tracked!", "info");
+        trackButton.innerHTML = '✅ Already Tracked';
+        trackButton.style.background = '#28a745';
+        setTimeout(() => {
+          if (trackButton) trackButton.remove();
+        }, 2000);
+      } else {
+        console.error("🚀 JobSchedule: Failed to track job:", response);
+        showNotification("Failed to track job", "error");
+        trackButton.innerHTML = '❌ Failed';
+        trackButton.style.background = '#dc3545';
+        setTimeout(() => {
+          trackButton.innerHTML = '📋 Track Job';
+          trackButton.style.background = '#0077b5';
+        }, 2000);
+      }
+    });
+  } catch (error) {
+    console.error("🚀 JobSchedule: Extension context invalidated:", error);
     isProcessingClick = false;
-    
-    if (response && response.success) {
-      console.log("🚀 JobSchedule: Job tracked successfully");
-      showNotification("Job tracked successfully!", "success");
-      trackButton.innerHTML = '✅ Tracked';
-      trackButton.style.background = '#28a745';
-      setTimeout(() => {
-        if (trackButton) trackButton.remove();
-      }, 2000);
-    } else if (response && response.message && response.message.includes("already tracked")) {
-      console.log("🚀 JobSchedule: Job already tracked:", response.message);
-      showNotification("Job already tracked!", "info");
-      trackButton.innerHTML = '✅ Already Tracked';
-      trackButton.style.background = '#28a745';
-      setTimeout(() => {
-        if (trackButton) trackButton.remove();
-      }, 2000);
-    } else {
-      console.error("🚀 JobSchedule: Failed to track job:", response);
-      showNotification("Failed to track job", "error");
-      trackButton.innerHTML = '❌ Failed';
-      trackButton.style.background = '#dc3545';
-      setTimeout(() => {
-        trackButton.innerHTML = '📋 Track Job';
-        trackButton.style.background = '#0077b5';
-      }, 2000);
+    if (clickTimeout) {
+      clearTimeout(clickTimeout);
+      clickTimeout = null;
     }
-  });
+    showNotification("Extension error - please refresh the page", "error");
+    trackButton.innerHTML = '❌ Error';
+    trackButton.style.background = '#dc3545';
+    setTimeout(() => {
+      trackButton.innerHTML = '📋 Track Job';
+      trackButton.style.background = '#0077b5';
+    }, 2000);
+  }
 }
 
 // Set up apply button monitoring with improved detection and duplicate prevention
@@ -1131,17 +1189,28 @@ function setupApplyButtonMonitoring() {
       applyButton.parentNode.replaceChild(newApplyButton, applyButton);
       applyButton = newApplyButton;
 
-      // Monitor for apply button clicks with debouncing
-      applyButton.addEventListener('click', function() {
-        // Prevent duplicate clicks
-        if (isProcessingClick) {
-          console.log("🚀 JobSchedule: Click already being processed, ignoring");
-          return;
-        }
-        
-        isProcessingClick = true;
-        lastProcessedUrl = currentUrl;
-        console.log("🚀 JobSchedule: Apply button clicked for URL:", currentUrl);
+              // Monitor for apply button clicks with debouncing
+        applyButton.addEventListener('click', function() {
+          // Prevent duplicate clicks
+          if (isProcessingClick) {
+            console.log("🚀 JobSchedule: Click already being processed, ignoring");
+            return;
+          }
+          
+          // Clear any existing timeout
+          if (clickTimeout) {
+            clearTimeout(clickTimeout);
+          }
+          
+          isProcessingClick = true;
+          lastProcessedUrl = currentUrl;
+          console.log("🚀 JobSchedule: Apply button clicked for URL:", currentUrl);
+          
+          // Set a timeout to reset the processing flag
+          clickTimeout = setTimeout(() => {
+            isProcessingClick = false;
+            clickTimeout = null;
+          }, 10000); // 10 second timeout
         
         // Extract job data when apply button is clicked
         const jobData = extractJobData();
@@ -1173,8 +1242,12 @@ function setupApplyButtonMonitoring() {
             appliedAt: new Date().toISOString()
           }
         }, function(response) {
-          // Reset processing flag
+          // Reset processing flag and clear timeout
           isProcessingClick = false;
+          if (clickTimeout) {
+            clearTimeout(clickTimeout);
+            clickTimeout = null;
+          }
           
           if (response && response.success) {
             console.log("🚀 JobSchedule: Job application tracked successfully");
