@@ -11,6 +11,739 @@ let processedJobs = new Set(); // Track processed jobs to prevent duplicates
 let currentJobIdentifier = null; // Track current job being processed
 let isInitializing = false; // Prevent multiple initializations
 
+// Advanced logo extraction with comprehensive validation
+function extractCompanyLogo(document, companyName) {
+  const logoSelectors = [
+    // LinkedIn specific selectors
+    '.job-details-jobs-unified-top-card__company-logo img',
+    '.jobs-unified-top-card__company-logo img',
+    '.jobs-unified-top-card__company-logo-image img',
+    '[data-test-id="company-logo"] img',
+    '.job-details-jobs-unified-top-card__company-logo',
+    '.jobs-unified-top-card__company-logo',
+    '.jobs-unified-top-card__company-logo-image',
+    '[data-test-id="company-logo"]',
+    // SVG logos
+    '.job-details-jobs-unified-top-card__company-logo svg image',
+    '.jobs-unified-top-card__company-logo svg image',
+    '.job-details-jobs-unified-top-card__company-logo svg',
+    '.jobs-unified-top-card__company-logo svg',
+    // Fallback selectors
+    '.jobs-box__company-logo img',
+    '.jobs-company-logo img',
+    '.company-logo img',
+    '.logo img',
+    // Generic logo containers
+    '[class*="logo"] img',
+    '[class*="company"] img',
+    '[class*="brand"] img'
+  ];
+
+  let bestLogoUrl = undefined;
+  let bestConfidence = 0;
+
+  for (const selector of logoSelectors) {
+    const logoElement = document.querySelector(selector);
+    if (!logoElement) continue;
+
+    let logoUrl = undefined;
+    let confidence = 0;
+
+    if (logoElement.tagName === 'IMG') {
+      logoUrl = logoElement.src;
+      confidence = 0.8;
+    } else if (logoElement.tagName === 'SVG') {
+      const imageElement = logoElement.querySelector('image');
+      if (imageElement) {
+        logoUrl = imageElement.getAttribute('href') || imageElement.getAttribute('xlink:href') || undefined;
+        confidence = 0.7;
+      }
+    } else {
+      // Check for background image
+      const computedStyle = window.getComputedStyle(logoElement);
+      const bgImage = computedStyle.backgroundImage;
+      if (bgImage && bgImage !== 'none') {
+        const urlMatch = bgImage.match(/url\(['"]?([^'"]+)['"]?\)/);
+        if (urlMatch) {
+          logoUrl = urlMatch[1] || undefined;
+          confidence = 0.6;
+        }
+      }
+    }
+
+    if (logoUrl && isValidLogoUrl(logoUrl, companyName)) {
+      if (confidence > bestConfidence) {
+        bestLogoUrl = logoUrl;
+        bestConfidence = confidence;
+      }
+    }
+  }
+
+  return {
+    isValid: !!bestLogoUrl,
+    logoUrl: bestLogoUrl,
+    confidence: bestConfidence,
+    reason: bestLogoUrl ? 'Valid logo found' : 'No valid logo found'
+  };
+}
+
+// Validate logo URL against common generic/placeholder patterns
+function isValidLogoUrl(logoUrl, companyName) {
+  const urlLower = logoUrl.toLowerCase();
+  const companyNameLower = companyName.toLowerCase();
+
+  // Reject generic/placeholder logos
+  const genericPatterns = [
+    'default',
+    'placeholder',
+    'generic',
+    'soti',
+    'tata_consultancy_services',
+    'doordash',
+    'coinbase',
+    'linkedin',
+    'microsoft',
+    'google',
+    'apple',
+    'amazon',
+    'facebook',
+    'netflix'
+  ];
+
+  // Check if URL contains generic patterns
+  for (const pattern of genericPatterns) {
+    if (urlLower.includes(pattern)) {
+      // Only reject if it's clearly not the actual company
+      if (!companyNameLower.includes(pattern)) {
+        return false;
+      }
+    }
+  }
+
+  // Reject very small or very large images
+  if (urlLower.includes('16x16') || urlLower.includes('32x32') || urlLower.includes('48x48')) {
+    return false;
+  }
+
+  // Reject data URLs (base64 encoded images)
+  if (urlLower.startsWith('data:')) {
+    return false;
+  }
+
+  // Reject empty or invalid URLs
+  if (!logoUrl || logoUrl.trim() === '' || logoUrl === 'null' || logoUrl === 'undefined') {
+    return false;
+  }
+
+  return true;
+}
+
+// Extract comprehensive job information
+function extractJobInformation() {
+  const jobData = {
+    source: 'linkedin'
+  };
+
+  // Extract basic job information
+  jobData.jobTitle = extractJobTitle();
+  jobData.company = extractCompanyName();
+  jobData.location = extractLocation();
+  jobData.jobUrl = window.location.href;
+
+  // Extract detailed descriptions
+  jobData.description = extractJobDescription();
+  jobData.detailedDescription = extractDetailedDescription();
+  jobData.jobRequirements = extractJobRequirements();
+  jobData.jobResponsibilities = extractJobResponsibilities();
+  jobData.jobBenefits = extractJobBenefits();
+
+  // Extract additional metadata
+  jobData.salary = extractSalary();
+  jobData.jobType = extractJobType();
+  jobData.experienceLevel = extractExperienceLevel();
+  jobData.remoteWork = extractRemoteWork();
+  jobData.applicationDeadline = extractApplicationDeadline();
+  jobData.postedDate = extractPostedDate();
+  jobData.companySize = extractCompanySize();
+  jobData.industry = extractIndustry();
+  jobData.technologies = extractTechnologies();
+  jobData.skills = extractSkills();
+  jobData.education = extractEducation();
+  jobData.certifications = extractCertifications();
+
+  // Extract and validate logo
+  const logoResult = extractCompanyLogo(document, jobData.company || '');
+  if (logoResult.isValid && logoResult.logoUrl) {
+    jobData.logoUrl = logoResult.logoUrl;
+  }
+
+  return jobData;
+}
+
+// Extract job title with multiple fallback selectors
+function extractJobTitle() {
+  const selectors = [
+    '.job-details-jobs-unified-top-card__job-title',
+    '.jobs-unified-top-card__job-title',
+    '[data-test-id="job-title"]',
+    'h1[class*="job-title"]',
+    'h2[class*="job-title"]',
+    '.job-title',
+    'h1',
+    'h2'
+  ];
+
+  for (const selector of selectors) {
+    const element = document.querySelector(selector);
+    if (element) {
+      const text = element.textContent?.trim();
+      if (text && text.length > 0) {
+        return text;
+      }
+    }
+  }
+
+  return 'Untitled Job';
+}
+
+// Extract company name with multiple fallback selectors
+function extractCompanyName() {
+  const selectors = [
+    '.job-details-jobs-unified-top-card__company-name',
+    '.jobs-unified-top-card__company-name',
+    '[data-test-id="company-name"]',
+    '.company-name',
+    '[class*="company"]'
+  ];
+
+  for (const selector of selectors) {
+    const element = document.querySelector(selector);
+    if (element) {
+      const text = element.textContent?.trim();
+      if (text && text.length > 0) {
+        return text;
+      }
+    }
+  }
+
+  return 'Unknown Company';
+}
+
+// Extract location with multiple fallback selectors
+function extractLocation() {
+  const selectors = [
+    '.job-details-jobs-unified-top-card__bullet',
+    '.jobs-unified-top-card__bullet',
+    '.job-details-jobs-unified-top-card__location',
+    '.jobs-unified-top-card__location',
+    '[data-test-id="job-location"]',
+    '.job-details-jobs-unified-top-card__subline',
+    '.jobs-unified-top-card__subline',
+    '.location',
+    '[class*="location"]'
+  ];
+
+  for (const selector of selectors) {
+    const element = document.querySelector(selector);
+    if (element) {
+      const text = element.textContent?.trim();
+      if (text && text.length > 0) {
+        return text;
+      }
+    }
+  }
+
+  return 'Remote';
+}
+
+// Extract job description
+function extractJobDescription() {
+  const selectors = [
+    '.jobs-description__content',
+    '.job-description',
+    '[data-section="job-description"]',
+    '.description',
+    '[class*="description"]'
+  ];
+
+  for (const selector of selectors) {
+    const element = document.querySelector(selector);
+    if (element) {
+      const text = element.textContent?.trim();
+      if (text && text.length > 0) {
+        return text.substring(0, 2000);
+      }
+    }
+  }
+
+  return '';
+}
+
+// Extract detailed description with structured sections
+function extractDetailedDescription() {
+  const descriptionElement = document.querySelector('.jobs-description__content');
+  if (!descriptionElement) return '';
+
+  const sections = {
+    about: '',
+    responsibilities: '',
+    requirements: '',
+    benefits: '',
+    qualifications: '',
+    skills: '',
+    experience: '',
+    education: '',
+    compensation: '',
+    workEnvironment: '',
+    companyCulture: '',
+    growthOpportunities: '',
+    applicationProcess: '',
+    additionalInfo: '',
+    purpose: '',
+    accountability: '',
+    mainActivities: '',
+    knowledgeRequirements: '',
+    softSkills: '',
+    jobComplexities: '',
+    whatWeOffer: ''
+  };
+
+  // Look for structured sections
+  const sectionElements = descriptionElement.querySelectorAll('h3, h4, strong, h2, p strong');
+  sectionElements.forEach(section => {
+    const sectionText = section.textContent?.toLowerCase() || '';
+    let content = '';
+
+    // Get content from next sibling or parent
+    const nextElement = section.nextElementSibling;
+    if (nextElement) {
+      content = nextElement.textContent?.trim() || '';
+    } else {
+      const parent = section.parentElement;
+      if (parent) {
+        content = parent.textContent?.replace(sectionText, '').trim() || '';
+      }
+    }
+
+    // Map sections based on keywords
+    if (sectionText.includes('about') || sectionText.includes('description') || sectionText.includes('overview')) {
+      sections.about = content;
+    } else if (sectionText.includes('responsibility') || sectionText.includes('duties') || sectionText.includes('what you\'ll do')) {
+      sections.responsibilities = content;
+    } else if (sectionText.includes('requirement') || sectionText.includes('qualification') || sectionText.includes('what you\'ll bring')) {
+      sections.requirements = content;
+    } else if (sectionText.includes('benefit') || sectionText.includes('perk') || sectionText.includes('compensation')) {
+      sections.benefits = content;
+    } else if (sectionText.includes('education') || sectionText.includes('degree')) {
+      sections.education = content;
+    } else if (sectionText.includes('skill') || sectionText.includes('technology')) {
+      sections.skills = content;
+    } else if (sectionText.includes('experience') || sectionText.includes('background')) {
+      sections.experience = content;
+    } else if (sectionText.includes('salary') || sectionText.includes('pay') || sectionText.includes('compensation')) {
+      sections.compensation = content;
+    } else if (sectionText.includes('work environment') || sectionText.includes('remote') || sectionText.includes('hybrid')) {
+      sections.workEnvironment = content;
+    } else if (sectionText.includes('culture') || sectionText.includes('values') || sectionText.includes('mission')) {
+      sections.companyCulture = content;
+    } else if (sectionText.includes('growth') || sectionText.includes('career') || sectionText.includes('development')) {
+      sections.growthOpportunities = content;
+    } else if (sectionText.includes('application') || sectionText.includes('apply') || sectionText.includes('process')) {
+      sections.applicationProcess = content;
+    } else if (sectionText.includes('additional') || sectionText.includes('note') || sectionText.includes('other')) {
+      sections.additionalInfo = content;
+    } else if (sectionText.includes('purpose')) {
+      sections.purpose = content;
+    } else if (sectionText.includes('accountability')) {
+      sections.accountability = content;
+    } else if (sectionText.includes('main activities')) {
+      sections.mainActivities = content;
+    } else if (sectionText.includes('knowledge') || sectionText.includes('skill requirements')) {
+      sections.knowledgeRequirements = content;
+    } else if (sectionText.includes('soft skills')) {
+      sections.softSkills = content;
+    } else if (sectionText.includes('complexities') || sectionText.includes('thinking challenges')) {
+      sections.jobComplexities = content;
+    } else if (sectionText.includes('what we offer') || sectionText.includes('benefits')) {
+      sections.whatWeOffer = content;
+    }
+  });
+
+  // Create structured description
+  const structuredDescription = Object.entries(sections)
+    .filter(([_, content]) => content.length > 0)
+    .map(([section, content]) => {
+      const title = section.charAt(0).toUpperCase() + section.slice(1).replace(/([A-Z])/g, ' $1');
+      return `**${title}:**\n${content}`;
+    })
+    .join('\n\n');
+
+  return structuredDescription.substring(0, 5000);
+}
+
+// Extract job requirements
+function extractJobRequirements() {
+  const selectors = [
+    '[data-section="job-requirements"]',
+    '.job-requirements',
+    '.requirements',
+    '[class*="requirement"]'
+  ];
+
+  for (const selector of selectors) {
+    const element = document.querySelector(selector);
+    if (element) {
+      const text = element.textContent?.trim();
+      if (text && text.length > 0) {
+        return text.substring(0, 3000);
+      }
+    }
+  }
+
+  return '';
+}
+
+// Extract job responsibilities
+function extractJobResponsibilities() {
+  const selectors = [
+    '[data-section="job-responsibilities"]',
+    '.job-responsibilities',
+    '.responsibilities',
+    '[class*="responsibility"]'
+  ];
+
+  for (const selector of selectors) {
+    const element = document.querySelector(selector);
+    if (element) {
+      const text = element.textContent?.trim();
+      if (text && text.length > 0) {
+        return text.substring(0, 3000);
+      }
+    }
+  }
+
+  return '';
+}
+
+// Extract job benefits
+function extractJobBenefits() {
+  const selectors = [
+    '[data-section="job-benefits"]',
+    '.job-benefits',
+    '.benefits',
+    '[class*="benefit"]'
+  ];
+
+  for (const selector of selectors) {
+    const element = document.querySelector(selector);
+    if (element) {
+      const text = element.textContent?.trim();
+      if (text && text.length > 0) {
+        return text.substring(0, 2000);
+      }
+    }
+  }
+
+  return '';
+}
+
+// Extract salary information
+function extractSalary() {
+  const salaryPatterns = [
+    /\$[\d,]+(?:-\$[\d,]+)?/g,
+    /\d{1,3}(?:,\d{3})*(?:-\d{1,3}(?:,\d{3})*)?\s*(?:USD|dollars?|k|K)/g,
+    /salary[:\s]*\$?[\d,]+/gi,
+    /compensation[:\s]*\$?[\d,]+/gi
+  ];
+
+  const allText = document.body.textContent || '';
+  
+  for (const pattern of salaryPatterns) {
+    const matches = allText.match(pattern);
+    if (matches && matches.length > 0) {
+      return matches[0];
+    }
+  }
+
+  return '';
+}
+
+// Extract job type
+function extractJobType() {
+  const jobTypePatterns = [
+    /full.?time/gi,
+    /part.?time/gi,
+    /contract/gi,
+    /temporary/gi,
+    /internship/gi,
+    /freelance/gi
+  ];
+
+  const allText = document.body.textContent || '';
+  
+  for (const pattern of jobTypePatterns) {
+    const match = allText.match(pattern);
+    if (match) {
+      return match[0];
+    }
+  }
+
+  return '';
+}
+
+// Extract experience level
+function extractExperienceLevel() {
+  const levelPatterns = [
+    /entry.?level/gi,
+    /junior/gi,
+    /senior/gi,
+    /lead/gi,
+    /principal/gi,
+    /director/gi,
+    /manager/gi,
+    /executive/gi
+  ];
+
+  const allText = document.body.textContent || '';
+  
+  for (const pattern of levelPatterns) {
+    const match = allText.match(pattern);
+    if (match) {
+      return match[0];
+    }
+  }
+
+  return '';
+}
+
+// Extract remote work information
+function extractRemoteWork() {
+  const remotePatterns = [
+    /remote/gi,
+    /hybrid/gi,
+    /on.?site/gi,
+    /work.?from.?home/gi,
+    /wfh/gi
+  ];
+
+  const allText = document.body.textContent || '';
+  
+  for (const pattern of remotePatterns) {
+    const match = allText.match(pattern);
+    if (match) {
+      return match[0];
+    }
+  }
+
+  return '';
+}
+
+// Extract application deadline
+function extractApplicationDeadline() {
+  const deadlinePatterns = [
+    /deadline[:\s]*([A-Za-z]+\s+\d{1,2},?\s+\d{4})/gi,
+    /apply.?by[:\s]*([A-Za-z]+\s+\d{1,2},?\s+\d{4})/gi,
+    /closing[:\s]*([A-Za-z]+\s+\d{1,2},?\s+\d{4})/gi
+  ];
+
+  const allText = document.body.textContent || '';
+  
+  for (const pattern of deadlinePatterns) {
+    const match = allText.match(pattern);
+    if (match) {
+      return match[1] || match[0];
+    }
+  }
+
+  return '';
+}
+
+// Extract posted date
+function extractPostedDate() {
+  const datePatterns = [
+    /posted[:\s]*([A-Za-z]+\s+\d{1,2},?\s+\d{4})/gi,
+    /published[:\s]*([A-Za-z]+\s+\d{1,2},?\s+\d{4})/gi,
+    /listed[:\s]*([A-Za-z]+\s+\d{1,2},?\s+\d{4})/gi
+  ];
+
+  const allText = document.body.textContent || '';
+  
+  for (const pattern of datePatterns) {
+    const match = allText.match(pattern);
+    if (match) {
+      return match[1] || match[0];
+    }
+  }
+
+  return '';
+}
+
+// Extract company size
+function extractCompanySize() {
+  const sizePatterns = [
+    /(\d+)-(\d+)\s+employees/gi,
+    /(\d+)\+?\s+employees/gi,
+    /startup/gi,
+    /small.?business/gi,
+    /medium.?sized/gi,
+    /large.?company/gi,
+    /fortune\s+\d+/gi
+  ];
+
+  const allText = document.body.textContent || '';
+  
+  for (const pattern of sizePatterns) {
+    const match = allText.match(pattern);
+    if (match) {
+      return match[0];
+    }
+  }
+
+  return '';
+}
+
+// Extract industry
+function extractIndustry() {
+  const industryPatterns = [
+    /technology/gi,
+    /healthcare/gi,
+    /finance/gi,
+    /education/gi,
+    /retail/gi,
+    /manufacturing/gi,
+    /consulting/gi,
+    /non.?profit/gi,
+    /government/gi
+  ];
+
+  const allText = document.body.textContent || '';
+  
+  for (const pattern of industryPatterns) {
+    const match = allText.match(pattern);
+    if (match) {
+      return match[0];
+    }
+  }
+
+  return '';
+}
+
+// Extract technologies mentioned
+function extractTechnologies() {
+  const techPatterns = [
+    /javascript|js/gi,
+    /python/gi,
+    /java/gi,
+    /react/gi,
+    /angular/gi,
+    /vue/gi,
+    /node\.?js/gi,
+    /typescript/gi,
+    /sql/gi,
+    /mongodb/gi,
+    /aws/gi,
+    /azure/gi,
+    /docker/gi,
+    /kubernetes/gi,
+    /git/gi,
+    /agile/gi,
+    /scrum/gi
+  ];
+
+  const allText = document.body.textContent || '';
+  const technologies = [];
+  
+  for (const pattern of techPatterns) {
+    const matches = allText.match(pattern);
+    if (matches) {
+      technologies.push(...matches);
+    }
+  }
+
+  return [...new Set(technologies)]; // Remove duplicates
+}
+
+// Extract skills mentioned
+function extractSkills() {
+  const skillPatterns = [
+    /leadership/gi,
+    /communication/gi,
+    /problem.?solving/gi,
+    /teamwork/gi,
+    /project.?management/gi,
+    /analytical/gi,
+    /creative/gi,
+    /detail.?oriented/gi,
+    /time.?management/gi,
+    /customer.?service/gi
+  ];
+
+  const allText = document.body.textContent || '';
+  const skills = [];
+  
+  for (const pattern of skillPatterns) {
+    const matches = allText.match(pattern);
+    if (matches) {
+      skills.push(...matches);
+    }
+  }
+
+  return [...new Set(skills)]; // Remove duplicates
+}
+
+// Extract education requirements
+function extractEducation() {
+  const educationPatterns = [
+    /bachelor/gi,
+    /master/gi,
+    /phd/gi,
+    /degree/gi,
+    /diploma/gi,
+    /certification/gi,
+    /high.?school/gi,
+    /college/gi,
+    /university/gi
+  ];
+
+  const allText = document.body.textContent || '';
+  
+  for (const pattern of educationPatterns) {
+    const match = allText.match(pattern);
+    if (match) {
+      return match[0];
+    }
+  }
+
+  return '';
+}
+
+// Extract certifications mentioned
+function extractCertifications() {
+  const certPatterns = [
+    /pmp/gi,
+    /scrum.?master/gi,
+    /aws.?certified/gi,
+    /azure.?certified/gi,
+    /google.?cloud/gi,
+    /cisco/gi,
+    /microsoft/gi,
+    /oracle/gi,
+    /salesforce/gi
+  ];
+
+  const allText = document.body.textContent || '';
+  const certifications = [];
+  
+  for (const pattern of certPatterns) {
+    const matches = allText.match(pattern);
+    if (matches) {
+      certifications.push(...matches);
+    }
+  }
+
+  return [...new Set(certifications)]; // Remove duplicates
+}
+
 // Main function to initialize job tracking
 function initializeJobTracking() {
   try {
@@ -58,68 +791,40 @@ function initializeJobTracking() {
   }
 }
 
-// Extract job data when needed
+// Extract job data when needed - now using enhanced extraction
 function extractJobData() {
   try {
-    console.log("🚀 JobSchedule: Starting job data extraction for URL:", window.location.href);
+    console.log("🚀 JobSchedule: Starting enhanced job data extraction for URL:", window.location.href);
     
-    // Extract basic job information
-    const jobTitle = document.querySelector('.job-details-jobs-unified-top-card__job-title')?.textContent?.trim();
-    const company = document.querySelector('.job-details-jobs-unified-top-card__company-name')?.textContent?.trim();
+    // Use the comprehensive job information extraction
+    const jobData = extractJobInformation();
     
-    // Try multiple selectors for location
-    let location = null;
-    const locationSelectors = [
-      '.job-details-jobs-unified-top-card__bullet',
-      '.jobs-unified-top-card__bullet',
-      '.job-details-jobs-unified-top-card__location',
-      '.jobs-unified-top-card__location',
-      '[data-test-id="job-location"]',
-      '.job-details-jobs-unified-top-card__subline',
-      '.jobs-unified-top-card__subline'
-    ];
-    
-    for (const selector of locationSelectors) {
-      const locationElement = document.querySelector(selector);
-      if (locationElement) {
-        location = locationElement.textContent?.trim();
-        if (location) {
-          console.log("🚀 JobSchedule: Found location with selector:", selector, location);
-          break;
-        }
-      }
-    }
-    
-    // If no location found, try to extract from other elements
-    if (!location) {
-      const allElements = document.querySelectorAll('*');
-      for (const element of allElements) {
-        const text = element.textContent?.trim();
-        if (text && (text.includes(',') || text.includes('Remote') || text.includes('Hybrid') || text.includes('On-site'))) {
-          // Check if this looks like a location
-          if (text.length < 100 && !text.includes('job') && !text.includes('apply')) {
-            location = text;
-            console.log("🚀 JobSchedule: Found location from general search:", location);
-            break;
-          }
-        }
-      }
-    }
-    
-    console.log("🚀 JobSchedule: Basic job info extracted:", {
-      jobTitle: jobTitle?.substring(0, 50),
-      company: company?.substring(0, 50),
-      location: location?.substring(0, 50)
+    console.log("🚀 JobSchedule: Enhanced job data extracted:", {
+      jobTitle: jobData.jobTitle?.substring(0, 50),
+      company: jobData.company?.substring(0, 50),
+      location: jobData.location?.substring(0, 50),
+      hasLogo: !!jobData.logoUrl,
+      hasDescription: !!jobData.description,
+      hasDetailedDescription: !!jobData.detailedDescription,
+      hasRequirements: !!jobData.jobRequirements,
+      hasResponsibilities: !!jobData.jobResponsibilities,
+      hasBenefits: !!jobData.jobBenefits,
+      salary: jobData.salary,
+      jobType: jobData.jobType,
+      experienceLevel: jobData.experienceLevel,
+      remoteWork: jobData.remoteWork,
+      technologies: jobData.technologies?.length || 0,
+      skills: jobData.skills?.length || 0
     });
     
-    if (!jobTitle || !company) {
+    if (!jobData.jobTitle || !jobData.company) {
       console.log("🚀 JobSchedule: Job data not found");
       return null;
     }
 
     // Create a unique job identifier to prevent duplicates
     const jobUrl = window.location.href;
-    const jobIdentifier = `${jobTitle}-${company}-${location || 'Remote'}-${jobUrl}`;
+    const jobIdentifier = `${jobData.jobTitle}-${jobData.company}-${jobData.location || 'Remote'}-${jobUrl}`;
     
     // Check if we're already processing this job
     if (currentJobIdentifier === jobIdentifier) {
@@ -148,301 +853,7 @@ function extractJobData() {
       console.log("🚀 JobSchedule: Cleaned up processed jobs set, kept last 25");
     }
 
-    // Extract additional data
-    const jobUrlForData = window.location.href;
-    
-    // Get full job description with better structure
-    const descriptionElement = document.querySelector('.jobs-description__content');
-    let description = descriptionElement?.textContent?.trim() || '';
-    
-    // Get detailed job sections with better formatting
-    const jobDetails = document.querySelector('.jobs-description__content');
-    let detailedDescription = jobDetails?.textContent?.trim() || '';
-    
-    // Try to get structured job description sections with more titles
-    const jobDescriptionSections = {
-      about: '',
-      responsibilities: '',
-      requirements: '',
-      benefits: '',
-      qualifications: '',
-      skills: '',
-      experience: '',
-      education: '',
-      compensation: '',
-      workEnvironment: '',
-      companyCulture: '',
-      growthOpportunities: '',
-      applicationProcess: '',
-      additionalInfo: '',
-      purpose: '',
-      accountability: '',
-      mainActivities: '',
-      knowledgeRequirements: '',
-      softSkills: '',
-      jobComplexities: '',
-      whatWeOffer: ''
-    };
-    
-    // Look for structured sections with more comprehensive matching
-    const sections = document.querySelectorAll('.jobs-description__content h3, .jobs-description__content h4, .jobs-description__content strong, .jobs-description__content h2, .jobs-description__content p strong');
-    sections.forEach(section => {
-      const sectionText = section.textContent?.toLowerCase() || '';
-      let content = '';
-      
-      // Get content from next sibling or parent
-      const nextElement = section.nextElementSibling;
-      if (nextElement) {
-        content = nextElement.textContent?.trim() || '';
-      } else {
-        // If no next sibling, get content from parent
-        const parent = section.parentElement;
-        if (parent) {
-          content = parent.textContent?.replace(sectionText, '').trim() || '';
-        }
-      }
-      
-      if (sectionText.includes('about') || sectionText.includes('description') || sectionText.includes('overview')) {
-        jobDescriptionSections.about = content;
-      } else if (sectionText.includes('responsibility') || sectionText.includes('duties') || sectionText.includes('what you\'ll do')) {
-        jobDescriptionSections.responsibilities = content;
-      } else if (sectionText.includes('requirement') || sectionText.includes('qualification') || sectionText.includes('what you\'ll bring')) {
-        jobDescriptionSections.requirements = content;
-      } else if (sectionText.includes('benefit') || sectionText.includes('perk') || sectionText.includes('compensation')) {
-        jobDescriptionSections.benefits = content;
-      } else if (sectionText.includes('education') || sectionText.includes('degree')) {
-        jobDescriptionSections.education = content;
-      } else if (sectionText.includes('skill') || sectionText.includes('technology')) {
-        jobDescriptionSections.skills = content;
-      } else if (sectionText.includes('experience') || sectionText.includes('background')) {
-        jobDescriptionSections.experience = content;
-      } else if (sectionText.includes('salary') || sectionText.includes('pay') || sectionText.includes('compensation')) {
-        jobDescriptionSections.compensation = content;
-      } else if (sectionText.includes('work environment') || sectionText.includes('remote') || sectionText.includes('hybrid')) {
-        jobDescriptionSections.workEnvironment = content;
-      } else if (sectionText.includes('culture') || sectionText.includes('values') || sectionText.includes('mission')) {
-        jobDescriptionSections.companyCulture = content;
-      } else if (sectionText.includes('growth') || sectionText.includes('career') || sectionText.includes('development')) {
-        jobDescriptionSections.growthOpportunities = content;
-      } else if (sectionText.includes('application') || sectionText.includes('apply') || sectionText.includes('process')) {
-        jobDescriptionSections.applicationProcess = content;
-      } else if (sectionText.includes('additional') || sectionText.includes('note') || sectionText.includes('other')) {
-        jobDescriptionSections.additionalInfo = content;
-      } else if (sectionText.includes('purpose')) {
-        jobDescriptionSections.purpose = content;
-      } else if (sectionText.includes('accountability')) {
-        jobDescriptionSections.accountability = content;
-      } else if (sectionText.includes('main activities')) {
-        jobDescriptionSections.mainActivities = content;
-      } else if (sectionText.includes('knowledge') || sectionText.includes('skill requirements')) {
-        jobDescriptionSections.knowledgeRequirements = content;
-      } else if (sectionText.includes('soft skills')) {
-        jobDescriptionSections.softSkills = content;
-      } else if (sectionText.includes('complexities') || sectionText.includes('thinking challenges')) {
-        jobDescriptionSections.jobComplexities = content;
-      } else if (sectionText.includes('what we offer') || sectionText.includes('benefits')) {
-        jobDescriptionSections.whatWeOffer = content;
-      }
-    });
-    
-    // Create structured description with better organization
-    const structuredDescription = Object.entries(jobDescriptionSections)
-      .filter(([_, content]) => content.length > 0)
-      .map(([section, content]) => {
-        const title = section.charAt(0).toUpperCase() + section.slice(1).replace(/([A-Z])/g, ' $1');
-        return `**${title}:**\n${content}`;
-      })
-      .join('\n\n');
-    
-    if (structuredDescription) {
-      detailedDescription = structuredDescription;
-    }
-    
-    // Job requirements and responsibilities - use proper CSS selectors
-    const requirementsElement = document.querySelector('[data-section="job-requirements"]');
-    const jobRequirements = requirementsElement?.textContent?.trim() || '';
-    
-    const responsibilitiesElement = document.querySelector('[data-section="job-responsibilities"]');
-    const jobResponsibilities = responsibilitiesElement?.textContent?.trim() || '';
-    
-    // Job benefits
-    const benefitsElement = document.querySelector('[data-section="job-benefits"]');
-    const jobBenefits = benefitsElement?.textContent?.trim() || '';
-    
-    // If we don't have structured requirements/responsibilities, try to extract from description
-    let finalJobRequirements = jobRequirements;
-    let finalJobResponsibilities = jobResponsibilities;
-    let finalJobBenefits = jobBenefits;
-    
-    if (!finalJobRequirements && jobDescriptionSections.requirements) {
-      finalJobRequirements = jobDescriptionSections.requirements;
-    }
-    
-    if (!finalJobResponsibilities && jobDescriptionSections.responsibilities) {
-      finalJobResponsibilities = jobDescriptionSections.responsibilities;
-    }
-    
-    if (!finalJobBenefits && jobDescriptionSections.benefits) {
-      finalJobBenefits = jobDescriptionSections.benefits;
-    }
-    
-    console.log("🚀 JobSchedule: Extracted job details:", {
-      descriptionLength: description.length,
-      detailedDescriptionLength: detailedDescription.length,
-      requirementsLength: finalJobRequirements.length,
-      responsibilitiesLength: finalJobResponsibilities.length,
-      benefitsLength: finalJobBenefits.length
-    });
-    
-    // Company logo - try multiple selectors with improved detection
-    let logoUrl = null;
-    const logoSelectors = [
-      // Most specific selectors first
-      '.job-details-jobs-unified-top-card__company-logo img',
-      '.jobs-unified-top-card__company-logo img',
-      '.jobs-unified-top-card__company-logo-image img',
-      '[data-test-id="company-logo"] img',
-      // Company-specific logo containers
-      '.job-details-jobs-unified-top-card__company-logo',
-      '.jobs-unified-top-card__company-logo',
-      '.jobs-unified-top-card__company-logo-image',
-      '[data-test-id="company-logo"]',
-      // SVG logos
-      '.job-details-jobs-unified-top-card__company-logo svg image',
-      '.jobs-unified-top-card__company-logo svg image',
-      '.job-details-jobs-unified-top-card__company-logo svg',
-      '.jobs-unified-top-card__company-logo svg',
-      // Fallback selectors (more specific)
-      '.jobs-box__company-logo img',
-      '.jobs-company-logo img',
-      '.company-logo img',
-      '.logo img'
-    ];
-    
-    console.log("🚀 JobSchedule: Starting logo detection for company:", company);
-    
-    for (const selector of logoSelectors) {
-      const logoElement = document.querySelector(selector);
-      if (logoElement) {
-        console.log("🚀 JobSchedule: Found element with selector:", selector);
-        
-        if (logoElement.tagName === 'IMG') {
-          logoUrl = logoElement.src;
-          console.log("🚀 JobSchedule: Found logo with selector:", selector, logoUrl);
-          break;
-        } else if (logoElement.tagName === 'SVG') {
-          const imageElement = logoElement.querySelector('image');
-          if (imageElement) {
-            logoUrl = imageElement.getAttribute('href') || imageElement.getAttribute('xlink:href');
-            console.log("🚀 JobSchedule: Found logo with SVG selector:", selector, logoUrl);
-            break;
-          }
-        } else if (logoElement.style.backgroundImage) {
-          // Extract URL from background-image style
-          const bgImage = logoElement.style.backgroundImage;
-          const urlMatch = bgImage.match(/url\(['"]?([^'"]+)['"]?\)/);
-          if (urlMatch) {
-            logoUrl = urlMatch[1];
-            console.log("🚀 JobSchedule: Found logo with background-image:", selector, logoUrl);
-            break;
-          }
-        } else {
-          // Check if the element has a background image in computed styles
-          const computedStyle = window.getComputedStyle(logoElement);
-          const bgImage = computedStyle.backgroundImage;
-          if (bgImage && bgImage !== 'none') {
-            const urlMatch = bgImage.match(/url\(['"]?([^'"]+)['"]?\)/);
-            if (urlMatch) {
-              logoUrl = urlMatch[1];
-              console.log("🚀 JobSchedule: Found logo with computed background-image:", selector, logoUrl);
-              break;
-            }
-          }
-        }
-      }
-    }
-    
-    // Additional debugging for logo extraction
-    console.log("🚀 JobSchedule: Final logo URL for company:", company, "Logo URL:", logoUrl);
-    if (!logoUrl) {
-      console.log("🚀 JobSchedule: No logo found for company:", company);
-      // Try to find any image that might be a logo
-      const allImages = document.querySelectorAll('img');
-      console.log("🚀 JobSchedule: Found", allImages.length, "images on page");
-      allImages.forEach((img, index) => {
-        console.log(`🚀 JobSchedule: Image ${index}:`, {
-          src: img.src,
-          alt: img.alt,
-          className: img.className,
-          id: img.id
-        });
-      });
-      
-      // Also check for elements with background images
-      const allElements = document.querySelectorAll('*');
-      const elementsWithBg = Array.from(allElements).filter(el => {
-        const style = window.getComputedStyle(el);
-        return style.backgroundImage && style.backgroundImage !== 'none';
-      });
-      console.log("🚀 JobSchedule: Found", elementsWithBg.length, "elements with background images");
-      elementsWithBg.forEach((el, index) => {
-        const style = window.getComputedStyle(el);
-        console.log(`🚀 JobSchedule: Element ${index} with background:`, {
-          tagName: el.tagName,
-          className: el.className,
-          backgroundImage: style.backgroundImage
-        });
-      });
-    }
-    
-    // Validate that the logo URL is appropriate for the company
-    if (logoUrl) {
-      // Check if the logo URL contains the company name (case insensitive)
-      const companyNameLower = company.toLowerCase();
-      const logoUrlLower = logoUrl.toLowerCase();
-      
-      // Only validate if it's clearly a generic logo
-      const isGenericLogo = logoUrlLower.includes('default') || 
-                           logoUrlLower.includes('placeholder') ||
-                           logoUrlLower.includes('generic') ||
-                           logoUrlLower.includes('soti') ||
-                           logoUrlLower.includes('tata_consultancy_services') ||
-                           logoUrlLower.includes('doordash') ||
-                           (logoUrlLower.includes('coinbase') && !company.toLowerCase().includes('coinbase'));
-      
-      if (isGenericLogo) {
-        console.log("🚀 JobSchedule: Generic logo detected, setting to null");
-        console.log("🚀 JobSchedule: Company:", company, "Logo URL:", logoUrl);
-        logoUrl = null;
-      } else {
-        console.log("🚀 JobSchedule: Valid logo found for company:", company);
-      }
-    }
-    
-    // Ensure we don't use a generic/default logo
-    if (logoUrl && (logoUrl.includes('default') || logoUrl.includes('placeholder') || logoUrl.includes('generic'))) {
-      console.log("🚀 JobSchedule: Detected generic logo, setting to null");
-      logoUrl = null;
-    }
-
-    const jobData = {
-      jobTitle,
-      company,
-      location: location || 'Remote',
-      jobUrl: jobUrlForData,
-      description: description.substring(0, 2000),
-      detailedDescription: detailedDescription.substring(0, 5000),
-      jobRequirements: finalJobRequirements.substring(0, 3000),
-      jobResponsibilities: finalJobResponsibilities.substring(0, 3000),
-      jobBenefits: finalJobBenefits.substring(0, 2000),
-      logoUrl,
-      source: 'linkedin'
-    };
-
-    console.log("🚀 JobSchedule: Job data extracted:", jobData);
-    
     // Mark this job as processed to prevent duplicates
-    // processedJobs.add(jobIdentifier); // This line is now redundant due to the new_code
     currentJobIdentifier = null; // Clear current job identifier
     
     return jobData;

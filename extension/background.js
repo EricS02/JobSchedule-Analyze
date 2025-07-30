@@ -86,7 +86,7 @@ function isValidMessage(message) {
          typeof message.action === 'string';
 }
 
-// Job data validation
+// Job data validation with enhanced fields
 function validateJobData(jobData) {
   const errors = [];
   const sanitized = {};
@@ -110,7 +110,7 @@ function validateJobData(jobData) {
     sanitized.location = jobData.location.trim().substring(0, 200);
   }
   
-  // Optional fields with sanitization
+  // Enhanced optional fields with sanitization
   if (jobData.description) {
     sanitized.description = jobData.description.trim().substring(0, 2000);
   }
@@ -137,6 +137,62 @@ function validateJobData(jobData) {
   
   if (jobData.logoUrl && typeof jobData.logoUrl === 'string') {
     sanitized.logoUrl = jobData.logoUrl.trim().substring(0, 500);
+  }
+  
+  // Enhanced metadata fields
+  if (jobData.salary && typeof jobData.salary === 'string') {
+    sanitized.salary = jobData.salary.trim().substring(0, 100);
+  }
+  
+  if (jobData.jobType && typeof jobData.jobType === 'string') {
+    sanitized.jobType = jobData.jobType.trim().substring(0, 50);
+  }
+  
+  if (jobData.experienceLevel && typeof jobData.experienceLevel === 'string') {
+    sanitized.experienceLevel = jobData.experienceLevel.trim().substring(0, 50);
+  }
+  
+  if (jobData.remoteWork && typeof jobData.remoteWork === 'string') {
+    sanitized.remoteWork = jobData.remoteWork.trim().substring(0, 50);
+  }
+  
+  if (jobData.applicationDeadline && typeof jobData.applicationDeadline === 'string') {
+    sanitized.applicationDeadline = jobData.applicationDeadline.trim().substring(0, 100);
+  }
+  
+  if (jobData.postedDate && typeof jobData.postedDate === 'string') {
+    sanitized.postedDate = jobData.postedDate.trim().substring(0, 100);
+  }
+  
+  if (jobData.companySize && typeof jobData.companySize === 'string') {
+    sanitized.companySize = jobData.companySize.trim().substring(0, 100);
+  }
+  
+  if (jobData.industry && typeof jobData.industry === 'string') {
+    sanitized.industry = jobData.industry.trim().substring(0, 100);
+  }
+  
+  if (jobData.education && typeof jobData.education === 'string') {
+    sanitized.education = jobData.education.trim().substring(0, 200);
+  }
+  
+  // Array fields
+  if (jobData.technologies && Array.isArray(jobData.technologies)) {
+    sanitized.technologies = jobData.technologies.slice(0, 20).map(tech => 
+      typeof tech === 'string' ? tech.trim().substring(0, 50) : String(tech).substring(0, 50)
+    );
+  }
+  
+  if (jobData.skills && Array.isArray(jobData.skills)) {
+    sanitized.skills = jobData.skills.slice(0, 20).map(skill => 
+      typeof skill === 'string' ? skill.trim().substring(0, 50) : String(skill).substring(0, 50)
+    );
+  }
+  
+  if (jobData.certifications && Array.isArray(jobData.certifications)) {
+    sanitized.certifications = jobData.certifications.slice(0, 10).map(cert => 
+      typeof cert === 'string' ? cert.trim().substring(0, 100) : String(cert).substring(0, 100)
+    );
   }
   
   // Source field
@@ -383,7 +439,18 @@ async function trackJobApplication(jobData) {
       jobTitle: jobData.jobTitle?.substring(0, 50) + '...',
       company: jobData.company?.substring(0, 50) + '...',
       hasDescription: !!jobData.description,
+      hasDetailedDescription: !!jobData.detailedDescription,
+      hasRequirements: !!jobData.jobRequirements,
+      hasResponsibilities: !!jobData.jobResponsibilities,
+      hasBenefits: !!jobData.jobBenefits,
+      hasLogo: !!jobData.logoUrl,
       hasUrl: !!jobData.jobUrl,
+      salary: jobData.salary,
+      jobType: jobData.jobType,
+      experienceLevel: jobData.experienceLevel,
+      remoteWork: jobData.remoteWork,
+      technologies: jobData.technologies?.length || 0,
+      skills: jobData.skills?.length || 0,
       timestamp: new Date().toISOString()
     });
     
