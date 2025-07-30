@@ -81,9 +81,12 @@ export async function POST(req: NextRequest) {
     
     // Verify JWT token
     const { verifyJwtToken } = await import("@/lib/auth/jwt");
+    console.log("API: Attempting to verify token:", token.substring(0, 20) + "...");
     const payload = await verifyJwtToken(token);
+    console.log("API: Token verification result:", payload ? "Success" : "Failed");
     
     if (!payload || typeof payload !== 'object' || !('userId' in payload)) {
+      console.log("API: Token verification failed - invalid payload");
       return corsHeaders(NextResponse.json(
         { success: false, message: "Invalid token" },
         { status: 401 }

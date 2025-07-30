@@ -18,12 +18,14 @@ export async function GET() {
     }
     
     // Sign the token with your secret using jose library
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || process.env.AUTH_SECRET || "test-secret");
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key');
+    console.log("Test Token: Creating token with secret length:", secret.length);
     const token = await new SignJWT({ userId: testUser.id })
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()
       .setExpirationTime("30d") // Token valid for 30 days
       .sign(secret);
+    console.log("Test Token: Generated token:", token.substring(0, 20) + "...");
     
     // Return the token
     const response = NextResponse.json({

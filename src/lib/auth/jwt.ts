@@ -19,10 +19,12 @@ export async function signJwtToken(payload: any) {
 
 export async function verifyJwtToken(token: string) {
   try {
+    console.log('JWT: Attempting to verify token with secret length:', JWT_SECRET.length);
     const { payload } = await jwtVerify(token, JWT_SECRET);
+    console.log('JWT: Token verification successful, payload:', payload);
     return payload;
   } catch (error) {
-    console.error('Error verifying JWT token:', error);
+    console.error('JWT: Error verifying JWT token:', error);
     return null;
   }
 }
