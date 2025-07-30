@@ -224,7 +224,47 @@ function JobDetails({ job }: { job: JobResponse }) {
               {/* Job Type */}
               {job?.jobType && (
                 <div className="mb-2">
-                  <span className="font-semibold">Type:</span> {getJobType(job?.jobType)}
+                  <span className="font-semibold">Type:</span> {job.jobType}
+                </div>
+              )}
+              {/* Enhanced Job Information */}
+              {job?.salary && (
+                <div className="mb-2">
+                  <span className="font-semibold">Salary:</span> {job.salary}
+                </div>
+              )}
+              {job?.experienceLevel && (
+                <div className="mb-2">
+                  <span className="font-semibold">Experience Level:</span> {job.experienceLevel}
+                </div>
+              )}
+              {job?.remoteWork && (
+                <div className="mb-2">
+                  <span className="font-semibold">Work Type:</span> {job.remoteWork}
+                </div>
+              )}
+              {job?.technologies && job.technologies.length > 0 && (
+                <div className="mb-2">
+                  <span className="font-semibold">Technologies:</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {job.technologies.map((tech, idx) => (
+                      <Badge key={idx} variant="secondary" className="text-xs">
+                        {tech}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {job?.skills && job.skills.length > 0 && (
+                <div className="mb-2">
+                  <span className="font-semibold">Skills:</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {job.skills.map((skill, idx) => (
+                      <Badge key={idx} variant="outline" className="text-xs">
+                        {skill}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -292,6 +332,28 @@ function JobDetails({ job }: { job: JobResponse }) {
             <div className="my-4 ml-4">
               <h4 className="font-bold mb-2">Job Description</h4>
               {formatJobDescription(job.detailedDescription || job.description)}
+            </div>
+          )}
+          
+          {/* Enhanced Job Sections */}
+          {job?.jobRequirements && (
+            <div className="my-4 ml-4">
+              <h4 className="font-bold mb-2">Job Requirements</h4>
+              {formatJobDescription(job.jobRequirements)}
+            </div>
+          )}
+          
+          {job?.jobResponsibilities && (
+            <div className="my-4 ml-4">
+              <h4 className="font-bold mb-2">Job Responsibilities</h4>
+              {formatJobDescription(job.jobResponsibilities)}
+            </div>
+          )}
+          
+          {job?.jobBenefits && (
+            <div className="my-4 ml-4">
+              <h4 className="font-bold mb-2">Job Benefits</h4>
+              {formatJobDescription(job.jobBenefits)}
             </div>
           )}
           <CardFooter></CardFooter>

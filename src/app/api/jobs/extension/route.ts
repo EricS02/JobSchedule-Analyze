@@ -198,13 +198,19 @@ export async function POST(req: NextRequest) {
       
       console.log("API: Checking for duplicates by title+company+location within last 7 days");
       
-      // First find the job title and company
+      // First find the job title and company for this user
       const jobTitle = await prisma.jobTitle.findFirst({
-        where: { label: jobData.jobTitle }
+        where: { 
+          label: jobData.jobTitle,
+          createdBy: user.id
+        }
       });
       
       const company = await prisma.company.findFirst({
-        where: { label: jobData.company }
+        where: { 
+          label: jobData.company,
+          createdBy: user.id
+        }
       });
       
       console.log("API: Found job title and company:", {
@@ -347,9 +353,12 @@ export async function POST(req: NextRequest) {
     // Find or create company with enhanced logo handling
     console.log(`API: Processing company "${jobData.company}" with logo: ${validatedLogoUrl || 'NO LOGO'}`);
     
-    // Check if company exists and update logo if different
-    const existingCompany = await prisma.company.findUnique({
-      where: { value: jobData.company.toLowerCase().replace(/\s+/g, '-') }
+    // Check if company exists for this user and update logo if different
+    const existingCompany = await prisma.company.findFirst({
+      where: { 
+        value: jobData.company.toLowerCase().replace(/\s+/g, '-'),
+        createdBy: user.id
+      }
     });
     
     let company;
@@ -370,7 +379,7 @@ export async function POST(req: NextRequest) {
         console.log(`API: Using existing company "${jobData.company}" with logo: "${existingCompany.logoUrl}"`);
       }
     } else {
-      // Create new company
+      // Create new company for this user
       console.log(`API: Creating new company "${jobData.company}" with logo: "${validatedLogoUrl}"`);
       company = await prisma.company.create({
         data: {
@@ -384,9 +393,12 @@ export async function POST(req: NextRequest) {
     
     console.log(`API: Company processed - ID: ${company.id}, Logo: ${company.logoUrl || 'NO LOGO'}`);
     
-    // Find or create location
+    // Find or create location for this user
     let location = await prisma.location.findFirst({
-      where: { value: jobData.location.toLowerCase().replace(/\s+/g, '-') }
+      where: { 
+        value: jobData.location.toLowerCase().replace(/\s+/g, '-'),
+        createdBy: user.id
+      }
     });
     
     if (!location) {

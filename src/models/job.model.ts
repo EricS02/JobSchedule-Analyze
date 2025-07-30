@@ -36,6 +36,21 @@ export interface JobResponse {
   resumeId?: string;
   Resume?: Resume;
   detailedDescription?: string;
+  // Enhanced fields from GitHub commit
+  salary?: string;
+  experienceLevel?: string;
+  remoteWork?: string;
+  applicationDeadline?: string;
+  postedDate?: string;
+  companySize?: string;
+  industry?: string;
+  technologies?: string[];
+  skills?: string[];
+  education?: string;
+  certifications?: string[];
+  jobRequirements?: string;
+  jobResponsibilities?: string;
+  jobBenefits?: string;
 }
 
 export interface JobTitle {

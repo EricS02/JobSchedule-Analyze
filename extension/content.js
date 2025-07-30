@@ -240,20 +240,47 @@ function extractLocation() {
     '.job-details-jobs-unified-top-card__subline',
     '.jobs-unified-top-card__subline',
     '.location',
-    '[class*="location"]'
+    '[class*="location"]',
+    // Additional LinkedIn selectors
+    '.jobs-unified-top-card__metadata-item',
+    '.job-details-jobs-unified-top-card__metadata-item',
+    '[data-test-id="job-location"]',
+    '.jobs-unified-top-card__subline-item',
+    '.job-details-jobs-unified-top-card__subline-item'
   ];
 
   for (const selector of selectors) {
     const element = document.querySelector(selector);
     if (element) {
       const text = element.textContent?.trim();
-      if (text && text.length > 0) {
-        return text;
+      if (text && text.length > 0 && !text.toLowerCase().includes('remote')) {
+        // Check if it's actually a location (not remote indicator)
+        if (text.includes(',') || text.includes('City') || text.includes('State') || text.includes('Country')) {
+          return text;
+        }
+        // Also check for common location patterns
+        if (/^[A-Za-z\s,]+$/.test(text) && text.length > 3) {
+          return text;
+        }
       }
     }
   }
 
-  return 'Remote';
+  // If no specific location found, check if it's actually remote
+  const remoteSelectors = [
+    '[data-test-id="remote-indicator"]',
+    '.jobs-unified-top-card__remote-indicator',
+    '.job-details-jobs-unified-top-card__remote-indicator'
+  ];
+
+  for (const selector of remoteSelectors) {
+    const element = document.querySelector(selector);
+    if (element) {
+      return 'Remote';
+    }
+  }
+
+  return 'Location not specified';
 }
 
 // Extract job description
@@ -476,9 +503,33 @@ function extractJobType() {
     /contract/gi,
     /temporary/gi,
     /internship/gi,
-    /freelance/gi
+    /freelance/gi,
+    /permanent/gi,
+    /seasonal/gi,
+    /volunteer/gi
   ];
 
+  // Also check specific LinkedIn elements
+  const jobTypeSelectors = [
+    '[data-test-id="job-type"]',
+    '.jobs-unified-top-card__job-type',
+    '.job-details-jobs-unified-top-card__job-type',
+    '.job-type',
+    '[class*="job-type"]'
+  ];
+
+  // First try LinkedIn-specific selectors
+  for (const selector of jobTypeSelectors) {
+    const element = document.querySelector(selector);
+    if (element) {
+      const text = element.textContent?.trim();
+      if (text && text.length > 0) {
+        return text;
+      }
+    }
+  }
+
+  // Then check patterns in all text
   const allText = document.body.textContent || '';
   
   for (const pattern of jobTypePatterns) {
@@ -488,7 +539,7 @@ function extractJobType() {
     }
   }
 
-  return '';
+  return 'Full-time'; // Default to full-time if not specified
 }
 
 // Extract experience level
