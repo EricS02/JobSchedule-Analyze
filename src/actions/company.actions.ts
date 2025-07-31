@@ -126,9 +126,10 @@ export const addCompany = async (
 
     const value = company.trim().toLowerCase();
 
-    const companyExists = await prisma.company.findUnique({
+    const companyExists = await prisma.company.findFirst({
       where: {
         value,
+        createdBy: user.id,
       },
     });
 
@@ -170,9 +171,10 @@ export const updateCompany = async (
 
     const value = company.trim().toLowerCase();
 
-    const companyExists = await prisma.company.findUnique({
+    const companyExists = await prisma.company.findFirst({
       where: {
         value,
+        createdBy: user.id,
       },
     });
 

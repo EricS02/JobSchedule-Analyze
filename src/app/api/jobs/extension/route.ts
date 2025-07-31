@@ -353,45 +353,57 @@ export async function POST(req: NextRequest) {
     // Find or create company with enhanced logo handling
     console.log(`API: Processing company "${jobData.company}" with logo: ${validatedLogoUrl || 'NO LOGO'}`);
     
-        // Find or create company for this user using upsert
+        // Find or create company for this user using findFirst and create
     const companyValue = jobData.company.toLowerCase().replace(/\s+/g, '-');
-    let company = await prisma.company.upsert({
+    let company = await prisma.company.findFirst({
       where: {
         value: companyValue,
         createdBy: user.id
       },
-      update: {
-        label: jobData.company,
-        logoUrl: validatedLogoUrl || undefined // Only update if we have a new logo
-      },
-      create: {
-        label: jobData.company,
-        value: companyValue,
-        createdBy: user.id,
-        logoUrl: validatedLogoUrl || null
-      }
     });
+
+    if (!company) {
+      company = await prisma.company.create({
+        data: {
+          label: jobData.company,
+          value: companyValue,
+          createdBy: user.id,
+          logoUrl: validatedLogoUrl || null
+        }
+      });
+    } else if (validatedLogoUrl && validatedLogoUrl !== company.logoUrl) {
+      // Update logo if we have a new valid one and it's different
+      company = await prisma.company.update({
+        where: { id: company.id },
+        data: {
+          logoUrl: validatedLogoUrl,
+          label: jobData.company
+        }
+      });
+    }
     
     console.log(`API: Company processed - ID: ${company.id}, Logo: ${company.logoUrl || 'NO LOGO'}`);
     
     console.log(`API: Company processed - ID: ${company.id}, Logo: ${company.logoUrl || 'NO LOGO'}`);
     
-    // Find or create location for this user using upsert to handle unique constraint
+    // Find or create location for this user using findFirst and create
     const locationValue = jobData.location.toLowerCase().replace(/\s+/g, '-');
-    let location = await prisma.location.upsert({
+    let location = await prisma.location.findFirst({
       where: { 
         value: locationValue,
         createdBy: user.id
       },
-      update: {
-        label: jobData.location // Update label in case it changed
-      },
-      create: {
-        label: jobData.location,
-        value: locationValue,
-        createdBy: user.id
-      }
     });
+
+    if (!location) {
+      location = await prisma.location.create({
+        data: {
+          label: jobData.location,
+          value: locationValue,
+          createdBy: user.id
+        }
+      });
+    }
     
     // Get job source
     const jobSource = await prisma.jobSource.findFirst({

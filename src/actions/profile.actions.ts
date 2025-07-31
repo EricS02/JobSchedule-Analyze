@@ -630,27 +630,41 @@ const populateResumeFromParsedData = async (
             },
           });
 
-          // Find or create company
-          const company = await prisma.company.upsert({
-            where: { value: exp.company.toLowerCase().replace(/\s+/g, '-') },
-            update: {},
-            create: {
-              label: exp.company,
+          // Find or create company using findFirst and create instead of upsert
+          let company = await prisma.company.findFirst({
+            where: { 
               value: exp.company.toLowerCase().replace(/\s+/g, '-'),
-              createdBy: userId,
+              createdBy: userId
             },
           });
 
-          // Find or create location
-          const location = await prisma.location.upsert({
-            where: { value: exp.location?.toLowerCase().replace(/\s+/g, '-') || 'remote' },
-            update: {},
-            create: {
-              label: exp.location || 'Remote',
+          if (!company) {
+            company = await prisma.company.create({
+              data: {
+                label: exp.company,
+                value: exp.company.toLowerCase().replace(/\s+/g, '-'),
+                createdBy: userId,
+              },
+            });
+          }
+
+          // Find or create location using findFirst and create instead of upsert
+          let location = await prisma.location.findFirst({
+            where: { 
               value: exp.location?.toLowerCase().replace(/\s+/g, '-') || 'remote',
-              createdBy: userId,
+              createdBy: userId
             },
           });
+
+          if (!location) {
+            location = await prisma.location.create({
+              data: {
+                label: exp.location || 'Remote',
+                value: exp.location?.toLowerCase().replace(/\s+/g, '-') || 'remote',
+                createdBy: userId,
+              },
+            });
+          }
 
           // Create experience section
           await prisma.resumeSection.create({
@@ -686,16 +700,23 @@ const populateResumeFromParsedData = async (
     if (parsedData.education && parsedData.education.length > 0) {
       for (const edu of parsedData.education) {
         if (edu.institution && edu.degree && edu.fieldOfStudy) {
-          // Find or create location
-          const location = await prisma.location.upsert({
-            where: { value: edu.location?.toLowerCase().replace(/\s+/g, '-') || 'unknown' },
-            update: {},
-            create: {
-              label: edu.location || 'Unknown',
+          // Find or create location using findFirst and create instead of upsert
+          let location = await prisma.location.findFirst({
+            where: { 
               value: edu.location?.toLowerCase().replace(/\s+/g, '-') || 'unknown',
-              createdBy: userId,
+              createdBy: userId
             },
           });
+
+          if (!location) {
+            location = await prisma.location.create({
+              data: {
+                label: edu.location || 'Unknown',
+                value: edu.location?.toLowerCase().replace(/\s+/g, '-') || 'unknown',
+                createdBy: userId,
+              },
+            });
+          }
 
           // Create education section
           await prisma.resumeSection.create({
