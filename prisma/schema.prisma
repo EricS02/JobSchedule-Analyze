@@ -190,7 +190,7 @@ model JobStatus {
 model Location {
   id             String           @id @default(uuid())
   label          String
-  value          String           @unique
+  value          String
   stateProv      String?
   country        String?
   createdBy      String
@@ -198,17 +198,21 @@ model Location {
   jobsApplied    Job[]
   user           User             @relation(fields: [createdBy], references: [id])
   workExperience WorkExperience[]
+  
+  @@unique([value, createdBy])
 }
 
 model Company {
   id              String           @id @default(uuid())
   label           String
-  value           String           @unique
+  value           String
   logoUrl         String?
   createdBy       String
   user            User             @relation(fields: [createdBy], references: [id])
   jobsApplied     Job[]
   workExperiences WorkExperience[]
+  
+  @@unique([value, createdBy])
 }
 
 model JobSource {

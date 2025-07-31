@@ -9,23 +9,17 @@ async function main() {
   try {
     console.log("Starting database seeding...");
     
-    // Create test user (delete first if exists)
-    try {
-      await prisma.user.delete({
-        where: { email: 'test@example.com' }
-      });
-      console.log("Deleted existing test user");
-    } catch (e) {
-      // User doesn't exist, that's fine
-      console.log("No existing test user to delete");
-    }
-
-    // Create test user
+    // Create test user using upsert
     const password = 'password123';
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    const user = await prisma.user.create({
-      data: {
+    const user = await prisma.user.upsert({
+      where: { email: 'test@example.com' },
+      update: {
+        name: 'Test User',
+        password: hashedPassword,
+      },
+      create: {
         email: 'test@example.com',
         name: 'Test User',
         password: hashedPassword,
